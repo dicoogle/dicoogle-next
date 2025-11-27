@@ -1,5 +1,11 @@
+import type {
+  DICOMAttributeResponse,
+  LoginCredentials,
+  LoginResponse,
+  SearchQuery,
+  SearchResponse,
+} from "@/types";
 import axios, { AxiosInstance } from "axios";
-import type { LoginCredentials, LoginResponse } from "@/types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -201,6 +207,49 @@ class ApiService {
       return { success: false };
     }
   }
+
+  async search(query: SearchQuery): Promise<SearchResponse> {
+    const params: any = {
+      query: query.query,
+    };
+
+    // Optional: provider plugins
+    if (query.providers && query.providers.length > 0) {
+      params.provider = query.providers.join(",");
+    }
+
+    // Optional: field parameter (defaults to 'none' if not specified)
+    if (query.field) {
+      params.field = query.field;
+    }
+
+    const response = await this.api.get("/search", { params });
+    return response.data;
+  }
+
+  // Get DICOM metadata
+  async getDICOMMetadata(uid: string): Promise<DICOMAttributeResponse> {
+    const response = await this.api.get("/dump", {
+      params: { uid },
+    });
+    return response.data;
+  }
+
+  // Get DICOM file URL
+  getDICOMFileUrl(uid: string): string {
+    return `${API_BASE_URL}/legacy/file?uid=${uid}`;
+  }
+
+  // Get image thumbnail
+  getThumbnail(uid: string): string {
+    return `${API_BASE_URL}/dic2png?thumbnail=true&SOPInstanceUID=${uid}`;
+  }
+
+  getImage(uid: string): string {
+    return `${API_BASE_URL}/dic2png?thumbnail=false&SOPInstanceUID=${uid}`;
+  }
+
+  // Get Weasis viewer URL
 }
 
 export const apiService = new ApiService();

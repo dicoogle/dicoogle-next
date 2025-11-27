@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/AuthStore";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "./components/layout/MainLayout";
+import { SearchPage } from "./features/search/SearchPage";
 
 function App() {
   const { isAuthenticated, checkAuth } = useAuthStore();
@@ -25,7 +26,7 @@ function App() {
             path="/search"
             element={
               <ProtectedRoute isAuthenticated={isAuthenticated}>
-                <div>Not Implemented</div>
+                <SearchPage />
               </ProtectedRoute>
             }
           />
