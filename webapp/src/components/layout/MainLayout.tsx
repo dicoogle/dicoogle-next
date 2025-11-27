@@ -1,10 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/AuthStore";
-import { IndexerModal } from "@/features/indexer/IndexerModal";
-import { useSidebarMenuExtensions } from "@/plugin-system";
-
-import { Search, Settings, FolderOpen, User } from "lucide-react";
 
 type MainLayoutProps = {
   children: React.ReactNode;
@@ -14,11 +10,8 @@ export function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuthStore();
-  const [indexerModalOpen, setIndexerModalOpen] = useState(false);
 
-  const pluginMenuItems = useSidebarMenuExtensions();
-
-  // Don't show top bar on login route
+  // Don’t show top bar on login route
   const isLoginPage = location.pathname === "/login";
 
   const handleLogout = () => {
@@ -31,82 +24,49 @@ export function MainLayout({ children }: MainLayoutProps) {
     return <>{children}</>;
   }
 
-  const isActivePath = (path: string) =>
-    location.pathname === path || location.pathname.startsWith(path + "/");
-
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Top bar */}
       <header className="w-full border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           {/* Left: logo + title */}
           <div
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => navigate("/search")}
           >
             <img
-              src={`${import.meta.env.BASE_URL}logo.png`}
+              src="/logo.png"
               alt="Dicoogle Logo"
               className="w-32 h-16 rounded-md object-contain"
             />
+            <div className="flex flex-col leading-tight">
+              <span className="font-semibold text-sm sm:text-base">
+                Dicoogle Next
+              </span>
+              <span className="text-xs text-muted-foreground">PACS Viewer</span>
+            </div>
           </div>
 
           {/* Middle: navigation */}
           {isAuthenticated && (
-            <nav className="hidden sm:flex items-center gap-1 text-sm">
-              {/* Core entries */}
+            <nav className="hidden sm:flex items-center gap-4 text-sm">
               <button
                 onClick={() => navigate("/search")}
-                className={`px-3 py-1 rounded-md hover:bg-muted transition-colors flex ${
+                className={`px-3 py-1 rounded-md hover:bg-muted ${
                   location.pathname.startsWith("/search")
                     ? "bg-muted font-medium"
                     : ""
                 }`}
               >
-                <Search className="w-5 h-5 pr-1" />
                 Search
               </button>
-              <button
-                onClick={() => setIndexerModalOpen(true)}
-                className="px-3 py-1 rounded-md hover:bg-muted transition-colors flex"
-              >
-                <FolderOpen className="w-5 h-5 pr-1" />
-                Import Data
-              </button>
-              {user?.admin && (
-                <button
-                  onClick={() => navigate("/management")}
-                  className={`px-3 py-1 rounded-md hover:bg-muted transition-colors flex ${
-                    location.pathname.startsWith("/management")
-                      ? "bg-muted font-medium"
-                      : ""
-                  }`}
-                >
-                  <Settings className="w-5 h-5 pr-1" />
-                  Management
-                </button>
-              )}
-
-              {/* Plugin-provided entries */}
-              {pluginMenuItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => navigate(item.path)}
-                  className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
-                    isActivePath(item.path) ? "bg-muted font-medium" : ""
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
             </nav>
           )}
 
           {/* Right: user info + logout */}
           {isAuthenticated && (
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border">
-                <User className="w-4 h-4 text-muted-foreground" />
+              <div className="hidden sm:flex flex-col items-end leading-tight">
                 <span className="text-sm font-medium">
                   {user?.user ?? "User"}
                 </span>
@@ -124,12 +84,6 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Page content */}
       <main className="flex-1">{children}</main>
-
-      {/* Indexer Modal */}
-      <IndexerModal
-        open={indexerModalOpen}
-        onClose={() => setIndexerModalOpen(false)}
-      />
     </div>
   );
 }

@@ -1,18 +1,17 @@
 import { create } from "zustand";
-import { dicoogleService } from "@/services/dicoogleService";
+import { apiService } from "@/services/api";
 import type { LoginResponse, LoginCredentials } from "@/types";
 
 interface AuthState {
   isAuthenticated: boolean;
   user: LoginResponse | null;
   loading: boolean;
-  authLoading: boolean; // Loading state for initial auth check
   error: string | null;
 
   // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
-  checkAuth: () => Promise<void>;
+  checkAuth: () => void;
   clearError: () => void;
 }
 
@@ -20,16 +19,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   user: null,
   loading: false,
-  authLoading: true, // Start as true to prevent premature redirects
   error: null,
 
   login: async (credentials: LoginCredentials) => {
     set({ loading: true, error: null });
 
     try {
-      const response = await dicoogleService.login(credentials);
+      const response = await apiService.login(credentials);
 
-      if (response.success) {
+      if (response.success && response.token) {
         set({
           isAuthenticated: true,
           user: response,
@@ -56,7 +54,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     try {
-      await dicoogleService.logout();
+      await apiService.logout();
     } finally {
       set({
         isAuthenticated: false,
@@ -67,25 +65,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  // Check authentication on app load
-  // Uses dicoogleService.isAuthenticated() which relies on
-  // the dicoogle-client-js library's internal session management
   checkAuth: async () => {
-    set({ authLoading: true });
+    // Check if user has valid token in localStorage
+    const token = localStorage.getItem("dicoogle_token");
 
+    if (!token) {
+      set({ isAuthenticated: false, user: null });
+      return;
+    }
+
+    // Validate token with backend by calling GET /login
     try {
-      const isAuth = await dicoogleService.isAuthenticated();
+      // console.log("[Auth] Validating stored token...");
+      const response = await apiService.validateToken();
 
-      if (isAuth) {
-        // Get user info from the service
-        const userInfo = await dicoogleService.getUserInfo();
-        set({ isAuthenticated: true, user: userInfo, authLoading: false });
+      if (response.success) {
+        // console.log("[Auth] Token is valid");
+        set({ isAuthenticated: true, user: response });
       } else {
-        set({ isAuthenticated: false, user: null, authLoading: false });
+        // console.log("[Auth] Token is invalid");
+        set({ isAuthenticated: false, user: null });
       }
     } catch (error) {
-      console.error("[AuthStore] Auth check failed:", error);
-      set({ isAuthenticated: false, user: null, authLoading: false });
+      // console.error("[Auth] Token validation error:", error);
+      set({ isAuthenticated: false, user: null });
     }
   },
 
