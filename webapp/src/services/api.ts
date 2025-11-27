@@ -105,18 +105,12 @@ class ApiService {
         this.setToken(data.token);
       }
 
-      // Extract user info from response or create default
-      const user = data.user || {
-        username: credentials.username,
-        roles: data.roles || [],
-        admin: data.admin || false,
-      };
-
       return {
         success: success,
-        user: user,
+        user: data.user,
+        admin: data.admin,
+        roles: data.roles,
         token: data.token,
-        message: data.message,
       };
     } catch (error: any) {
       // console.error(
@@ -125,27 +119,42 @@ class ApiService {
       // );
       return {
         success: false,
-        message:
-          error.response?.data?.message ||
-          error.response?.data?.error ||
-          error.message ||
-          "Login failed",
       };
     }
   }
 
-  async logout(): Promise<void> {
+  async logout(): Promise<boolean> {
     try {
-      await this.api.post("/logout");
+      if (!this.token) {
+        return false;
+      }
+      const response = await this.api.get("/logout", {
+        headers: {
+          Accept: "application/json",
+          Authorization: this.token,
+        },
+      });
+
+      return response.status === 200;
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        this.clearToken();
+        return false;
+      }
+
+      // For other errors, assume invalid to be safe
+      return false;
     } finally {
       this.clearToken();
     }
   }
 
-  async validateToken(): Promise<boolean> {
+  async validateToken(): Promise<LoginResponse> {
     try {
       if (!this.token) {
-        return false;
+        return {
+          success: false,
+        };
       }
 
       // console.log("[API] Validating token...");
@@ -164,8 +173,17 @@ class ApiService {
       //   response.data,
       // );
 
+      const data = response.data;
+
+      const success = data.success !== false || response.status === 200;
+
       // If we get 200, token is valid
-      return response.status === 200;
+      return {
+        success: success,
+        user: data.user,
+        admin: data.admin,
+        roles: data.roles,
+      };
     } catch (error: any) {
       // console.error(
       //   "[API] Token validation failed:",
@@ -176,11 +194,11 @@ class ApiService {
       // If 401, token is invalid
       if (error.response?.status === 401) {
         this.clearToken();
-        return false;
+        return { success: false };
       }
 
       // For other errors, assume invalid to be safe
-      return false;
+      return { success: false };
     }
   }
 }

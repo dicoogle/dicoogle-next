@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/stores/AuthStore";
-import { AlertCircle, Loader2, Activity } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 
 export function LoginPage() {
   const [username, setUsername] = useState("");
@@ -34,12 +34,9 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo and branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-2xl mb-4 shadow-lg">
-            <Activity className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-128 h-32 rounded-2xl mb-4">
+            <img src="/logo.png" alt="Dicoogle Logo" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Dicoogle Next
-          </h1>
           <p className="text-gray-600 dark:text-gray-400">
             Medical Imaging PACS Platform
           </p>

@@ -1,91 +1,89 @@
-import { ReactNode } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { useAuthStore } from '@/stores/AuthStore'
-import { Button } from '@/components/ui/Button'
-import { Activity, Search, LogOut, User } from 'lucide-react'
+import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuthStore } from "@/stores/AuthStore";
 
-interface MainLayoutProps {
-  children: ReactNode
-}
+type MainLayoutProps = {
+  children: React.ReactNode;
+};
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isAuthenticated, logout, user } = useAuthStore();
+
+  // Don’t show top bar on login route
+  const isLoginPage = location.pathname === "/login";
 
   const handleLogout = () => {
-    logout()
-    navigate('/login')
+    logout();
+    navigate("/login");
+  };
+
+  // On login page, just render children
+  if (isLoginPage) {
+    return <>{children}</>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo and title */}
-            <Link to="/search" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <div className="flex items-center justify-center w-10 h-10 bg-primary-600 rounded-lg">
-                <Activity className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Dicoogle Next
-                </h1>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Medical Imaging PACS</p>
-              </div>
-            </Link>
-
-            {/* Navigation */}
-            <nav className="flex items-center space-x-4">
-              <Link to="/search">
-                <Button variant="ghost" size="sm">
-                  <Search className="w-4 h-4 mr-2" />
-                  Search
-                </Button>
-              </Link>
-
-              {/* User menu */}
-              {user && (
-                <div className="flex items-center space-x-3 pl-4 border-l border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center space-x-2">
-                    <User className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {user.username}
-                    </span>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={handleLogout}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Logout
-                  </Button>
-                </div>
-              )}
-            </nav>
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
+      {/* Top bar */}
+      <header className="w-full border-b border-border bg-card/80 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+          {/* Left: logo + title */}
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => navigate("/search")}
+          >
+            <img
+              src="/logo.png"
+              alt="Dicoogle Logo"
+              className="w-32 h-16 rounded-md object-contain"
+            />
+            <div className="flex flex-col leading-tight">
+              <span className="font-semibold text-sm sm:text-base">
+                Dicoogle Next
+              </span>
+              <span className="text-xs text-muted-foreground">PACS Viewer</span>
+            </div>
           </div>
+
+          {/* Middle: navigation */}
+          {isAuthenticated && (
+            <nav className="hidden sm:flex items-center gap-4 text-sm">
+              <button
+                onClick={() => navigate("/search")}
+                className={`px-3 py-1 rounded-md hover:bg-muted ${
+                  location.pathname.startsWith("/search")
+                    ? "bg-muted font-medium"
+                    : ""
+                }`}
+              >
+                Search
+              </button>
+            </nav>
+          )}
+
+          {/* Right: user info + logout */}
+          {isAuthenticated && (
+            <div className="flex items-center gap-3">
+              <div className="hidden sm:flex flex-col items-end leading-tight">
+                <span className="text-sm font-medium">
+                  {user?.user ?? "User"}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="text-xs sm:text-sm px-3 py-1.5 rounded-md border border-border hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-            Powered by{' '}
-            <a
-              href="https://www.dicoogle.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-            >
-              Dicoogle Open Source PACS
-            </a>
-          </p>
-        </div>
-      </footer>
+      {/* Page content */}
+      <main className="flex-1">{children}</main>
     </div>
-  )
+  );
 }

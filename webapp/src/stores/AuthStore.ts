@@ -1,10 +1,10 @@
 import { create } from "zustand";
 import { apiService } from "@/services/api";
-import type { User, LoginCredentials } from "@/types";
+import type { LoginResponse, LoginCredentials } from "@/types";
 
 interface AuthState {
   isAuthenticated: boolean;
-  user: User | null;
+  user: LoginResponse | null;
   loading: boolean;
   error: string | null;
 
@@ -27,10 +27,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await apiService.login(credentials);
 
-      if (response.success && response.user) {
+      if (response.success && response.token) {
         set({
           isAuthenticated: true,
-          user: response.user,
+          user: response,
           loading: false,
           error: null,
         });
@@ -39,7 +39,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           isAuthenticated: false,
           user: null,
           loading: false,
-          error: response.message || "Login failed",
+          error: "Login failed",
         });
       }
     } catch (error: any) {
@@ -76,18 +76,18 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     // Validate token with backend by calling GET /login
     try {
-      console.log("[Auth] Validating stored token...");
-      const isValid = await apiService.validateToken();
+      // console.log("[Auth] Validating stored token...");
+      const response = await apiService.validateToken();
 
-      if (isValid) {
-        console.log("[Auth] Token is valid");
-        set({ isAuthenticated: true });
+      if (response.success) {
+        // console.log("[Auth] Token is valid");
+        set({ isAuthenticated: true, user: response });
       } else {
-        console.log("[Auth] Token is invalid");
+        // console.log("[Auth] Token is invalid");
         set({ isAuthenticated: false, user: null });
       }
     } catch (error) {
-      console.error("[Auth] Token validation error:", error);
+      // console.error("[Auth] Token validation error:", error);
       set({ isAuthenticated: false, user: null });
     }
   },
