@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        working-directory: ./webapp
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        working-directory: ./webapp
+        run: npm ci
+
+      - name: Lint
+        working-directory: ./webapp
+        run: npm run lint
+
+      - name: Type-check
+        working-directory: ./webapp
+        run: npm run type-check
+
+      - name: Build
+        working-directory: ./webapp
+        run: npm run build
