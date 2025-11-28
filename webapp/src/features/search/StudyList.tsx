@@ -10,6 +10,8 @@ import {
   ChevronDown,
   MapPin,
   ChevronLeft,
+  LayoutList,
+  Grid3X3,
 } from "lucide-react";
 import type { Study } from "@/types";
 
@@ -17,11 +19,13 @@ interface StudyListProps {
   studies: Study[];
 }
 
-const ITEMS_PER_PAGE = 3;
+const ITEMS_PER_PAGE_CARD = 3;
+const ITEMS_PER_PAGE_LIST = 10;
 
 export function StudyList({ studies }: StudyListProps) {
   const { selectStudy, selectedStudy } = useSearchStore();
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<"list" | "card">("list");
 
   const handleStudyClick = (study: Study) => {
     selectStudy(study);
@@ -29,14 +33,13 @@ export function StudyList({ studies }: StudyListProps) {
 
   const formatDate = (date?: string) => {
     if (!date) return "N/A";
-    // DICOM date format is YYYYMMDD
     const year = date.substring(0, 4);
     const month = date.substring(4, 6);
     const day = date.substring(6, 8);
     return `${year}-${month}-${day}`;
   };
 
-  // Filter: if a study is selected, only show that one
+  // Filter studies
   const filteredStudies = selectedStudy
     ? studies.filter(
         (s) => s.studyInstanceUID === selectedStudy.studyInstanceUID,
@@ -44,9 +47,11 @@ export function StudyList({ studies }: StudyListProps) {
     : studies;
 
   // Pagination
-  const totalPages = Math.ceil(filteredStudies.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const itemsPerPage =
+    viewMode === "list" ? ITEMS_PER_PAGE_LIST : ITEMS_PER_PAGE_CARD;
+  const totalPages = Math.ceil(filteredStudies.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
   const displayedStudies = filteredStudies.slice(startIndex, endIndex);
 
   const handlePreviousPage = () => {
@@ -57,16 +62,189 @@ export function StudyList({ studies }: StudyListProps) {
     setCurrentPage((prev) => Math.min(totalPages, prev + 1));
   };
 
-  // Reset to page 1 when selection changes
-  const handleStudyClickWithReset = (study: Study) => {
+  const handleViewModeChange = (newMode: "list" | "card") => {
+    setViewMode(newMode);
+    setCurrentPage(1);
+  };
+
+  const resetToPage1 = (study: Study) => {
     handleStudyClick(study);
     if (!selectedStudy) {
       setCurrentPage(1);
     }
   };
 
+  // Card view component
+  const StudyCard = ({ study }: { study: Study }) => {
+    const isSelected =
+      selectedStudy?.studyInstanceUID === study.studyInstanceUID;
+    return (
+      <Card
+        className={`transition-all cursor-pointer ${
+          isSelected ? "ring-2 ring-primary-500 shadow-lg" : "hover:shadow-md"
+        }`}
+        onClick={() => resetToPage1(study)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-gray-500" />
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {study.patientName || "Unknown Patient"}
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Patient ID: {study.patientID || "N/A"}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  {formatDate(study.studyDate)}
+                </div>
+                {study.modality && (
+                  <div className="flex items-center gap-1">
+                    <FileText className="w-4 h-4" />
+                    {study.modality}
+                  </div>
+                )}
+                {study.InstitutionName && (
+                  <div className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {study.InstitutionName}
+                  </div>
+                )}
+              </div>
+              {study.studyDescription && (
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  {study.studyDescription}
+                </p>
+              )}
+              <details className="text-xs text-gray-500 dark:text-gray-400">
+                <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
+                  Study UID
+                </summary>
+                <code className="block mt-1 bg-gray-100 dark:bg-gray-800 p-2 rounded font-mono">
+                  {study.studyInstanceUID}
+                </code>
+              </details>
+            </div>
+            <div className="flex items-center ml-4">
+              {isSelected ? (
+                <ChevronDown className="w-5 h-5 text-primary-500" />
+              ) : (
+                <ChevronRight className="w-5 h-5 text-gray-400" />
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Table header for list view
+  const TableHeader = () => (
+    <div className="grid grid-cols-[60px_1fr_140px_120px_80px] items-center gap-3 py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-border">
+      <div className="text-center">#</div>
+      <div>Patient Name</div>
+      <div>Study Date</div>
+      <div>Modality</div>
+      <div className="text-right">UID</div>
+    </div>
+  );
+
+  // Compact list view with table-style layout
+  const StudyListView = () => (
+    <div className="space-y-1">
+      {/* Table header */}
+      <TableHeader />
+
+      {/* Table body */}
+      <div className="space-y-0.5">
+        {displayedStudies.map((study, index) => {
+          const isSelected =
+            selectedStudy?.studyInstanceUID === study.studyInstanceUID;
+          return (
+            <div
+              key={study.studyInstanceUID}
+              className={`grid grid-cols-[60px_1fr_140px_120px_80px] items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer hover:bg-muted/50 dark:hover:bg-muted ${
+                isSelected
+                  ? "bg-primary-50 dark:bg-primary-950/50 border border-primary-500"
+                  : "border border-border"
+              }`}
+              onClick={() => resetToPage1(study)}
+            >
+              {/* Index column */}
+              <div className="text-center text-xs font-mono text-gray-600 dark:text-gray-400">
+                {startIndex + index + 1}
+              </div>
+
+              {/* Patient Name column */}
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-1">
+                  <User className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {study.patientName || "Unknown Patient"}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  ID: {study.patientID || "N/A"}
+                </div>
+              </div>
+
+              {/* Study Date column */}
+              <div className="flex items-center gap-1 text-xs">
+                <Calendar className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                <span className="truncate">{formatDate(study.studyDate)}</span>
+              </div>
+
+              {/* Modality column */}
+              <div className="text-xs">
+                {study.modality ? (
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded whitespace-nowrap">
+                    {study.modality}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
+              </div>
+
+              {/* UID column */}
+              <div className="text-xs text-gray-500 dark:text-gray-400 text-right truncate">
+                {study.studyInstanceUID.slice(-8)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Empty state */}
+      {displayedStudies.length === 0 && !selectedStudy && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <p>No studies to display</p>
+        </div>
+      )}
+    </div>
+  );
+
+  // Card view component
+  const StudyCardView = () => (
+    <div className="grid grid-cols-1 gap-3">
+      {displayedStudies.map((study) => (
+        <StudyCard key={study.studyInstanceUID} study={study} />
+      ))}
+
+      {displayedStudies.length === 0 && !selectedStudy && (
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <p>No studies to display</p>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-3">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
           Studies{" "}
@@ -74,97 +252,52 @@ export function StudyList({ studies }: StudyListProps) {
             <span className="text-sm text-gray-500">(1 selected)</span>
           )}
         </h2>
-        {!selectedStudy && filteredStudies.length > ITEMS_PER_PAGE && (
+
+        {/* Page info */}
+        {!selectedStudy && filteredStudies.length > itemsPerPage && (
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Page {currentPage} of {totalPages}
           </span>
         )}
-      </div>
 
-      <div className="grid grid-cols-1 gap-3">
-        {displayedStudies.map((study) => {
-          const isSelected =
-            selectedStudy?.studyInstanceUID === study.studyInstanceUID;
-
-          return (
-            <Card
-              key={study.studyInstanceUID}
-              className={`transition-all cursor-pointer ${
-                isSelected
-                  ? "ring-2 ring-primary-500 shadow-lg"
-                  : "hover:shadow-md"
-              }`}
-              onClick={() => handleStudyClickWithReset(study)}
+        {/* View mode toggle */}
+        {!selectedStudy && filteredStudies.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleViewModeChange("list")}
+              className={viewMode === "list" ? "border-primary" : ""}
             >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 space-y-2">
-                    {/* Patient info */}
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-500" />
-                      <span className="font-semibold text-gray-900 dark:text-white">
-                        {study.patientName || "Unknown Patient"}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Patient ID: {study.patientID || "N/A"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {formatDate(study.studyDate)}
-                      </div>
-                      {study.modality && (
-                        <div className="flex items-center gap-1">
-                          <FileText className="w-4 h-4" />
-                          Modality: {study.modality}
-                        </div>
-                      )}
-                      {study.InstitutionName && (
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {study.InstitutionName}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Study description */}
-                    {study.studyDescription && (
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
-                        {study.studyDescription}
-                      </p>
-                    )}
-
-                    {/* Study UID (collapsed by default) */}
-                    <details className="text-xs text-gray-500 dark:text-gray-400">
-                      <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
-                        Study UID
-                      </summary>
-                      <code className="block mt-1 bg-gray-100 dark:bg-gray-800 p-2 rounded font-mono">
-                        {study.studyInstanceUID}
-                      </code>
-                    </details>
-                  </div>
-
-                  {/* Action indicator */}
-                  <div className="flex items-center ml-4">
-                    {isSelected ? (
-                      <ChevronDown className="w-5 h-5 text-primary-500" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+              <LayoutList className="w-4 h-4 mr-1" />
+              List
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleViewModeChange("card")}
+              className={viewMode === "card" ? "border-primary" : ""}
+            >
+              <Grid3X3 className="w-4 h-4 mr-1" />
+              Cards
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Pagination controls - only show when not viewing a selected study */}
-      {!selectedStudy && filteredStudies.length > ITEMS_PER_PAGE && (
-        <div className="flex items-center justify-between pt-2">
+      {/* Selected study view */}
+      {selectedStudy && filteredStudies.length > 0 && (
+        <StudyCard key={selectedStudy.studyInstanceUID} study={selectedStudy} />
+      )}
+
+      {/* Regular view (list or card) */}
+      {!selectedStudy && (
+        <>{viewMode === "list" ? <StudyListView /> : <StudyCardView />}</>
+      )}
+
+      {/* Pagination - only when not viewing selected study */}
+      {!selectedStudy && filteredStudies.length > itemsPerPage && (
+        <div className="flex items-center justify-between pt-4">
           <Button
             variant="outline"
             size="sm"
@@ -175,7 +308,7 @@ export function StudyList({ studies }: StudyListProps) {
             Previous
           </Button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <Button
                 key={page}
