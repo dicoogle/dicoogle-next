@@ -1,4 +1,4 @@
-name: CI/CD Pipeline (Multi-Branch)
+name: CI/CD Pipeline (Docker)
 
 on:
   push:
@@ -7,8 +7,9 @@ on:
     branches: [main, dev]
 
 jobs:
-  # JOB 1: CI & BUILD (Runs on GitHub Cloud)
-  ci-build:
+  # JOB 1: QUALITY CHECKS (Runs on GitHub Cloud)
+  # We keep this to ensure code is good before wasting time building on the VM
+  ci-checks:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,48 +35,44 @@ jobs:
       - name: Type-check
         run: npm run type-check
 
-      - name: Build Project
+      # We run build here just to check for errors, but we DON'T upload artifacts.
+      # The actual deployment build happens inside Docker on the VM.
+      - name: Test Build
         run: npm run build
-
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-files
-          path: ./webapp/dist # (Use 'build' if using Create-React-App)
-          retention-days: 1
 
   # JOB 2: DEPLOY (Runs on YOUR VM)
   deploy:
-    needs: ci-build
+    needs: ci-checks
+    # Only deploy on pushes, not PRs
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: self-hosted
 
     steps:
-      # Step 1: Set Paths based on Branch
-      - name: Set Deployment Config
-        id: config
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Determine Ports and Names based on Branch
+      - name: Set Environment Variables
         run: |
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            # Pointing to the Nginx folders we made
-            echo "TARGET_DIR=/var/www/main" >> $GITHUB_ENV
+            echo "PROJECT_NAME=dicoogle-main" >> $GITHUB_ENV
+            echo "HOST_WEB_PORT=80" >> $GITHUB_ENV
+            echo "HOST_API_PORT=8080" >> $GITHUB_ENV
           else
-            echo "TARGET_DIR=/var/www/dev" >> $GITHUB_ENV
+            echo "PROJECT_NAME=dicoogle-dev" >> $GITHUB_ENV
+            echo "HOST_WEB_PORT=81" >> $GITHUB_ENV
+            echo "HOST_API_PORT=8081" >> $GITHUB_ENV
           fi
 
-      # Step 2: Download Artifact
-      - name: Download Build Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-files
-          path: /tmp/webapp-build
-
-      # Step 3: Deploy Files
-      - name: Deploy to Nginx Folder
+      # Build and Start Containers
+      - name: Deploy with Docker Compose
         run: |
-          echo "Deploying to: ${{ env.TARGET_DIR }}"
+          echo "Deploying ${PROJECT_NAME} on Web Port ${HOST_WEB_PORT}..."
 
-          # Empty the folder safely
-          mkdir -p ${{ env.TARGET_DIR }}
+          # -p sets the project name (so Main and Dev don't overwrite each other)
+          # We pass the environment variables explicitly to the command
+          HOST_WEB_PORT=${{ env.HOST_WEB_PORT }} HOST_API_PORT=${{ env.HOST_API_PORT }} docker compose -p ${{ env.PROJECT_NAME }} up -d --build
 
-          # Copy new files (using -rT to copy contents, not the folder itself)
-          cp -rT /tmp/webapp-build/ ${{ env.TARGET_DIR }}
+      - name: Cleanup
+        # Remove unused images to save disk space
+        run: docker image prune -f
