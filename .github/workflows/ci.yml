@@ -1,4 +1,4 @@
-name: CI
+name: CI/CD Pipeline (Multi-Branch)
 
 on:
   push:
@@ -7,7 +7,8 @@ on:
     branches: [main, dev]
 
 jobs:
-  ci:
+  # JOB 1: CI & BUILD (Runs on GitHub Cloud)
+  ci-build:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -33,5 +34,48 @@ jobs:
       - name: Type-check
         run: npm run type-check
 
-      - name: Build
+      - name: Build Project
         run: npm run build
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-files
+          path: ./webapp/dist # (Use 'build' if using Create-React-App)
+          retention-days: 1
+
+  # JOB 2: DEPLOY (Runs on YOUR VM)
+  deploy:
+    needs: ci-build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    runs-on: self-hosted
+
+    steps:
+      # Step 1: Set Paths based on Branch
+      - name: Set Deployment Config
+        id: config
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            # Pointing to the Nginx folders we made
+            echo "TARGET_DIR=/var/www/main" >> $GITHUB_ENV
+          else
+            echo "TARGET_DIR=/var/www/dev" >> $GITHUB_ENV
+          fi
+
+      # Step 2: Download Artifact
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-files
+          path: /tmp/webapp-build
+
+      # Step 3: Deploy Files
+      - name: Deploy to Nginx Folder
+        run: |
+          echo "Deploying to: ${{ env.TARGET_DIR }}"
+
+          # Empty the folder safely
+          mkdir -p ${{ env.TARGET_DIR }}
+
+          # Copy new files (using -rT to copy contents, not the folder itself)
+          cp -rT /tmp/webapp-build/ ${{ env.TARGET_DIR }}
