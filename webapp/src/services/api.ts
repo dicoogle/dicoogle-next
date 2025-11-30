@@ -235,12 +235,10 @@ class ApiService {
     return response.data;
   }
 
-  // Get DICOM file URL
   getDICOMFileUrl(uid: string): string {
     return `${API_BASE_URL}/legacy/file?uid=${uid}`;
   }
 
-  // Get image thumbnail
   getThumbnail(uid: string): string {
     return `${API_BASE_URL}/dic2png?thumbnail=true&SOPInstanceUID=${uid}`;
   }
@@ -248,8 +246,6 @@ class ApiService {
   getImage(uid: string): string {
     return `${API_BASE_URL}/dic2png?thumbnail=false&SOPInstanceUID=${uid}`;
   }
-
-  // Get Weasis viewer URL
 }
 
 export const apiService = new ApiService();

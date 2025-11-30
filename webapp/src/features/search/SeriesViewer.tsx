@@ -10,8 +10,10 @@ import {
   X,
   Info,
   Loader2,
+  MonitorPlay, // Icon for Workstation
 } from "lucide-react";
 import { apiService } from "@/services/api";
+import { DicomViewer } from "@/components/dicom/CornerstoneViewport";
 import type {
   Study,
   Series,
@@ -27,12 +29,15 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const { selectedSeries } = useSearchStore();
   const series = selectedSeries || [];
 
-  // Viewer state
+  // Quick Viewer state (Simple Modal)
   const [viewerOpen, setViewerOpen] = useState(false);
   const [currentSeries, setCurrentSeries] = useState<Series | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showMetadata, setShowMetadata] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+
+  // Advanced Viewer state (Full Screen Overlay)
+  const [showAdvancedViewer, setShowAdvancedViewer] = useState(false);
 
   // Metadata state
   const [metadata, setMetadata] = useState<DICOMAttribute | null>(null);
@@ -42,12 +47,23 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const currentImage: DICOMImage | undefined =
     currentSeries?.images?.[currentImageIndex];
 
+  // --- Handlers ---
+
   const handleOpenViewer = (s: Series) => {
     if (!s.images || s.images.length === 0) return;
     setCurrentSeries(s);
     setCurrentImageIndex(0);
     setViewerOpen(true);
     setShowMetadata(false);
+    setShowAdvancedViewer(false);
+  };
+
+  // NEW: Handler to open Workstation directly from list
+  const handleOpenWorkstation = (s: Series) => {
+    if (!s.images || s.images.length === 0) return;
+    setCurrentSeries(s);
+    setViewerOpen(false); // Ensure quick view is closed
+    setShowAdvancedViewer(true);
   };
 
   const handleCloseViewer = () => {
@@ -56,7 +72,6 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     setCurrentImageIndex(0);
     setShowMetadata(false);
     setMetadata(null);
-    setMetadataError(null);
   };
 
   const handleNextImage = () => {
@@ -71,23 +86,23 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showAdvancedViewer) return; // Let advanced viewer handle its own keys
     if (e.key === "ArrowRight") handleNextImage();
     if (e.key === "ArrowLeft") handlePreviousImage();
     if (e.key === "Escape") handleCloseViewer();
     if (e.key === "i" || e.key === "I") setShowMetadata((prev) => !prev);
   };
 
-  // Fetch full dump when image or viewer changes (and metadata panel is open)
+  // Fetch metadata dump
   useEffect(() => {
     const loadMetadata = async () => {
-      if (!viewerOpen || !currentImage) return;
+      if (!viewerOpen || !currentImage || !showMetadata) return;
       setMetadataLoading(true);
       setMetadataError(null);
       try {
         const dump = await apiService.getDICOMMetadata(
           currentImage.sopInstanceUID,
         );
-
         setMetadata(() => dump.results);
       } catch (err: any) {
         setMetadata(null);
@@ -96,9 +111,16 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
         setMetadataLoading(false);
       }
     };
-
     loadMetadata();
-  }, [viewerOpen, currentImage?.sopInstanceUID, currentImage]);
+  }, [viewerOpen, currentImage?.sopInstanceUID, showMetadata]);
+
+  // Helper: Prepare URLs for the Advanced Viewer
+  const getSeriesUrls = () => {
+    if (!currentSeries?.images) return [];
+    return currentSeries.images.map((img) =>
+      apiService.getDICOMFileUrl(img.sopInstanceUID),
+    );
+  };
 
   if (series.length === 0) {
     return (
@@ -117,225 +139,209 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
 
   return (
     <>
+      {/* --- Series List (Grid) --- */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div>
-            <CardTitle>Series for Selected Study</CardTitle>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              {study.patientName} - {study.studyDescription || "No description"}
-            </p>
-          </div>
+        <CardHeader>
+          <CardTitle>Series for Selected Study</CardTitle>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            {study.patientName} - {study.studyDescription || "No description"}
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {series.map((s) => (
               <div
                 key={s.seriesInstanceUID}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 dark:hover:border-primary-400 transition-colors group"
+                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full"
               >
-                {/* Series preview - clickable */}
+                {/* Thumbnail Area */}
                 <button
                   onClick={() => handleOpenViewer(s)}
                   disabled={!s.images || s.images.length === 0}
-                  className="w-full flex items-center justify-center h-32 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 group-hover:bg-gray-200 dark:group-hover:bg-gray-700 transition-colors relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity flex-shrink-0"
                 >
                   {s.images && s.images.length > 0 ? (
                     <img
                       src={apiService.getThumbnail(s.images[0].sopInstanceUID)}
-                      alt="Series thumbnail"
-                      className="object-contain w-full h-full"
+                      alt="Thumbnail"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
                     />
                   ) : (
-                    <ImageIcon className="w-12 h-12 text-gray-400 group-hover:text-gray-500 transition-colors" />
-                  )}
-
-                  {s.images && s.images.length > 0 && (
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all flex items-center justify-center">
-                      <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
+                    <ImageIcon className="w-12 h-12 text-gray-400 m-auto" />
                   )}
                 </button>
 
-                {/* Series info */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Series #{s.seriesNumber || "N/A"}
+                {/* Series Details */}
+                <div className="flex-1 space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium text-sm">
+                      Series #{s.seriesNumber}
                     </span>
-                    {s.modality && (
-                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        {s.modality}
-                      </span>
-                    )}
+                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                      {s.modality || "US"}
+                    </span>
                   </div>
-
-                  {s.seriesDescription && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                      {s.seriesDescription}
-                    </p>
-                  )}
-
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500 line-clamp-2">
+                    {s.seriesDescription || "No description"}
+                  </p>
+                  <p className="text-xs text-gray-400 pb-2">
                     {s.images?.length || 0} images
                   </p>
+                </div>
 
+                {/* Buttons Container - Pushed to bottom */}
+                <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
                   <Button
-                    onClick={() => handleOpenViewer(s)}
                     size="sm"
-                    className="w-full mt-2"
+                    variant="outline"
+                    onClick={() => handleOpenViewer(s)}
                     disabled={!s.images || s.images.length === 0}
+                    className="w-full text-xs px-2"
                   >
-                    <Eye className="w-4 h-4 mr-2" />
-                    Quick View{" "}
-                    {s.images?.length ? `(${s.images.length})` : "(No images)"}
+                    <Eye className="w-3.5 h-3.5 mr-1.5" /> Quick
                   </Button>
 
-                  <details className="text-xs text-gray-500 dark:text-gray-400">
-                    <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
-                      Series UID
-                    </summary>
-                    <code className="block mt-1 bg-gray-100 dark:bg-gray-800 p-2 rounded font-mono break-all text-[10px]">
-                      {s.seriesInstanceUID}
-                    </code>
-                  </details>
+                  <Button
+                    size="sm"
+                    variant="default" // Highlighted button
+                    onClick={() => handleOpenWorkstation(s)}
+                    disabled={!s.images || s.images.length === 0}
+                    className="w-full text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <MonitorPlay className="w-3.5 h-3.5 mr-1.5" /> Advanced
+                  </Button>
                 </div>
               </div>
             ))}
           </div>
-
-          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-              <p className="font-semibold">Viewing Options:</p>
-              <ul className="space-y-1 list-disc list-inside">
-                <li>
-                  <strong>Quick View:</strong> Basic image preview (click series
-                  above)
-                </li>
-              </ul>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
+      {/* --- Quick Viewer Modal --- */}
       {viewerOpen && currentSeries && currentImage && (
         <div
-          className="fixed inset-0 z-auto bg-black/95 flex items-center justify-center"
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
           onKeyDown={handleKeyDown}
           tabIndex={0}
         >
-          {/* Close button */}
-          <button
-            onClick={handleCloseViewer}
-            className="absolute top-4 right-4 z-50 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
-            title="Close (Esc)"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          {/* Top Bar */}
+          <div className="absolute top-4 left-4 right-4 flex justify-between z-50 pointer-events-none">
+            {/* Left: Info */}
+            <div className="flex gap-4 pointer-events-auto items-center">
+              <div className="bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-white text-sm font-mono">
+                {currentImageIndex + 1} / {currentSeries.images.length}
+              </div>
 
-          {/* Metadata toggle button */}
-          <button
-            onClick={() => setShowMetadata((prev) => !prev)}
-            className="absolute top-4 right-16 z-50 p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-white transition-colors"
-            title="Toggle Metadata (I)"
-          >
-            <Info className="w-6 h-6" />
-          </button>
+              {/* Also keep Workstation button here for convenience */}
+              <Button
+                onClick={() => {
+                  setShowAdvancedViewer(true);
+                  // Optional: Close quick view if you prefer cleaner UX
+                  setViewerOpen(false);
+                }}
+                size="sm"
+                className="bg-blue-600/80 hover:bg-blue-600 text-white border border-blue-500/50"
+              >
+                <MonitorPlay className="w-4 h-4 mr-2" /> Open Workstation
+              </Button>
+            </div>
 
-          {/* Image counter */}
-          <div className="absolute top-4 left-4 z-50 px-4 py-2 bg-gray-800 rounded-lg text-white text-sm">
-            {currentImageIndex + 1} / {currentSeries.images.length}
+            {/* Right: Controls */}
+            <div className="flex gap-2 pointer-events-auto">
+              <button
+                onClick={() => setShowMetadata((prev) => !prev)}
+                className={`p-2 rounded-lg border ${
+                  showMetadata
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+                }`}
+                title="View Metadata"
+              >
+                <Info className="w-5 h-5" />
+              </button>
+              <button
+                onClick={handleCloseViewer}
+                className="p-2 bg-gray-800 border border-gray-700 rounded-lg text-white hover:bg-red-900/50 hover:border-red-800"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex w-full h-full">
-            {/* Image area, slightly smaller */}
-            <div className="flex-1 flex items-center justify-center relative px-8 py-8">
-              {currentImageIndex > 0 && (
-                <button
-                  onClick={handlePreviousImage}
-                  className="absolute left-6 z-40 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-white transition-colors"
-                  title="Previous (←)"
-                >
-                  <ChevronLeft className="w-7 h-7" />
-                </button>
-              )}
+          {/* Main Content */}
+          <div className="flex w-full h-full pt-16 pb-4 px-4 gap-4">
+            <div className="flex-1 relative flex items-center justify-center">
+              {/* Prev Arrow */}
+              <button
+                onClick={handlePreviousImage}
+                className="absolute left-0 p-4 text-white hover:text-blue-400 transition-colors z-40 disabled:opacity-30 disabled:hover:text-white"
+                disabled={currentImageIndex === 0}
+              >
+                <ChevronLeft className="w-10 h-10" />
+              </button>
 
-              <div className="relative max-w-[80%] max-h-[80vh] flex items-center justify-center">
+              {/* Simple Image (JPEG/PNG) */}
+              <div className="relative max-h-full max-w-full">
                 {imageLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Loader2 className="w-10 h-10 text-white animate-spin" />
-                  </div>
+                  <Loader2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 text-blue-500 animate-spin" />
                 )}
                 <img
                   src={apiService.getImage(currentImage.sopInstanceUID)}
-                  alt={`Image ${currentImageIndex + 1}`}
-                  className="max-w-full max-h-full object-contain"
+                  className="max-h-[85vh] object-contain"
                   onLoad={() => setImageLoading(false)}
-                  onError={() => setImageLoading(false)}
+                  onLoadStart={() => setImageLoading(true)}
+                  alt="DICOM Preview"
                 />
               </div>
 
-              {currentImageIndex < currentSeries.images.length - 1 && (
-                <button
-                  onClick={handleNextImage}
-                  className="absolute right-6 z-40 p-3 bg-gray-800 hover:bg-gray-700 rounded-full text-white transition-colors"
-                  title="Next (→)"
-                >
-                  <ChevronRight className="w-7 h-7" />
-                </button>
-              )}
+              {/* Next Arrow */}
+              <button
+                onClick={handleNextImage}
+                className="absolute right-0 p-4 text-white hover:text-blue-400 transition-colors z-40 disabled:opacity-30 disabled:hover:text-white"
+                disabled={currentImageIndex === currentSeries.images.length - 1}
+              >
+                <ChevronRight className="w-10 h-10" />
+              </button>
             </div>
 
-            {/* Metadata sidebar (full dump) */}
+            {/* Metadata Panel */}
             {showMetadata && (
-              <div className="w-96 bg-gray-900 text-white overflow-y-auto p-4 border-l border-gray-700">
-                <h3 className="text-lg font-semibold mb-4">
-                  Image Metadata (Dump)
+              <div className="w-80 bg-gray-900 border-l border-gray-700 p-4 overflow-y-auto rounded-lg animate-in slide-in-from-right-10">
+                <h3 className="text-white font-bold mb-4 border-b border-gray-700 pb-2">
+                  DICOM Tags
                 </h3>
-
-                {metadataLoading && (
-                  <div className="flex items-center gap-2 text-sm text-gray-300">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Loading metadata…</span>
+                {metadataLoading ? (
+                  <div className="text-gray-400 flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading...
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-xs font-mono text-gray-300">
+                    {metadata &&
+                      Object.entries(metadata.fields).map(([k, v]) => (
+                        <div key={k} className="border-b border-gray-800 pb-1">
+                          <div className="text-gray-500">{k}</div>
+                          <div className="break-all">{String(v)}</div>
+                        </div>
+                      ))}
                   </div>
                 )}
-
-                {metadataError && (
-                  <p className="text-sm text-red-400">{metadataError}</p>
-                )}
-
-                {!metadataLoading && !metadataError && metadata && (
-                  <div className="space-y-3 text-xs">
-                    {Object.entries(metadata.fields).map(([key, value]) => (
-                      <div key={key} className="border-b border-gray-800 pb-2">
-                        <div className="flex justify-between gap-2">
-                          <span className="font-mono text-[10px] text-gray-400">
-                            {key}
-                          </span>
-                        </div>
-
-                        <div className="mt-1 text-gray-200 break-words">
-                          {value || " "}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-6 pt-4 border-t border-gray-700 text-xs text-gray-400">
-                  <p className="font-semibold mb-2">Keyboard Shortcuts:</p>
-                  <ul className="space-y-1">
-                    <li>← / → : Previous/Next image</li>
-                    <li>I : Toggle metadata</li>
-                    <li>Esc : Close viewer</li>
-                  </ul>
-                </div>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* --- ADVANCED VIEWER OVERLAY --- */}
+      {showAdvancedViewer && currentSeries && (
+        <DicomViewer
+          imageUrls={getSeriesUrls()}
+          title={`Series #${currentSeries.seriesNumber} - ${currentSeries.modality}`}
+          onClose={() => setShowAdvancedViewer(false)}
+        />
       )}
     </>
   );
