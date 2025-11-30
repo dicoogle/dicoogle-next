@@ -39,12 +39,6 @@ export function MainLayout({ children }: MainLayoutProps) {
               alt="Dicoogle Logo"
               className="w-32 h-16 rounded-md object-contain"
             />
-            <div className="flex flex-col leading-tight">
-              <span className="font-semibold text-sm sm:text-base">
-                Dicoogle Next
-              </span>
-              <span className="text-xs text-muted-foreground">PACS Viewer</span>
-            </div>
           </div>
 
           {/* Middle: navigation */}
