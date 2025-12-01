@@ -1,30 +1,31 @@
-import { init as csRenderInit } from "@cornerstonejs/core";
-import { init as csToolsInit } from "@cornerstonejs/tools";
-import * as cornerstoneDICOMImageLoader from "@cornerstonejs/dicom-image-loader";
 import * as cornerstone from "@cornerstonejs/core";
+import * as cornerstoneTools from "@cornerstonejs/tools";
+import * as cornerstoneDICOMImageLoader from "@cornerstonejs/dicom-image-loader";
 import dicomParser from "dicom-parser";
 
-// Singleton promise to handle race conditions and HMR correctly
 let csInitPromise: Promise<void> | null = null;
 
 export function initCornerstone() {
-  // If already initializing or initialized, return the existing promise
   if (csInitPromise) return csInitPromise;
 
   csInitPromise = (async () => {
     try {
-      // 1. Initialize Core and Tools
-      await csRenderInit();
-      await csToolsInit();
+      // 1. Initialize Core
+      await cornerstone.init();
 
-      // 2. Configure Image Loader
-      // Assign the cornerstone instance to the loader
+      // 2. Initialize Tools
+      await cornerstoneTools.init();
+
+      // 3. Configure Image Loader
+      // Explicitly link the same cornerstone instance
       cornerstoneDICOMImageLoader.external.cornerstone = cornerstone;
-      // Assign dicomParser to the loader (REQUIRED)
       cornerstoneDICOMImageLoader.external.dicomParser = dicomParser;
 
-      // Configure Web Workers
-      // Switched to jsDelivr to avoid "disallowed MIME type" errors common with unpkg
+      // 4. Configure Web Workers
+      // We use window.location.origin to ensure absolute paths.
+      // This prevents 404s when you are on a sub-route (e.g. /study/123)
+      const baseUrl = window.location.origin;
+
       cornerstoneDICOMImageLoader.webWorkerManager.initialize({
         maxWebWorkers: navigator.hardwareConcurrency || 1,
         startWebWorkersOnDemand: true,
@@ -34,12 +35,13 @@ export function initCornerstone() {
           },
         },
         webWorkerTaskPaths: [
-          "https://cdn.jsdelivr.net/npm/@cornerstonejs/dicom-image-loader@1.63.1/dist/dynamic-import/610.min.worker.js",
-          "https://cdn.jsdelivr.net/npm/@cornerstonejs/dicom-image-loader@1.63.1/dist/dynamic-import/945.min.worker.js",
+          // IMPORTANT: Check that these files exist in your public/dicom-workers/ folder
+          `${baseUrl}/dicom-workers/610.min.worker.js`,
+          `${baseUrl}/dicom-workers/945.min.worker.js`,
         ],
       });
 
-      // 3. Configure Auth Headers
+      // 5. Configure Auth
       cornerstoneDICOMImageLoader.configure({
         beforeSend: (xhr: XMLHttpRequest) => {
           const token = localStorage.getItem("dicoogle_token");
@@ -48,10 +50,11 @@ export function initCornerstone() {
           }
         },
       });
+
+      console.log("[Cornerstone] Initialization complete");
     } catch (error) {
-      // Reset promise on error so it can be retried
       csInitPromise = null;
-      console.error("Cornerstone initialization failed:", error);
+      console.error("[Cornerstone] Initialization failed:", error);
       throw error;
     }
   })();

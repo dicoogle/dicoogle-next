@@ -4,6 +4,7 @@ import { Enums as csEnums } from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { initCornerstone } from "@/utils/cornerstone-init";
 import { Button } from "@/components/ui/Button";
+import { apiService } from "@/services/api"; // Import API service
 import {
   ZoomIn,
   Move,
@@ -13,8 +14,8 @@ import {
   X,
   Loader2,
   Square,
-  Circle,
   Pen,
+  Info, // Import Info icon
 } from "lucide-react";
 
 interface DicomViewerProps {
@@ -32,22 +33,26 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTool, setActiveTool] = useState<string>("WindowLevel");
+
+  // Metadata States
+  const [showMetadata, setShowMetadata] = useState(false);
+  const [currentImageId, setCurrentImageId] = useState<string | null>(null);
+  const [metadata, setMetadata] = useState<any>(null);
+  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+
   const isSetupRef = useRef(false);
   const renderingEngineRef = useRef<cornerstone.RenderingEngine | null>(null);
 
   useEffect(() => {
     const setup = async () => {
-      // Prevent double-initialization in React Strict Mode
       if (!viewerRef.current || isSetupRef.current) return;
 
       try {
         setIsLoading(true);
         isSetupRef.current = true;
 
-        // 1. Init Global Cornerstone
         await initCornerstone();
 
-        // 2. Create Rendering Engine
         const existingEngine =
           cornerstone.getRenderingEngine(RENDERING_ENGINE_ID);
         if (existingEngine) existingEngine.destroy();
@@ -57,7 +62,6 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
         );
         renderingEngineRef.current = renderingEngine;
 
-        // 3. Enable Viewport
         const element = viewerRef.current;
         const viewportInput = {
           viewportId: VIEWPORT_ID,
@@ -70,7 +74,6 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
 
         renderingEngine.enableElement(viewportInput);
 
-        // 4. Load Images
         const viewport = renderingEngine.getViewport(
           VIEWPORT_ID,
         ) as cornerstone.StackViewport;
@@ -87,15 +90,21 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
         await viewport.setStack(imageIds);
         viewport.render();
 
-        // 5. Setup Tools (SAFE MODE)
+        // Set initial image ID
+        setCurrentImageId(imageIds[0]);
+
+        // Add Event Listener for Stack Scroll
+        element.addEventListener(csEnums.Events.STACK_NEW_IMAGE, (evt: any) => {
+          setCurrentImageId(evt.detail.imageId);
+        });
+
         const {
           WindowLevelTool,
           PanTool,
           ZoomTool,
-          RectangleROITool,
-          EllipticalROITool,
-          PlanarFreehandROITool,
           StackScrollMouseWheelTool,
+          RectangleROITool,
+          PlanarFreehandROITool,
         } = cornerstoneTools;
 
         [
@@ -105,17 +114,19 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
           StackScrollMouseWheelTool,
           RectangleROITool,
           PlanarFreehandROITool,
-          EllipticalROITool,
         ].forEach((tool) => {
           try {
-            cornerstoneTools.addTool(tool);
-          } catch (e) {}
+            if (tool) cornerstoneTools.addTool(tool);
+          } catch (e) {
+            // Tool already added
+          }
         });
 
-        // 6. Setup ToolGroup
         try {
           cornerstoneTools.ToolGroupManager.destroyToolGroup(TOOL_GROUP_ID);
-        } catch (e) {}
+        } catch (e) {
+          console.log(e);
+        }
 
         const toolGroup =
           cornerstoneTools.ToolGroupManager.createToolGroup(TOOL_GROUP_ID);
@@ -123,38 +134,29 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
         if (toolGroup) {
           toolGroup.addViewport(VIEWPORT_ID, RENDERING_ENGINE_ID);
 
-          // Add tools to the group
           toolGroup.addTool(WindowLevelTool.toolName);
           toolGroup.addTool(PanTool.toolName);
           toolGroup.addTool(ZoomTool.toolName);
           toolGroup.addTool(StackScrollMouseWheelTool.toolName);
           toolGroup.addTool(RectangleROITool.toolName);
-          toolGroup.addTool(EllipticalROITool.toolName);
           toolGroup.addTool(PlanarFreehandROITool.toolName);
 
-          // --- Set Active Tools ---
-
-          // 1. Left Click: Window/Level (Default)
           toolGroup.setToolActive(WindowLevelTool.toolName, {
             bindings: [
               { mouseButton: cornerstoneTools.Enums.MouseBindings.Primary },
             ],
           });
 
-          // 2. Right Click: Zoom (Fixed)
           toolGroup.setToolActive(ZoomTool.toolName, {
             bindings: [
               { mouseButton: cornerstoneTools.Enums.MouseBindings.Secondary },
             ],
           });
 
-          // 3. Wheel: Stack Scroll
           toolGroup.setToolActive(StackScrollMouseWheelTool.toolName);
 
-          // Set others as passive
           toolGroup.setToolPassive(PanTool.toolName);
           toolGroup.setToolPassive(RectangleROITool.toolName);
-          toolGroup.setToolPassive(EllipticalROITool.toolName);
           toolGroup.setToolPassive(PlanarFreehandROITool.toolName);
         }
 
@@ -179,33 +181,50 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
     };
   }, [imageUrls]);
 
+  // --- Metadata Fetching Effect ---
+  useEffect(() => {
+    if (!showMetadata || !currentImageId) return;
+
+    const fetchMetadata = async () => {
+      setIsMetadataLoading(true);
+      try {
+        // Extract UID from the wadouri URL (e.g., ...?uid=1.2.3...)
+        const match = currentImageId.match(/uid=([^&]*)/);
+        if (match && match[1]) {
+          const uid = match[1];
+          const data = await apiService.getDICOMMetadata(uid);
+          setMetadata(data.results?.fields || data.results);
+        }
+      } catch (e) {
+        console.error("Failed to fetch metadata", e);
+      } finally {
+        setIsMetadataLoading(false);
+      }
+    };
+
+    fetchMetadata();
+  }, [currentImageId, showMetadata]);
+
   // --- Tool Switching Helpers ---
   const setTool = (toolName: string) => {
     const toolGroup =
       cornerstoneTools.ToolGroupManager.getToolGroup(TOOL_GROUP_ID);
     if (!toolGroup) return;
 
-    // Exclusive Left-Click tools
-    // Note: Use 'RectangleROI' and 'EllipseROI' to match toolName properties
     const primaryTools = [
       "WindowLevel",
       "Pan",
       "Zoom",
-      cornerstoneTools.RectangleROITool.toolName,
-      cornerstoneTools.EllipticalROITool.toolName,
-      cornerstoneTools.PlanarFreehandROITool.toolName,
+      "RectangleROI",
+      "PlanarFreehandROI",
     ];
 
-    // 1. Disable other primary tools (EXCEPT Zoom, see logic below)
     primaryTools.forEach((t) => {
       if (t !== "Zoom" && t !== toolName) {
         toolGroup.setToolPassive(t);
       }
     });
 
-    // 2. Configure Zoom Persistence
-    // If the user selects "Zoom" as the main tool, we want it on Left AND Right click.
-    // If the user selects another tool (e.g., Pan), we want Zoom ONLY on Right click.
     if (toolName === "Zoom") {
       toolGroup.setToolActive("Zoom", {
         bindings: [
@@ -214,14 +233,12 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
         ],
       });
     } else {
-      // Ensure Zoom stays active on Right Click when switching to other tools
       toolGroup.setToolActive("Zoom", {
         bindings: [
           { mouseButton: cornerstoneTools.Enums.MouseBindings.Secondary },
         ],
       });
 
-      // Activate the requested tool on Left Click
       toolGroup.setToolActive(toolName, {
         bindings: [
           { mouseButton: cornerstoneTools.Enums.MouseBindings.Primary },
@@ -233,7 +250,6 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
   };
 
   const resetView = () => {
-    cornerstoneTools.annotation.state.removeAllAnnotations();
     const renderingEngine = cornerstone.getRenderingEngine(RENDERING_ENGINE_ID);
     const viewport = renderingEngine?.getViewport(
       VIEWPORT_ID,
@@ -251,7 +267,7 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
     ) as cornerstone.StackViewport;
     if (viewport) {
       const { rotation } = viewport.getViewPresentation();
-      viewport.setViewPresentation({ rotation: (rotation + 90) % 360 });
+      viewport.setViewPresentation({ rotation: ((rotation ?? 0) + 90) % 360 });
       viewport.render();
     }
   };
@@ -324,49 +340,23 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
 
         <div className="w-px h-6 bg-neutral-700 mx-2" />
 
-        {/* ROI Tools */}
         <Button
-          variant={
-            activeTool === cornerstoneTools.RectangleROITool.toolName
-              ? "default"
-              : "outline"
-          }
+          variant={activeTool === "RectangleROI" ? "default" : "outline"}
           size="sm"
-          onClick={() => setTool(cornerstoneTools.RectangleROITool.toolName)}
-          className={getBtnClass(cornerstoneTools.RectangleROITool.toolName)}
+          onClick={() => setTool("RectangleROI")}
+          className={getBtnClass("RectangleROI")}
         >
           <Square className="w-4 h-4 mr-2" />
           Rect ROI
         </Button>
         <Button
-          variant={
-            activeTool === cornerstoneTools.EllipticalROITool.toolName
-              ? "default"
-              : "outline"
-          }
+          variant={activeTool === "PlanarFreehandROI" ? "default" : "outline"}
           size="sm"
-          onClick={() => setTool(cornerstoneTools.EllipticalROITool.toolName)}
-          className={getBtnClass(cornerstoneTools.EllipticalROITool.toolName)}
-        >
-          <Circle className="w-4 h-4 mr-2" />
-          Ellipse
-        </Button>
-        <Button
-          variant={
-            activeTool === cornerstoneTools.PlanarFreehandROITool.toolName
-              ? "default"
-              : "outline"
-          }
-          size="sm"
-          onClick={() =>
-            setTool(cornerstoneTools.PlanarFreehandROITool.toolName)
-          }
-          className={getBtnClass(
-            cornerstoneTools.PlanarFreehandROITool.toolName,
-          )}
+          onClick={() => setTool("PlanarFreehandROI")}
+          className={getBtnClass("PlanarFreehandROI")}
         >
           <Pen className="w-4 h-4 mr-2" />
-          Free hand
+          Freehand
         </Button>
 
         <div className="w-px h-6 bg-neutral-700 mx-2" />
@@ -389,10 +379,27 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
           <Maximize2 className="w-4 h-4 mr-2" />
           Reset
         </Button>
+
+        <div className="w-px h-6 bg-neutral-700 mx-2" />
+
+        {/* Metadata Toggle Button */}
+        <Button
+          variant={showMetadata ? "default" : "outline"}
+          size="sm"
+          onClick={() => setShowMetadata(!showMetadata)}
+          className={
+            showMetadata
+              ? "bg-blue-600 text-white border-none"
+              : "text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+          }
+        >
+          <Info className="w-4 h-4 mr-2" />
+          Tags
+        </Button>
       </div>
 
       {/* Viewport Area */}
-      <div className="flex-1 relative bg-black">
+      <div className="flex-1 relative bg-black flex overflow-hidden">
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
             <div className="text-center">
@@ -422,11 +429,57 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
         )}
 
         {/* The Container for Cornerstone */}
-        <div
-          ref={viewerRef}
-          className="w-full h-full outline-none"
-          onContextMenu={(e) => e.preventDefault()}
-        />
+        <div className="flex-1 relative">
+          <div
+            ref={viewerRef}
+            className="w-full h-full outline-none"
+            onContextMenu={(e) => e.preventDefault()}
+          />
+        </div>
+
+        {/* Metadata Sidebar */}
+        {showMetadata && (
+          <div className="w-80 bg-neutral-900 border-l border-neutral-800 overflow-y-auto z-10 transition-all duration-300">
+            <div className="p-4">
+              <h3 className="text-white font-semibold mb-4 flex items-center justify-between">
+                <span>DICOM Tags</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowMetadata(false)}
+                  className="h-6 w-6 p-0 hover:bg-neutral-800 text-neutral-400"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </h3>
+
+              {isMetadataLoading ? (
+                <div className="flex flex-col items-center justify-center py-10 text-neutral-500">
+                  <Loader2 className="w-6 h-6 animate-spin mb-2" />
+                  <span className="text-xs">Reading Tags...</span>
+                </div>
+              ) : metadata ? (
+                <div className="space-y-2 font-mono text-[10px] text-neutral-300">
+                  {Object.entries(metadata).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="border-b border-neutral-800 pb-1 break-words"
+                    >
+                      <span className="text-neutral-500 block mb-0.5">
+                        {key}
+                      </span>
+                      <span className="select-text">{String(value)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-neutral-500 text-sm text-center py-4">
+                  No metadata available
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer Instructions */}

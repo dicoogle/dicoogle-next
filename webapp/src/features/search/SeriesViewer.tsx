@@ -10,7 +10,8 @@ import {
   X,
   Info,
   Loader2,
-  MonitorPlay, // Icon for Workstation
+  MonitorPlay,
+  AlertCircle,
 } from "lucide-react";
 import { apiService } from "@/services/api";
 import { DicomViewer } from "@/components/dicom/CornerstoneViewport";
@@ -29,14 +30,14 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const { selectedSeries } = useSearchStore();
   const series = selectedSeries || [];
 
-  // Quick Viewer state (Simple Modal)
+  // Quick Viewer state
   const [viewerOpen, setViewerOpen] = useState(false);
   const [currentSeries, setCurrentSeries] = useState<Series | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showMetadata, setShowMetadata] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
 
-  // Advanced Viewer state (Full Screen Overlay)
+  // Advanced Viewer state
   const [showAdvancedViewer, setShowAdvancedViewer] = useState(false);
 
   // Metadata state
@@ -58,11 +59,10 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     setShowAdvancedViewer(false);
   };
 
-  // NEW: Handler to open Workstation directly from list
   const handleOpenWorkstation = (s: Series) => {
     if (!s.images || s.images.length === 0) return;
     setCurrentSeries(s);
-    setViewerOpen(false); // Ensure quick view is closed
+    setViewerOpen(false);
     setShowAdvancedViewer(true);
   };
 
@@ -86,12 +86,19 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showAdvancedViewer) return; // Let advanced viewer handle its own keys
+    if (showAdvancedViewer) return;
     if (e.key === "ArrowRight") handleNextImage();
     if (e.key === "ArrowLeft") handlePreviousImage();
     if (e.key === "Escape") handleCloseViewer();
     if (e.key === "i" || e.key === "I") setShowMetadata((prev) => !prev);
   };
+
+  // Fix: Reset loading state when image changes
+  useEffect(() => {
+    if (currentImage) {
+      setImageLoading(true);
+    }
+  }, [currentImage]);
 
   // Fetch metadata dump
   useEffect(() => {
@@ -112,9 +119,8 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
       }
     };
     loadMetadata();
-  }, [viewerOpen, currentImage?.sopInstanceUID, showMetadata]);
+  }, [viewerOpen, currentImage, showMetadata]); // Fix: Added currentImage dependency
 
-  // Helper: Prepare URLs for the Advanced Viewer
   const getSeriesUrls = () => {
     if (!currentSeries?.images) return [];
     return currentSeries.images.map((img) =>
@@ -154,7 +160,6 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                 key={s.seriesInstanceUID}
                 className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full"
               >
-                {/* Thumbnail Area */}
                 <button
                   onClick={() => handleOpenViewer(s)}
                   disabled={!s.images || s.images.length === 0}
@@ -174,7 +179,6 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                   )}
                 </button>
 
-                {/* Series Details */}
                 <div className="flex-1 space-y-1">
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-sm">
@@ -192,7 +196,6 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                   </p>
                 </div>
 
-                {/* Buttons Container - Pushed to bottom */}
                 <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
                   <Button
                     size="sm"
@@ -206,7 +209,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
 
                   <Button
                     size="sm"
-                    variant="default" // Highlighted button
+                    variant="default"
                     onClick={() => handleOpenWorkstation(s)}
                     disabled={!s.images || s.images.length === 0}
                     className="w-full text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white"
@@ -223,24 +226,21 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
       {/* --- Quick Viewer Modal --- */}
       {viewerOpen && currentSeries && currentImage && (
         <div
-          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-sm flex items-center justify-center !mt-0"
           onKeyDown={handleKeyDown}
           tabIndex={0}
         >
           {/* Top Bar */}
           <div className="absolute top-4 left-4 right-4 flex justify-between z-50 pointer-events-none">
-            {/* Left: Info */}
+            {/* Left: Info & Workstation */}
             <div className="flex gap-4 pointer-events-auto items-center">
               <div className="bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700 text-white text-sm font-mono">
                 {currentImageIndex + 1} / {currentSeries.images.length}
               </div>
 
-              {/* Also keep Workstation button here for convenience */}
               <Button
                 onClick={() => {
                   setShowAdvancedViewer(true);
-                  // Optional: Close quick view if you prefer cleaner UX
-                  setViewerOpen(false);
                 }}
                 size="sm"
                 className="bg-blue-600/80 hover:bg-blue-600 text-white border border-blue-500/50"
@@ -291,9 +291,10 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                 )}
                 <img
                   src={apiService.getImage(currentImage.sopInstanceUID)}
-                  className="max-h-[85vh] object-contain"
+                  className="max-h-[85vh] object-contain transition-opacity duration-200"
+                  style={{ opacity: imageLoading ? 0.5 : 1 }}
                   onLoad={() => setImageLoading(false)}
-                  onLoadStart={() => setImageLoading(true)}
+                  // Fix: Removed onLoadStart
                   alt="DICOM Preview"
                 />
               </div>
@@ -318,6 +319,12 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                   <div className="text-gray-400 flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading...
                   </div>
+                ) : metadataError ? (
+                  // Fix: Display metadataError
+                  <div className="text-red-400 flex items-center gap-2 text-sm p-2 bg-red-900/20 rounded">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>{metadataError}</span>
+                  </div>
                 ) : (
                   <div className="space-y-2 text-xs font-mono text-gray-300">
                     {metadata &&
@@ -337,11 +344,13 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
 
       {/* --- ADVANCED VIEWER OVERLAY --- */}
       {showAdvancedViewer && currentSeries && (
-        <DicomViewer
-          imageUrls={getSeriesUrls()}
-          title={`Series #${currentSeries.seriesNumber} - ${currentSeries.modality}`}
-          onClose={() => setShowAdvancedViewer(false)}
-        />
+        <div className="!mt-0">
+          <DicomViewer
+            imageUrls={getSeriesUrls()}
+            title={`Series #${currentSeries.seriesNumber} - ${currentSeries.modality}`}
+            onClose={() => setShowAdvancedViewer(false)}
+          />
+        </div>
       )}
     </>
   );
