@@ -5,7 +5,7 @@ import dicomParser from "dicom-parser";
 
 let csInitPromise: Promise<void> | null = null;
 
-export function initCornerstone() {
+export function initializeCornerstone() {
   if (csInitPromise) return csInitPromise;
 
   csInitPromise = (async () => {
