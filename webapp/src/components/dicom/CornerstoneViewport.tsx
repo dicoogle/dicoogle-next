@@ -4,7 +4,7 @@ import { Enums as csEnums } from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { initializeCornerstone } from "@/utils/cornerstoneInit";
 import { Button } from "@/components/ui/Button";
-import { dicoogleService } from "@/services/dicoogleService";
+import { apiService } from "@/services/api";
 import {
   ZoomIn,
   Move,
@@ -21,7 +21,6 @@ import {
 
 interface DicomViewerProps {
   imageUrls: string[];
-  initialIndex?: number;
   onClose?: () => void;
   title?: string;
 }
@@ -33,12 +32,7 @@ const TOOL_GROUP_ID = "dicoogleToolGroup";
 // Global tracker to manage cache persistence across component mounts
 let lastSeriesSignature: string | null = null;
 
-export function DicomViewer({
-  imageUrls,
-  initialIndex = 0,
-  onClose,
-  title,
-}: DicomViewerProps) {
+export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +45,7 @@ export function DicomViewer({
   // Metadata States
   const [showMetadata, setShowMetadata] = useState(false);
   const [currentImageId, setCurrentImageId] = useState<string | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [metadata, setMetadata] = useState<any>(null);
   const [isMetadataLoading, setIsMetadataLoading] = useState(false);
 
@@ -66,7 +60,6 @@ export function DicomViewer({
 
   const isSetupRef = useRef(false);
   const renderingEngineRef = useRef<cornerstone.RenderingEngine | null>(null);
-  const initialIndexRef = useRef(initialIndex);
 
   // Update ref whenever state changes
   useEffect(() => {
@@ -138,19 +131,13 @@ export function DicomViewer({
           VIEWPORT_ID,
         ) as cornerstone.StackViewport;
 
-        // Calculate safe start index
-        const startIndex = Math.min(
-          Math.max(0, initialIndexRef.current),
-          imageIds.length - 1,
-        );
-
-        // Set full stack but start at the requested index
-        await viewport.setStack(imageIds, startIndex);
+        // Initial Stack: Start with just the first image
+        await viewport.setStack([imageIds[0]]);
         viewport.render();
 
-        setCurrentImageId(imageIds[startIndex]);
-        setCurrentIndex(startIndex);
-        setLoadedCount(1); // At least the first image is loaded
+        setCurrentImageId(imageIds[0]);
+        setCurrentIndex(0);
+        setLoadedCount(0);
 
         // Note: Event listener moved to separate useEffect for reliability
 
@@ -302,8 +289,7 @@ export function DicomViewer({
       const availableImages = imageIds.slice(0, limit);
       const currentStack = viewport.getImageIds();
 
-      // Only update if we have new images to add
-      if (currentStack.length < availableImages.length) {
+      if (currentStack.length !== availableImages.length) {
         let newIndex = viewport.getCurrentImageIdIndex();
         if (newIndex >= availableImages.length) {
           newIndex = availableImages.length - 1;
@@ -325,7 +311,7 @@ export function DicomViewer({
         const match = currentImageId.match(/uid=([^&]*)/);
         if (match && match[1]) {
           const uid = match[1];
-          const data = await dicoogleService.getDICOMMetadata(uid);
+          const data = await apiService.getDICOMMetadata(uid);
           setMetadata(data.results?.fields || data.results);
         }
       } catch (e) {
@@ -538,7 +524,7 @@ export function DicomViewer({
               className="absolute top-0 h-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] z-10 transition-all duration-75 pointer-events-none"
               style={{
                 // SAFE MATH: Prevent division by zero if length is 1 or less
-                left: `${imageIds.length > 1 ? (currentIndex / (imageIds.length < 1 ? -1 : imageIds.length)) * 100 : 0}%`,
+                left: `${imageIds.length > 1 ? (currentIndex / (imageIds.length - 1)) * 100 : 0}%`,
                 width: `max(20px, ${imageIds.length > 0 ? 100 / imageIds.length : 100}%)`,
               }}
             />
