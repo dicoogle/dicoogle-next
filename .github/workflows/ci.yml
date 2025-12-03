@@ -71,6 +71,7 @@ jobs:
 
           # -p sets the project name (so Main and Dev don't overwrite each other)
           # We pass the environment variables explicitly to the command
+          docker compose -p ${{ env.PROJECT_NAME }} down -v
           HOST_WEB_PORT=${{ env.HOST_WEB_PORT }} HOST_API_PORT=${{ env.HOST_API_PORT }} docker compose -p ${{ env.PROJECT_NAME }} up -d --build
 
       - name: Cleanup
