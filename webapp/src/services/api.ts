@@ -9,6 +9,43 @@ import axios, { AxiosInstance } from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
+// ============ Types for Management API ============
+
+export interface ServiceStatus {
+  isRunning: boolean;
+  port: number;
+  hostname: string;
+  autostart: boolean;
+}
+
+export interface Plugin {
+  name: string;
+  type: string;
+  enabled: boolean;
+}
+
+export interface Version {
+  version: string;
+}
+
+export interface QuerySettings {
+  acceptTimeout: number;
+  connectionTimeout: number;
+  idleTimeout: number;
+  maxAssociations: number;
+  maxPduReceive: number;
+  maxPduSend: number;
+  responseTimeout: number;
+}
+
+export interface StorageServer {
+  AETitle: string;
+  ipAddrs: string;
+  port: number;
+  description?: string;
+  public?: boolean;
+}
+
 class ApiService {
   private api: AxiosInstance;
   private token: string | null = null;
@@ -24,40 +61,21 @@ class ApiService {
 
     this.api.interceptors.request.use(
       (config) => {
-        // console.log(
-        //   "[API] Request:",
-        //   config.method?.toUpperCase(),
-        //   config.url,
-        //   "params:",
-        //   config.params,
-        // );
         if (this.token) {
           config.headers.Authorization = `${this.token}`;
         }
         return config;
       },
       (error) => {
-        // console.error("[API] Request error:", error);
         return Promise.reject(error);
       },
     );
 
     this.api.interceptors.response.use(
       (response) => {
-        // console.log(
-        //   "[API] Response:",
-        //   response.status,
-        //   response.config.url,
-        //   response.data,
-        // );
         return response;
       },
       (error) => {
-        // console.error(
-        //   "[API] Response error:",
-        //   error.response?.status,
-        //   error.response?.data || error.message,
-        // );
         if (
           error.response?.status === 401 &&
           window.location.pathname !== "/login"
@@ -89,11 +107,6 @@ class ApiService {
 
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
-      // console.log(
-      //   "[API] Attempting login with username:",
-      //   credentials.username,
-      // );
-
       const response = await this.api.post("/login", null, {
         params: {
           username: credentials.username,
@@ -101,10 +114,7 @@ class ApiService {
         },
       });
 
-      // console.log("[API] Login successful:", response.data);
-
       const data = response.data;
-
       const success = data.success !== false || response.status === 200;
 
       if (data.token) {
@@ -119,10 +129,6 @@ class ApiService {
         token: data.token,
       };
     } catch (error: any) {
-      // console.error(
-      //   "[API] Login failed:",
-      //   error.response?.data || error.message,
-      // );
       return {
         success: false,
       };
@@ -147,8 +153,6 @@ class ApiService {
         this.clearToken();
         return false;
       }
-
-      // For other errors, assume invalid to be safe
       return false;
     } finally {
       this.clearToken();
@@ -163,9 +167,6 @@ class ApiService {
         };
       }
 
-      // console.log("[API] Validating token...");
-
-      // Call GET /login with Authorization header
       const response = await this.api.get("/login", {
         headers: {
           Accept: "application/json",
@@ -173,17 +174,9 @@ class ApiService {
         },
       });
 
-      // console.log(
-      //   "[API] Token validation response:",
-      //   response.status,
-      //   response.data,
-      // );
-
       const data = response.data;
-
       const success = data.success !== false || response.status === 200;
 
-      // If we get 200, token is valid
       return {
         success: success,
         user: data.user,
@@ -191,19 +184,10 @@ class ApiService {
         roles: data.roles,
       };
     } catch (error: any) {
-      // console.error(
-      //   "[API] Token validation failed:",
-      //   error.response?.status,
-      //   error.message,
-      // );
-
-      // If 401, token is invalid
       if (error.response?.status === 401) {
         this.clearToken();
         return { success: false };
       }
-
-      // For other errors, assume invalid to be safe
       return { success: false };
     }
   }
@@ -213,12 +197,10 @@ class ApiService {
       query: query.query,
     };
 
-    // Optional: provider plugins
     if (query.providers && query.providers.length > 0) {
       params.provider = query.providers.join(",");
     }
 
-    // Optional: field parameter (defaults to 'none' if not specified)
     if (query.field) {
       params.field = query.field;
     }
@@ -245,6 +227,91 @@ class ApiService {
 
   getImage(uid: string): string {
     return `${API_BASE_URL}/dic2png?thumbnail=false&SOPInstanceUID=${uid}`;
+  }
+
+  // ============ Management API Methods ============
+
+  // Service Status
+  async getStorageStatus(): Promise<ServiceStatus> {
+    const response = await this.api.get("/management/dicom/storage");
+    return response.data;
+  }
+
+  async setStorageStatus(status: Partial<ServiceStatus>): Promise<void> {
+    await this.api.post("/management/dicom/storage", null, { params: status });
+  }
+
+  async getQueryStatus(): Promise<ServiceStatus> {
+    const response = await this.api.get("/management/dicom/query");
+    return response.data;
+  }
+
+  async setQueryStatus(status: Partial<ServiceStatus>): Promise<void> {
+    await this.api.post("/management/dicom/query", null, { params: status });
+  }
+
+  // Storage Servers (Move Destinations)
+  async getStorageServers(): Promise<StorageServer[]> {
+    const response = await this.api.get("/management/settings/storage/dicom");
+    return response.data || [];
+  }
+
+  async addStorageServer(server: StorageServer): Promise<void> {
+    const params: any = {
+      aetitle: server.AETitle,
+      ip: server.ipAddrs,
+      port: server.port,
+      type: "add",
+    };
+
+    if (server.description) {
+      params.description = server.description;
+    }
+
+    if (server.public !== undefined) {
+      params.public = server.public;
+    }
+
+    await this.api.post("/management/settings/storage/dicom", null, { params });
+  }
+
+  async removeStorageServer(server: StorageServer): Promise<void> {
+    const params: any = {
+      aetitle: server.AETitle,
+      ip: server.ipAddrs,
+      port: server.port,
+      type: "remove",
+    };
+
+    await this.api.post("/management/settings/storage/dicom", null, { params });
+  }
+
+  // Plugins
+  async getPlugins(): Promise<Plugin[]> {
+    const response = await this.api.get("/plugins");
+    return response.data.plugins || [];
+  }
+
+  async setPluginEnabled(pluginName: string, enabled: boolean): Promise<void> {
+    await this.api.post("/management/plugins/set", null, {
+      params: { name: pluginName, enabled },
+    });
+  }
+
+  // System
+  async getVersion(): Promise<Version> {
+    const response = await this.api.get("/ext/version");
+    return response.data;
+  }
+
+  async getAETitle(): Promise<{ aetitle: string }> {
+    const response = await this.api.get("/management/settings/dicom");
+    return response.data;
+  }
+
+  async getQueryRetrieveSettings(): Promise<QuerySettings> {
+    const response = await this.api.get("/management/settings/dicom/query");
+    return response.data;
   }
 }
 
