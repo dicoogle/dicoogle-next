@@ -1,0 +1,154 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>pt.ua.ieeta</groupId>
+    <artifactId>dicoogle-all</artifactId>
+    <version>3.5.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>dicoogle-all</name>
+
+    <properties>
+        <jetty.version>9.0.3.v20130506</jetty.version>
+        <restlet.version>2.1.2</restlet.version>
+        <dcm4che.version>2.0.29</dcm4che.version>
+        <slf4j.version>1.7.36</slf4j.version>
+    </properties>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>4.3</version>
+                <configuration>
+                    <mapping>
+                        <java>JAVADOC_STYLE</java>
+                    </mapping>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>short-license.txt</header>
+                            <includes>
+                                <include>**/*.java</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/package-info.java</exclude>
+                            </excludes>
+                        </licenseSet>
+                    </licenseSets>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>net.revelc.code.formatter</groupId>
+                <artifactId>formatter-maven-plugin</artifactId>
+                <version>2.16.0</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <lineEnding>KEEP</lineEnding>
+                    <includes>
+                        <include>**/*.java</include>
+                    </includes>
+                    <excludes>
+                        <exclude>**/package-info.java</exclude>
+                    </excludes>
+                    <configFile>formatter-config.xml</configFile>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>format</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>prod-repository</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <distributionManagement>
+                <repository>
+                    <id>dicoogle-public</id>
+                    <url>https://dev.bmd-software.com/nexus/content/repositories/dicoogle-public</url>
+                </repository>
+            </distributionManagement>
+        </profile>
+
+        <profile>
+            <id>bmd-repository</id>
+            <activation>
+                <property>
+                    <name>useBmdInternalRepo</name>
+                    <value>true</value>
+                </property>
+            </activation>
+
+            <distributionManagement>
+                <!-- Versioned releases are published to the releases repository -->
+                <repository>
+                    <id>bmdsoftware-releases</id>
+                    <name>BMD Software Nexus (Internal Releases)</name>
+                    <url>https://dev.bmd-software.com/nexus/content/repositories/releases</url>
+                </repository>
+
+                <!-- Snapshot releases are published to the snapshots repository -->
+                <snapshotRepository>
+                    <id>bmdsoftware-snapshots</id>
+                    <name>BMD Software Nexus (Internal Snapshots)</name>
+                    <url>https://dev.bmd-software.com/nexus/content/repositories/snapshots</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+
+        <profile>
+            <id>bioinformatics-repository</id>
+            <activation>
+                <property>
+                    <name>useBioinformaticsPt</name>
+                    <value>true</value>
+                </property>
+            </activation>
+
+            <distributionManagement>
+                <!-- Versioned releases are published to the releases repository -->
+                <repository>
+                    <id>mi</id>
+                    <url>https://bioinformatics.ua.pt/maven/content/repositories/mi</url>
+                </repository>
+
+                <!-- Snapshot releases are published to the snapshots repository -->
+                <snapshotRepository>
+                    <id>mi</id>
+                    <url>https://bioinformatics.ua.pt/maven/content/repositories/mi-snapshots</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
+
+    <modules>
+        <module>dicoogle</module>
+        <module>sdk</module>
+    </modules>
+</project>

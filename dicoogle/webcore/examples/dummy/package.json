@@ -1,0 +1,18 @@
+{
+  "name": "dummy",
+  "version": "0.1.0",
+  "description": "Dummy Web UI plugin",
+  "scripts": {
+    "build": "terser dummy.js --compress keep_fargs=true --mangle -r require,module,exports -o module.js",
+    "build-debug": "terser dummy.js --source-map module.js.map -b -o module.js",
+    "prepublish": "npm run build"
+  },
+  "dicoogle": {
+    "slot-id": "menu",
+    "caption": "Dummy",
+    "module-file": "module.js"
+  },
+  "devDependencies": {
+    "terser": "^5.14.2"
+  }
+}
