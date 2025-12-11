@@ -1,0 +1,37 @@
+/target
+/dicoogle/.classpath
+/dicoogle/.settings/*
+/sdk-ext/.classpath
+/sdk-ext/.settings/*
+/sdk/.classpath
+/sdk/.project
+/sdk/.settings/*
+/webcore/lib/
+node_modules/
+**/webapp/dist
+.tmp
+.sass-cache/
+
+#eclipse
+.project
+.settings/*
+# IDEA
+.idea
+
+# Visual Studio Code
+.vscode/
+
+*.iml
+
+
+#MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk

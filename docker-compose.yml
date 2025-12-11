@@ -3,8 +3,8 @@ version: "3.8"
 services:
   backend:
     build:
-      context: .
-      dockerfile: ./dockerfile.backend
+      context: ./dicoogle/
+      dockerfile: Dockerfile
     container_name: dicoogle-backend
     restart: unless-stopped
     ports:
@@ -12,8 +12,8 @@ services:
 
   frontend:
     build:
-      context: ./webapp/
-      dockerfile: dockerfile
+      context: ./webapp
+      dockerfile: Dockerfile
     container_name: dicoogle-frontend
     restart: unless-stopped
     ports:
