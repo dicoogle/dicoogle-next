@@ -1,24 +1,16 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
 import { apiService, type Plugin } from "@/services/api";
 import { toast } from "@/utils/toast";
 
-interface PluginSettingsProps {
-  onSave: () => void;
-}
-
 type PluginType = "index" | "query" | "storage" | "all";
 
-export function PluginSettings({ onSave }: PluginSettingsProps) {
+export function PluginSettings() {
   const [allPlugins, setAllPlugins] = useState<Plugin[]>([]);
   const [selectedType, setSelectedType] = useState<PluginType>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingPlugin, setUpdatingPlugin] = useState<string | null>(null);
-  const [enableDisableSupported, setEnableDisableSupported] = useState(true);
-  const [hasShownUnsupportedError, setHasShownUnsupportedError] =
-    useState(false);
 
   useEffect(() => {
     loadPlugins();
@@ -44,17 +36,12 @@ export function PluginSettings({ onSave }: PluginSettingsProps) {
     pluginType: string,
     currentEnabled: boolean,
   ) => {
-    // If already detected as unsupported, do nothing silently
-    if (!enableDisableSupported) {
-      return;
-    }
-
     const newEnabled = !currentEnabled;
     const pluginKey = `${pluginName}-${pluginType}`;
     setUpdatingPlugin(pluginKey);
 
     try {
-      await apiService.setPluginEnabled(pluginName, newEnabled);
+      await apiService.togglePluginState(pluginType, pluginName, newEnabled);
 
       // Update local state
       setAllPlugins((plugins) =>
@@ -69,16 +56,10 @@ export function PluginSettings({ onSave }: PluginSettingsProps) {
         `Plugin "${pluginName}" ${newEnabled ? "enabled" : "disabled"} successfully`,
       );
     } catch (err: any) {
-      // Check if endpoint not found (404)
-      if (err.response?.status === 404) {
-        setEnableDisableSupported(false);
-        // Only show error toast on first attempt
-        if (!hasShownUnsupportedError) {
-          setHasShownUnsupportedError(true);
-          toast.error(
-            "Plugin enable/disable is not supported in this Dicoogle version.",
-          );
-        }
+      if (err.response?.status === 500) {
+        toast.error(
+          `The "${pluginName}" plugin cannot be ${newEnabled ? "enabled" : "disabled"}`,
+        );
       } else {
         // Extract error message from response
         let errorMsg = `Failed to ${newEnabled ? "enable" : "disable"} plugin`;
@@ -283,21 +264,12 @@ export function PluginSettings({ onSave }: PluginSettingsProps) {
                         plugin.enabled,
                       )
                     }
-                    disabled={
-                      !enableDisableSupported || updatingPlugin === updateKey
-                    }
                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                       plugin.enabled
                         ? "bg-green-600"
                         : "bg-gray-300 dark:bg-gray-600"
                     }`}
-                    title={
-                      !enableDisableSupported
-                        ? "Plugin management not supported"
-                        : plugin.enabled
-                          ? "Disable plugin"
-                          : "Enable plugin"
-                    }
+                    title={plugin.enabled ? "Disable plugin" : "Enable plugin"}
                   >
                     {updatingPlugin === updateKey && (
                       <div className="absolute inset-0 flex items-center justify-center">

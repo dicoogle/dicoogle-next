@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
   apiService,
+  ServiceRequest,
   type ServiceStatus,
   type StorageServer,
 } from "@/services/api";
@@ -18,28 +19,24 @@ interface ServiceConfig {
   setStatus: (status: Partial<ServiceStatus>) => Promise<void>;
 }
 
-interface ServiceSettingsProps {
-  onSave: () => void;
-}
+const serviceConfigs: ServiceConfig[] = [
+  {
+    id: "storage",
+    name: "DICOM Storage Service",
+    description: "DICOM C-STORE service for receiving medical images",
+    getStatus: () => apiService.getStorageStatus(),
+    setStatus: (status) => apiService.setStorageStatus(status),
+  },
+  {
+    id: "query",
+    name: "DICOM Query Service",
+    description: "DICOM C-FIND and C-GET query service",
+    getStatus: () => apiService.getQueryStatus(),
+    setStatus: (status) => apiService.setQueryStatus(status),
+  },
+];
 
-export function ServiceSettings({ onSave }: ServiceSettingsProps) {
-  const serviceConfigs: ServiceConfig[] = [
-    {
-      id: "storage",
-      name: "DICOM Storage Service",
-      description: "DICOM C-STORE service for receiving medical images",
-      getStatus: () => apiService.getStorageStatus(),
-      setStatus: (status) => apiService.setStorageStatus(status),
-    },
-    {
-      id: "query",
-      name: "DICOM Query Service",
-      description: "DICOM C-FIND and C-GET query service",
-      getStatus: () => apiService.getQueryStatus(),
-      setStatus: (status) => apiService.setQueryStatus(status),
-    },
-  ];
-
+export function ServiceSettings() {
   const [services, setServices] = useState<Map<string, ServiceStatus>>(
     new Map(),
   );
@@ -59,15 +56,8 @@ export function ServiceSettings({ onSave }: ServiceSettingsProps) {
     description: "",
   });
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  const loadAll = async () => {
-    await Promise.all([loadServices(), loadStorageServers()]);
-  };
-
-  const loadServices = async () => {
+  // 2. MEMOIZED FUNCTIONS: Wrapped in useCallback
+  const loadServices = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -89,16 +79,25 @@ export function ServiceSettings({ onSave }: ServiceSettingsProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // No dependencies needed as serviceConfigs is external and stable
 
-  const loadStorageServers = async () => {
+  const loadStorageServers = useCallback(async () => {
     try {
       const servers = await apiService.getStorageServers();
       setStorageServers(servers);
     } catch (err) {
       console.error("Failed to load storage servers:", err);
     }
-  };
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    await Promise.all([loadServices(), loadStorageServers()]);
+  }, [loadServices, loadStorageServers]);
+
+  // 3. UPDATED USEEFFECT: Safe to include loadAll now
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   const handleToggleService = async (id: string) => {
     const service = services.get(id);
@@ -107,15 +106,51 @@ export function ServiceSettings({ onSave }: ServiceSettingsProps) {
     const config = serviceConfigs.find((c) => c.id === id);
     if (!config) return;
 
+    const newValue = !service.isRunning;
+
     try {
-      await config.setStatus({ running: !service.isRunning });
+      await config.setStatus({ isRunning: newValue });
+
+      if (id === "storage") {
+        await apiService.setStorageStatus({ running: newValue });
+      } else if (id === "query") {
+        await apiService.setQueryStatus({ running: newValue });
+      }
+
       await loadServices();
-      toast.success(
-        `${config.name} ${!service.isRunning ? "started" : "stopped"}`,
-      );
-      onSave();
+
+      toast.success(`${config.name} ${newValue ? "started" : "stopped"}`);
     } catch (err) {
       toast.error(`Failed to toggle ${config.name}`);
+      console.error(err);
+      await config.setStatus({ isRunning: !service.isRunning });
+
+      await loadServices();
+    }
+  };
+
+  const handleSave = async (id: string) => {
+    const config = serviceConfigs.find((c) => c.id === id);
+    if (!config) return;
+
+    const newValue: Partial<ServiceRequest> = {
+      port: editingPort,
+      hostname: editingHostname,
+    };
+
+    try {
+      await config.setStatus(newValue);
+
+      if (id === "storage") {
+        await apiService.setStorageStatus(newValue);
+      } else if (id === "query") {
+        await apiService.setQueryStatus(newValue);
+      }
+      await loadServices();
+      setEditingService(null);
+      toast.success(`${config.name} settings updated`);
+    } catch (err) {
+      toast.error(`Failed to update ${config.name} settings`);
       console.error(err);
     }
   };
@@ -126,25 +161,6 @@ export function ServiceSettings({ onSave }: ServiceSettingsProps) {
     setEditingService(id);
     setEditingPort(service.port);
     setEditingHostname(service.hostname || "0.0.0.0");
-  };
-
-  const handleSave = async (id: string) => {
-    const config = serviceConfigs.find((c) => c.id === id);
-    if (!config) return;
-
-    try {
-      await config.setStatus({
-        port: editingPort,
-        hostname: editingHostname,
-      });
-      await loadServices();
-      setEditingService(null);
-      toast.success(`${config.name} settings updated`);
-      onSave();
-    } catch (err) {
-      toast.error(`Failed to update ${config.name} settings`);
-      console.error(err);
-    }
   };
 
   const handleCancel = () => {

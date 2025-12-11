@@ -18,6 +18,13 @@ export interface ServiceStatus {
   autostart: boolean;
 }
 
+export interface ServiceRequest {
+  running: boolean;
+  port: number;
+  hostname: string;
+  autostart: boolean;
+}
+
 export interface Plugin {
   name: string;
   type: string;
@@ -237,7 +244,7 @@ class ApiService {
     return response.data;
   }
 
-  async setStorageStatus(status: Partial<ServiceStatus>): Promise<void> {
+  async setStorageStatus(status: Partial<ServiceRequest>): Promise<void> {
     await this.api.post("/management/dicom/storage", null, { params: status });
   }
 
@@ -246,8 +253,10 @@ class ApiService {
     return response.data;
   }
 
-  async setQueryStatus(status: Partial<ServiceStatus>): Promise<void> {
-    await this.api.post("/management/dicom/query", null, { params: status });
+  async setQueryStatus(status: Partial<ServiceRequest>): Promise<void> {
+    await this.api.post("/management/dicom/query", null, {
+      params: status,
+    });
   }
 
   // Storage Servers (Move Destinations)
@@ -292,12 +301,6 @@ class ApiService {
     return response.data.plugins || [];
   }
 
-  async setPluginEnabled(pluginName: string, enabled: boolean): Promise<void> {
-    await this.api.post("/management/plugins/set", null, {
-      params: { name: pluginName, enabled },
-    });
-  }
-
   // System
   async getVersion(): Promise<Version> {
     const response = await this.api.get("/ext/version");
@@ -311,6 +314,19 @@ class ApiService {
 
   async getQueryRetrieveSettings(): Promise<QuerySettings> {
     const response = await this.api.get("/management/settings/dicom/query");
+    return response.data;
+  }
+
+  async togglePluginState(
+    type: string,
+    name: string,
+    enable: boolean,
+  ): Promise<any> {
+    const action = enable ? "enable" : "disable";
+    // Using put request as per standard REST practices for updates,
+    // assuming the endpoint accepts PUT. If GET, change to this.api.get
+    // Based on the prompt: /api/plugins/<type>/<name>/<disable/enable>
+    const response = await this.api.post(`/plugins/${type}/${name}/${action}`);
     return response.data;
   }
 }

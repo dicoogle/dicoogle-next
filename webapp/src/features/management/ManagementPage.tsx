@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { PluginSettings } from './components/PluginSettings';
-import { ServiceSettings } from './components/ServiceSettings';
-import { SystemInfo } from './components/SystemInfo';
+import { useState } from "react";
+import { PluginSettings } from "./components/PluginSettings";
+import { ServiceSettings } from "./components/ServiceSettings";
+import { SystemInfo } from "./components/SystemInfo";
 
-type TabType = 'services' | 'plugins' | 'system';
+type TabType = "services" | "plugins" | "system";
 
 export function ManagementPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('services');
+  const [activeTab, setActiveTab] = useState<TabType>("services");
   const [settingsSaved, setSettingsSaved] = useState(false);
 
   const handleSaveSettings = () => {
@@ -42,17 +39,19 @@ export function ManagementPage() {
       <div className="border-b border-border sticky top-0 bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <nav className="flex gap-1 overflow-x-auto" aria-label="Tabs">
-            {(['services', 'plugins', 'system'] as const).map((tab) => (
+            {(["services", "plugins", "system"] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-3 text-sm font-medium border-b-2 capitalize transition-colors whitespace-nowrap ${
                   activeTab === tab
-                    ? 'border-primary text-primary'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                {tab === 'plugins' ? 'Plugins' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === "plugins"
+                  ? "Plugins"
+                  : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </nav>
@@ -61,15 +60,13 @@ export function ManagementPage() {
 
       {/* Content */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'services' && (
+        {activeTab === "services" && (
           <ServiceSettings onSave={handleSaveSettings} />
         )}
-        {activeTab === 'plugins' && (
+        {activeTab === "plugins" && (
           <PluginSettings onSave={handleSaveSettings} />
         )}
-        {activeTab === 'system' && (
-          <SystemInfo />
-        )}
+        {activeTab === "system" && <SystemInfo />}
       </div>
     </div>
   );
