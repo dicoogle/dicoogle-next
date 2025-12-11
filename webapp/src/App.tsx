@@ -5,7 +5,6 @@ import { LoginPage } from "@/features/auth/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SearchPage } from "./features/search/SearchPage";
-import { ManagementPage } from "./features/management/ManagementPage";
 
 function App() {
   const { isAuthenticated, checkAuth } = useAuthStore();
@@ -28,14 +27,6 @@ function App() {
             element={
               <ProtectedRoute isAuthenticated={isAuthenticated}>
                 <SearchPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/management"
-            element={
-              <ProtectedRoute isAuthenticated={isAuthenticated}>
-                <ManagementPage />
               </ProtectedRoute>
             }
           />

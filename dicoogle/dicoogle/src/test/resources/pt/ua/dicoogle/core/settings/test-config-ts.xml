@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<config>
+    <web-server autostart="true" port="8282">
+        <allowed-origins>test.dicoogle.com</allowed-origins>
+    </web-server>
+    <archive>
+        <save-thumbnails>true</save-thumbnails>
+        <thumbnail-size>128</thumbnail-size>
+        <main-directory>/opt/my-data</main-directory>
+        <indexer-effort>98</indexer-effort>
+        <dim-providers>
+            <dim-provider>lucene</dim-provider>
+        </dim-providers>
+        <default-storages>
+            <default-storage>filestorage</default-storage>
+        </default-storages>
+        <encrypt-users-file>true</encrypt-users-file>
+        <enable-watch-directory>true</enable-watch-directory>
+        <watch-directory>/opt/my-data/watched</watch-directory>
+        <node-name>dicoogle01</node-name>
+        <call-shutdown>true</call-shutdown>
+    </archive>
+    <dicom-services>
+        <aetitle>TEST-STORAGE</aetitle>
+        <allowed-aetitles>any</allowed-aetitles>
+        <allowed-local-interfaces>any</allowed-local-interfaces>
+        <allowed-hostnames>any</allowed-hostnames>
+        <!-- No default transfer syntaxes,
+          so that some SOP classes can be fully rejected
+        -->
+        <default-ts/>
+        <sop-classes>
+            <!-- CT Image Storage -->
+            <sop-class>
+                <uid>1.2.840.10008.5.1.4.1.1.2</uid>
+                <transfer-syntaxes>
+                    <ts>1.2.840.10008.1.2</ts>
+                    <ts>1.2.840.10008.1.2.1</ts>
+                </transfer-syntaxes>
+            </sop-class>
+            <!-- Enhanced CT Image Storage -->
+            <sop-class>
+                <uid>1.2.840.10008.5.1.4.1.1.2.1</uid>
+                <transfer-syntaxes>
+                    <ts>1.2.840.10008.1.2</ts>
+                    <ts>1.2.840.10008.1.2.1</ts>
+                    <ts>1.2.840.10008.1.2.4.50</ts>
+                    <ts>1.2.840.10008.1.2.4.70</ts>
+                </transfer-syntaxes>
+            </sop-class>
+            <!-- Enhanced XA Image Storage -->
+            <sop-class>
+                <uid>1.2.840.10008.5.1.4.1.1.12.1.1</uid>
+                <transfer-syntaxes>
+                    <ts>1.2.840.10008.1.2</ts>
+                    <ts>1.2.840.10008.1.2.1</ts>
+                    <ts>1.2.840.10008.1.2.5</ts>
+                </transfer-syntaxes>
+            </sop-class>
+            <!-- Ultrasound Multi-frame Image Storage -->
+            <sop-class>
+                <uid>1.2.840.10008.5.1.4.1.1.3.1</uid>
+                <transfer-syntaxes>
+                    <ts>1.2.840.10008.1.2</ts>
+                    <ts>1.2.840.10008.1.2.1</ts>
+                    <ts>1.2.840.10008.1.2.4.50</ts>
+                    <ts>1.2.840.10008.1.2.4.70</ts>
+                </transfer-syntaxes>
+            </sop-class>
+            <!-- Do not accept retired Ultrasound Multi-frame Image Storage-->
+            <sop-class>
+                <uid>1.2.840.10008.5.1.4.1.1.3</uid>
+            </sop-class>
+        </sop-classes>
+        <move-destinations>
+            <move-destination
+                aetitle="ANOTHER-STORAGE"
+                address="192.168.42.42"
+                port="6666"
+                public="false"
+                description="Our test storage"/>
+            <move-destination>
+                <aetitle>BACKUP-STORAGE</aetitle>
+                <address>192.168.42.46</address>
+                <port>104</port>
+                <public>false</public>
+                <description>Backup storage</description>
+            </move-destination>
+        </move-destinations>
+
+        <storage autostart="true" port="6777" />
+
+        <query-retrieve autostart="false" port="1033" >
+            <rsp-delay>1</rsp-delay>
+            <dimse-rsp-timeout>50</dimse-rsp-timeout>
+            <idle-timeout>51</idle-timeout>
+            <accept-timeout>52</accept-timeout>
+            <connection-timeout>53</connection-timeout>
+            <sop-class>1.2.840.10008.5.1.4.1.2.1.1</sop-class>
+            <transfer-capabilities>1.2.840.10008.1.2.2</transfer-capabilities>
+            <transfer-capabilities>1.2.840.10008.1.2.1</transfer-capabilities>
+            <max-client-assocs>25</max-client-assocs>
+            <max-pdu-length-receive>16374</max-pdu-length-receive>
+            <max-pdu-length-send>16374</max-pdu-length-send>
+        </query-retrieve>
+    </dicom-services>
+</config>
