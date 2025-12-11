@@ -21,7 +21,7 @@ export function SearchPage() {
           Search Medical Images
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Search DICOM studies using Lucene query syntax or free-text search
+          Search DICOM studies using either query syntax or free-text search
         </p>
       </div>
 

@@ -1,16 +1,14 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { dicoogleService } from "@/services/dicoogleService";
-import { toast } from "@/utils/toast";
-import { X, ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import {
-  ServiceRequest,
+  apiService,
   type ServiceStatus,
   type StorageServer,
-  type QuerySettings,
-} from "@/types/index";
+} from "@/services/api";
+import { toast } from "@/utils/toast";
+import { X } from "lucide-react";
 
 interface ServiceConfig {
   id: "storage" | "query";
@@ -20,46 +18,37 @@ interface ServiceConfig {
   setStatus: (status: Partial<ServiceStatus>) => Promise<void>;
 }
 
-const serviceConfigs: ServiceConfig[] = [
-  {
-    id: "storage",
-    name: "DICOM Storage Service",
-    description: "DICOM C-STORE service for receiving medical images",
-    getStatus: () => dicoogleService.getStorageStatus(),
-    setStatus: (status) => dicoogleService.setStorageStatus(status),
-  },
-  {
-    id: "query",
-    name: "DICOM Query Service",
-    description: "DICOM C-FIND and C-MOVE query service",
-    getStatus: () => dicoogleService.getQueryStatus(),
-    setStatus: (status) => dicoogleService.setQueryStatus(status),
-  },
-];
+interface ServiceSettingsProps {
+  onSave: () => void;
+}
 
-export function ServiceSettings() {
+export function ServiceSettings({ onSave }: ServiceSettingsProps) {
+  const serviceConfigs: ServiceConfig[] = [
+    {
+      id: "storage",
+      name: "DICOM Storage Service",
+      description: "DICOM C-STORE service for receiving medical images",
+      getStatus: () => apiService.getStorageStatus(),
+      setStatus: (status) => apiService.setStorageStatus(status),
+    },
+    {
+      id: "query",
+      name: "DICOM Query Service",
+      description: "DICOM C-FIND and C-GET query service",
+      getStatus: () => apiService.getQueryStatus(),
+      setStatus: (status) => apiService.setQueryStatus(status),
+    },
+  ];
+
   const [services, setServices] = useState<Map<string, ServiceStatus>>(
     new Map(),
   );
   const [storageServers, setStorageServers] = useState<StorageServer[]>([]);
-  const [querySettings, setQuerySettings] = useState<QuerySettings | null>(
-    null,
-  );
-
-  //  AETitle
-  const [aeTitle, setAeTitle] = useState<string>("");
-  const [editingAeTitle, setEditingAeTitle] = useState(false);
-  const [editedAeTitle, setEditedAeTitle] = useState<string>("");
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<string | null>(null);
   const [editingPort, setEditingPort] = useState<number>(0);
   const [editingHostname, setEditingHostname] = useState<string>("");
-  const [showQuerySettings, setShowQuerySettings] = useState(false);
-  const [editingQuerySettings, setEditingQuerySettings] = useState(false);
-  const [editedQuerySettings, setEditedQuerySettings] =
-    useState<QuerySettings | null>(null);
 
   // Storage server form
   const [showAddServer, setShowAddServer] = useState(false);
@@ -70,8 +59,15 @@ export function ServiceSettings() {
     description: "",
   });
 
-  // 2. MEMOIZED FUNCTIONS: Wrapped in useCallback
-  const loadServices = useCallback(async () => {
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  const loadAll = async () => {
+    await Promise.all([loadServices(), loadStorageServers()]);
+  };
+
+  const loadServices = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -93,74 +89,14 @@ export function ServiceSettings() {
     } finally {
       setLoading(false);
     }
-  }, []); // No dependencies needed as serviceConfigs is external and stable
+  };
 
-  const loadStorageServers = useCallback(async () => {
+  const loadStorageServers = async () => {
     try {
-      const servers = await dicoogleService.getStorageServers();
+      const servers = await apiService.getStorageServers();
       setStorageServers(servers);
     } catch (err) {
       console.error("Failed to load storage servers:", err);
-    }
-  }, []);
-
-  const loadQuerySettings = useCallback(async () => {
-    try {
-      const settings = await dicoogleService.getQueryRetrieveSettings();
-      setQuerySettings(settings);
-    } catch (err) {
-      console.error("Failed to load query settings:", err);
-    }
-  }, []);
-
-  const loadAeTitle = useCallback(async () => {
-    try {
-      const title = await dicoogleService.getAETitle();
-      setAeTitle(title.aetitle);
-    } catch (err) {
-      console.error("Failed to load AE title:", err);
-    }
-  }, []);
-
-  const loadAll = useCallback(async () => {
-    await Promise.all([
-      loadServices(),
-      loadStorageServers(),
-      loadQuerySettings(),
-      loadAeTitle(),
-    ]);
-  }, [loadServices, loadStorageServers, loadQuerySettings, loadAeTitle]);
-
-  // 3. UPDATED USEEFFECT: Safe to include loadAll now
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
-
-  const handleStartEditAeTitle = () => {
-    setEditedAeTitle(aeTitle);
-    setEditingAeTitle(true);
-  };
-
-  const handleCancelAeTitle = () => {
-    setEditingAeTitle(false);
-    setEditedAeTitle("");
-  };
-
-  const handleSaveAeTitle = async () => {
-    if (!editedAeTitle.trim()) {
-      toast.error("AE Title cannot be empty");
-      return;
-    }
-
-    try {
-      await dicoogleService.setAETitle(editedAeTitle);
-      await loadAeTitle();
-      setEditingAeTitle(false);
-      setEditedAeTitle("");
-      toast.success("AE Title updated successfully");
-    } catch (err) {
-      toast.error("Failed to update AE Title");
-      console.error(err);
     }
   };
 
@@ -171,51 +107,15 @@ export function ServiceSettings() {
     const config = serviceConfigs.find((c) => c.id === id);
     if (!config) return;
 
-    const newValue = !service.isRunning;
-
     try {
-      await config.setStatus({ isRunning: newValue });
-
-      if (id === "storage") {
-        await dicoogleService.setStorageStatus({ running: newValue });
-      } else if (id === "query") {
-        await dicoogleService.setQueryStatus({ running: newValue });
-      }
-
+      await config.setStatus({ running: !service.isRunning });
       await loadServices();
-
-      toast.success(`${config.name} ${newValue ? "started" : "stopped"}`);
+      toast.success(
+        `${config.name} ${!service.isRunning ? "started" : "stopped"}`,
+      );
+      onSave();
     } catch (err) {
       toast.error(`Failed to toggle ${config.name}`);
-      console.error(err);
-      await config.setStatus({ isRunning: !service.isRunning });
-
-      await loadServices();
-    }
-  };
-
-  const handleSave = async (id: string) => {
-    const config = serviceConfigs.find((c) => c.id === id);
-    if (!config) return;
-
-    const newValue: Partial<ServiceRequest> = {
-      port: editingPort,
-      hostname: editingHostname,
-    };
-
-    try {
-      await config.setStatus(newValue);
-
-      if (id === "storage") {
-        await dicoogleService.setStorageStatus(newValue);
-      } else if (id === "query") {
-        await dicoogleService.setQueryStatus(newValue);
-      }
-      await loadServices();
-      setEditingService(null);
-      toast.success(`${config.name} settings updated`);
-    } catch (err) {
-      toast.error(`Failed to update ${config.name} settings`);
       console.error(err);
     }
   };
@@ -228,34 +128,27 @@ export function ServiceSettings() {
     setEditingHostname(service.hostname || "0.0.0.0");
   };
 
-  const handleCancel = () => {
-    setEditingService(null);
-  };
-
-  const handleStartEditQuerySettings = () => {
-    if (!querySettings) return;
-    setEditedQuerySettings({ ...querySettings });
-    setEditingQuerySettings(true);
-  };
-
-  const handleCancelQuerySettings = () => {
-    setEditingQuerySettings(false);
-    setEditedQuerySettings(null);
-  };
-
-  const handleSaveQuerySettings = async () => {
-    if (!editedQuerySettings) return;
+  const handleSave = async (id: string) => {
+    const config = serviceConfigs.find((c) => c.id === id);
+    if (!config) return;
 
     try {
-      await dicoogleService.setQueryRetrieveSettings(editedQuerySettings);
-      await loadQuerySettings();
-      setEditingQuerySettings(false);
-      setEditedQuerySettings(null);
-      toast.success("Query settings updated successfully");
+      await config.setStatus({
+        port: editingPort,
+        hostname: editingHostname,
+      });
+      await loadServices();
+      setEditingService(null);
+      toast.success(`${config.name} settings updated`);
+      onSave();
     } catch (err) {
-      toast.error("Failed to save query settings");
+      toast.error(`Failed to update ${config.name} settings`);
       console.error(err);
     }
+  };
+
+  const handleCancel = () => {
+    setEditingService(null);
   };
 
   const handleAddServer = async () => {
@@ -265,7 +158,7 @@ export function ServiceSettings() {
     }
 
     try {
-      await dicoogleService.addStorageServer(newServer);
+      await apiService.addStorageServer(newServer);
       await loadStorageServers();
       setShowAddServer(false);
       setNewServer({
@@ -283,7 +176,7 @@ export function ServiceSettings() {
 
   const handleRemoveServer = async (server: StorageServer) => {
     try {
-      await dicoogleService.removeStorageServer(server);
+      await apiService.removeStorageServer(server);
       await loadStorageServers();
       toast.success("Storage server removed");
     } catch (err) {
@@ -311,71 +204,20 @@ export function ServiceSettings() {
           Start, stop, and configure Dicoogle DICOM services
         </p>
 
-        {/* AE Title */}
-        <div className="flex items-center gap-4 p-3 rounded-lg border border-border">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground">
-              AE Title:
-            </span>
-            {editingAeTitle ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  type="text"
-                  value={editedAeTitle}
-                  onChange={(e) => setEditedAeTitle(e.target.value)}
-                  className="h-8 w-40 font-mono text-sm"
-                />
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={handleSaveAeTitle}
-                  className="h-8 px-2"
-                >
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCancelAeTitle}
-                  className="h-8 px-2"
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono bg-background px-3 py-1 rounded border border-border">
-                  {aeTitle || "Not set"}
-                </span>
-                <button
-                  onClick={handleStartEditAeTitle}
-                  className="p-1 rounded-md hover:bg-muted transition-colors"
-                  title="Edit AE Title"
-                >
-                  <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-                </button>
-              </div>
-            )}
-          </div>
-          <span className="text-xs text-muted-foreground ml-auto">
-            Application Entity identifier for DICOM SCUs
-          </span>
-        </div>
-
         {error && (
           <div className="p-3 rounded-md bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm border border-red-200 dark:border-red-800 mb-4">
             {error}
           </div>
         )}
 
-        <div className="flex flex-wrap gap-4">
+        <div className="space-y-4">
           {serviceConfigs.map((config) => {
             const service = services.get(config.id);
             if (!service) return null;
             const isEditing = editingService === config.id;
 
             return (
-              <Card key={config.id} className="p-5 flex-1 min-w-[400px]">
+              <Card key={config.id} className="p-5">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -455,225 +297,6 @@ export function ServiceSettings() {
                         >
                           Cancel
                         </Button>
-                      </div>
-                    )}
-
-                    {/* Query Settings - Show only for query service */}
-                    {config.id === "query" && querySettings && (
-                      <div className="mt-4 border-t pt-4">
-                        <button
-                          onClick={() =>
-                            setShowQuerySettings(!showQuerySettings)
-                          }
-                          className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-                        >
-                          {showQuerySettings ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                          Advanced Query Settings
-                        </button>
-
-                        {showQuerySettings && (
-                          <div className="mt-4 space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                  Accept Timeout (ms)
-                                </label>
-                                {editingQuerySettings && editedQuerySettings ? (
-                                  <Input
-                                    type="number"
-                                    value={editedQuerySettings.acceptTimeout}
-                                    onChange={(e) =>
-                                      setEditedQuerySettings({
-                                        ...editedQuerySettings,
-                                        acceptTimeout: Number(e.target.value),
-                                      })
-                                    }
-                                    className="h-9"
-                                  />
-                                ) : (
-                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
-                                    {querySettings.acceptTimeout}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                  Connection Timeout (ms)
-                                </label>
-                                {editingQuerySettings && editedQuerySettings ? (
-                                  <Input
-                                    type="number"
-                                    value={
-                                      editedQuerySettings.connectionTimeout
-                                    }
-                                    onChange={(e) =>
-                                      setEditedQuerySettings({
-                                        ...editedQuerySettings,
-                                        connectionTimeout: Number(
-                                          e.target.value,
-                                        ),
-                                      })
-                                    }
-                                    className="h-9"
-                                  />
-                                ) : (
-                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
-                                    {querySettings.connectionTimeout}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                  Idle Timeout (ms)
-                                </label>
-                                {editingQuerySettings && editedQuerySettings ? (
-                                  <Input
-                                    type="number"
-                                    value={editedQuerySettings.idleTimeout}
-                                    onChange={(e) =>
-                                      setEditedQuerySettings({
-                                        ...editedQuerySettings,
-                                        idleTimeout: Number(e.target.value),
-                                      })
-                                    }
-                                    className="h-9"
-                                  />
-                                ) : (
-                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
-                                    {querySettings.idleTimeout}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                  Response Timeout (ms)
-                                </label>
-                                {editingQuerySettings && editedQuerySettings ? (
-                                  <Input
-                                    type="number"
-                                    value={editedQuerySettings.responseTimeout}
-                                    onChange={(e) =>
-                                      setEditedQuerySettings({
-                                        ...editedQuerySettings,
-                                        responseTimeout: Number(e.target.value),
-                                      })
-                                    }
-                                    className="h-9"
-                                  />
-                                ) : (
-                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
-                                    {querySettings.responseTimeout}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                  Max Associations
-                                </label>
-                                {editingQuerySettings && editedQuerySettings ? (
-                                  <Input
-                                    type="number"
-                                    value={editedQuerySettings.maxAssociations}
-                                    onChange={(e) =>
-                                      setEditedQuerySettings({
-                                        ...editedQuerySettings,
-                                        maxAssociations: Number(e.target.value),
-                                      })
-                                    }
-                                    className="h-9"
-                                  />
-                                ) : (
-                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
-                                    {querySettings.maxAssociations}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                  Max PDU Receive
-                                </label>
-                                {editingQuerySettings && editedQuerySettings ? (
-                                  <Input
-                                    type="number"
-                                    value={editedQuerySettings.maxPduReceive}
-                                    onChange={(e) =>
-                                      setEditedQuerySettings({
-                                        ...editedQuerySettings,
-                                        maxPduReceive: Number(e.target.value),
-                                      })
-                                    }
-                                    className="h-9"
-                                  />
-                                ) : (
-                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
-                                    {querySettings.maxPduReceive}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div>
-                                <label className="block text-xs font-medium text-foreground mb-1">
-                                  Max PDU Send
-                                </label>
-                                {editingQuerySettings && editedQuerySettings ? (
-                                  <Input
-                                    type="number"
-                                    value={editedQuerySettings.maxPduSend}
-                                    onChange={(e) =>
-                                      setEditedQuerySettings({
-                                        ...editedQuerySettings,
-                                        maxPduSend: Number(e.target.value),
-                                      })
-                                    }
-                                    className="h-9"
-                                  />
-                                ) : (
-                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
-                                    {querySettings.maxPduSend}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                              {editingQuerySettings ? (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={handleSaveQuerySettings}
-                                  >
-                                    Save Settings
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleCancelQuerySettings}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={handleStartEditQuerySettings}
-                                >
-                                  Edit Settings
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
