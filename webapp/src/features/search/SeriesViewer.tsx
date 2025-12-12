@@ -13,7 +13,7 @@ import {
   MonitorPlay,
   AlertCircle,
 } from "lucide-react";
-import { apiService } from "@/services/api";
+import { dicoogleService } from "@/services/dicoogleService";
 import { DicomViewer } from "@/components/dicom/CornerstoneViewport";
 import type {
   Study,
@@ -107,7 +107,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
       setMetadataLoading(true);
       setMetadataError(null);
       try {
-        const dump = await apiService.getDICOMMetadata(
+        const dump = await dicoogleService.getDICOMMetadata(
           currentImage.sopInstanceUID,
         );
         setMetadata(() => dump.results);
@@ -124,7 +124,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const getSeriesUrls = () => {
     if (!currentSeries?.images) return [];
     return currentSeries.images.map((img) =>
-      apiService.getDICOMFileUrl(img.sopInstanceUID),
+      dicoogleService.getDICOMFileUrl(img.sopInstanceUID),
     );
   };
 
@@ -167,7 +167,9 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                 >
                   {s.images && s.images.length > 0 ? (
                     <img
-                      src={apiService.getThumbnail(s.images[0].sopInstanceUID)}
+                      src={dicoogleService.getThumbnail(
+                        s.images[0].sopInstanceUID,
+                      )}
                       alt="Thumbnail"
                       className="w-full h-full object-contain"
                       onError={(e) => {
@@ -290,7 +292,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                   <Loader2 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 text-blue-500 animate-spin" />
                 )}
                 <img
-                  src={apiService.getImage(currentImage.sopInstanceUID)}
+                  src={dicoogleService.getImage(currentImage.sopInstanceUID)}
                   className="max-h-[85vh] object-contain transition-opacity duration-200"
                   style={{ opacity: imageLoading ? 0.5 : 1 }}
                   onLoad={() => setImageLoading(false)}

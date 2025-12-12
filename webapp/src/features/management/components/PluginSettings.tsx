@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { apiService, type Plugin } from "@/services/api";
+import { dicoogleService } from "@/services/dicoogleService";
 import { toast } from "@/utils/toast";
+import { type Plugin } from "@/types/index";
 
 type PluginType = "index" | "query" | "storage" | "all";
 
@@ -20,7 +21,7 @@ export function PluginSettings() {
     try {
       setLoading(true);
       setError(null);
-      const pluginsList = await apiService.getPlugins();
+      const pluginsList = await dicoogleService.getPlugins();
       setAllPlugins(pluginsList);
     } catch (err) {
       setError("Failed to load plugins");
@@ -41,7 +42,11 @@ export function PluginSettings() {
     setUpdatingPlugin(pluginKey);
 
     try {
-      await apiService.togglePluginState(pluginType, pluginName, newEnabled);
+      await dicoogleService.togglePluginState(
+        pluginType,
+        pluginName,
+        newEnabled,
+      );
 
       // Update local state
       setAllPlugins((plugins) =>

@@ -6,17 +6,37 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SearchPage } from "./features/search/SearchPage";
 import { ManagementPage } from "./features/management/ManagementPage";
+import { ServiceSettings } from "./features/management/components/ServiceSettings";
+import { PluginSettings } from "./features/management/components/PluginSettings";
+import { SystemInfo } from "./features/management/components/SystemInfo";
+import { Toaster } from "sonner";
 
 function App() {
-  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { isAuthenticated, authLoading, checkAuth } = useAuthStore();
 
   useEffect(() => {
     // Check authentication on app load
     checkAuth();
   }, [checkAuth]);
 
+  // Show loading screen while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
+      <Toaster
+        position="top-right"
+        expand={false}
+        richColors
+        closeButton
+        duration={4000}
+      />
       <MainLayout>
         <Routes>
           {/* Public routes */}
@@ -31,6 +51,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Management routes with nested sub-routes */}
           <Route
             path="/management"
             element={
@@ -38,7 +60,11 @@ function App() {
                 <ManagementPage />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route path="services" element={<ServiceSettings />} />
+            <Route path="plugins" element={<PluginSettings />} />
+            <Route path="system" element={<SystemInfo />} />
+          </Route>
 
           {/* Default redirect */}
           <Route

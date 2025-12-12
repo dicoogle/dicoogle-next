@@ -2,14 +2,15 @@ import { useEffect, useState, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { dicoogleService } from "@/services/dicoogleService";
+import { toast } from "@/utils/toast";
+import { X, ChevronDown, ChevronRight } from "lucide-react";
 import {
-  apiService,
   ServiceRequest,
   type ServiceStatus,
   type StorageServer,
-} from "@/services/api";
-import { toast } from "@/utils/toast";
-import { X } from "lucide-react";
+  type QuerySettings,
+} from "@/types/index";
 
 interface ServiceConfig {
   id: "storage" | "query";
@@ -24,15 +25,15 @@ const serviceConfigs: ServiceConfig[] = [
     id: "storage",
     name: "DICOM Storage Service",
     description: "DICOM C-STORE service for receiving medical images",
-    getStatus: () => apiService.getStorageStatus(),
-    setStatus: (status) => apiService.setStorageStatus(status),
+    getStatus: () => dicoogleService.getStorageStatus(),
+    setStatus: (status) => dicoogleService.setStorageStatus(status),
   },
   {
     id: "query",
     name: "DICOM Query Service",
     description: "DICOM C-FIND and C-GET query service",
-    getStatus: () => apiService.getQueryStatus(),
-    setStatus: (status) => apiService.setQueryStatus(status),
+    getStatus: () => dicoogleService.getQueryStatus(),
+    setStatus: (status) => dicoogleService.setQueryStatus(status),
   },
 ];
 
@@ -41,11 +42,18 @@ export function ServiceSettings() {
     new Map(),
   );
   const [storageServers, setStorageServers] = useState<StorageServer[]>([]);
+  const [querySettings, setQuerySettings] = useState<QuerySettings | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<string | null>(null);
   const [editingPort, setEditingPort] = useState<number>(0);
   const [editingHostname, setEditingHostname] = useState<string>("");
+  const [showQuerySettings, setShowQuerySettings] = useState(false);
+  const [editingQuerySettings, setEditingQuerySettings] = useState(false);
+  const [editedQuerySettings, setEditedQuerySettings] =
+    useState<QuerySettings | null>(null);
 
   // Storage server form
   const [showAddServer, setShowAddServer] = useState(false);
@@ -83,16 +91,29 @@ export function ServiceSettings() {
 
   const loadStorageServers = useCallback(async () => {
     try {
-      const servers = await apiService.getStorageServers();
+      const servers = await dicoogleService.getStorageServers();
       setStorageServers(servers);
     } catch (err) {
       console.error("Failed to load storage servers:", err);
     }
   }, []);
 
+  const loadQuerySettings = useCallback(async () => {
+    try {
+      const settings = await dicoogleService.getQueryRetrieveSettings();
+      setQuerySettings(settings);
+    } catch (err) {
+      console.error("Failed to load query settings:", err);
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
-    await Promise.all([loadServices(), loadStorageServers()]);
-  }, [loadServices, loadStorageServers]);
+    await Promise.all([
+      loadServices(),
+      loadStorageServers(),
+      loadQuerySettings(),
+    ]);
+  }, [loadServices, loadStorageServers, loadQuerySettings]);
 
   // 3. UPDATED USEEFFECT: Safe to include loadAll now
   useEffect(() => {
@@ -112,9 +133,9 @@ export function ServiceSettings() {
       await config.setStatus({ isRunning: newValue });
 
       if (id === "storage") {
-        await apiService.setStorageStatus({ running: newValue });
+        await dicoogleService.setStorageStatus({ running: newValue });
       } else if (id === "query") {
-        await apiService.setQueryStatus({ running: newValue });
+        await dicoogleService.setQueryStatus({ running: newValue });
       }
 
       await loadServices();
@@ -142,9 +163,9 @@ export function ServiceSettings() {
       await config.setStatus(newValue);
 
       if (id === "storage") {
-        await apiService.setStorageStatus(newValue);
+        await dicoogleService.setStorageStatus(newValue);
       } else if (id === "query") {
-        await apiService.setQueryStatus(newValue);
+        await dicoogleService.setQueryStatus(newValue);
       }
       await loadServices();
       setEditingService(null);
@@ -167,6 +188,32 @@ export function ServiceSettings() {
     setEditingService(null);
   };
 
+  const handleStartEditQuerySettings = () => {
+    if (!querySettings) return;
+    setEditedQuerySettings({ ...querySettings });
+    setEditingQuerySettings(true);
+  };
+
+  const handleCancelQuerySettings = () => {
+    setEditingQuerySettings(false);
+    setEditedQuerySettings(null);
+  };
+
+  const handleSaveQuerySettings = async () => {
+    if (!editedQuerySettings) return;
+
+    try {
+      await dicoogleService.setQueryRetrieveSettings(editedQuerySettings);
+      await loadQuerySettings();
+      setEditingQuerySettings(false);
+      setEditedQuerySettings(null);
+      toast.success("Query settings updated successfully");
+    } catch (err) {
+      toast.error("Failed to save query settings");
+      console.error(err);
+    }
+  };
+
   const handleAddServer = async () => {
     if (!newServer.AETitle || !newServer.ipAddrs) {
       toast.error("AE Title and IP Address are required");
@@ -174,7 +221,7 @@ export function ServiceSettings() {
     }
 
     try {
-      await apiService.addStorageServer(newServer);
+      await dicoogleService.addStorageServer(newServer);
       await loadStorageServers();
       setShowAddServer(false);
       setNewServer({
@@ -192,7 +239,7 @@ export function ServiceSettings() {
 
   const handleRemoveServer = async (server: StorageServer) => {
     try {
-      await apiService.removeStorageServer(server);
+      await dicoogleService.removeStorageServer(server);
       await loadStorageServers();
       toast.success("Storage server removed");
     } catch (err) {
@@ -313,6 +360,225 @@ export function ServiceSettings() {
                         >
                           Cancel
                         </Button>
+                      </div>
+                    )}
+
+                    {/* Query Settings - Show only for query service */}
+                    {config.id === "query" && querySettings && (
+                      <div className="mt-4 border-t pt-4">
+                        <button
+                          onClick={() =>
+                            setShowQuerySettings(!showQuerySettings)
+                          }
+                          className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                        >
+                          {showQuerySettings ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                          Advanced Query Settings
+                        </button>
+
+                        {showQuerySettings && (
+                          <div className="mt-4 space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                  Accept Timeout (ms)
+                                </label>
+                                {editingQuerySettings && editedQuerySettings ? (
+                                  <Input
+                                    type="number"
+                                    value={editedQuerySettings.acceptTimeout}
+                                    onChange={(e) =>
+                                      setEditedQuerySettings({
+                                        ...editedQuerySettings,
+                                        acceptTimeout: Number(e.target.value),
+                                      })
+                                    }
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
+                                    {querySettings.acceptTimeout}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                  Connection Timeout (ms)
+                                </label>
+                                {editingQuerySettings && editedQuerySettings ? (
+                                  <Input
+                                    type="number"
+                                    value={
+                                      editedQuerySettings.connectionTimeout
+                                    }
+                                    onChange={(e) =>
+                                      setEditedQuerySettings({
+                                        ...editedQuerySettings,
+                                        connectionTimeout: Number(
+                                          e.target.value,
+                                        ),
+                                      })
+                                    }
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
+                                    {querySettings.connectionTimeout}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                  Idle Timeout (ms)
+                                </label>
+                                {editingQuerySettings && editedQuerySettings ? (
+                                  <Input
+                                    type="number"
+                                    value={editedQuerySettings.idleTimeout}
+                                    onChange={(e) =>
+                                      setEditedQuerySettings({
+                                        ...editedQuerySettings,
+                                        idleTimeout: Number(e.target.value),
+                                      })
+                                    }
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
+                                    {querySettings.idleTimeout}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                  Response Timeout (ms)
+                                </label>
+                                {editingQuerySettings && editedQuerySettings ? (
+                                  <Input
+                                    type="number"
+                                    value={editedQuerySettings.responseTimeout}
+                                    onChange={(e) =>
+                                      setEditedQuerySettings({
+                                        ...editedQuerySettings,
+                                        responseTimeout: Number(e.target.value),
+                                      })
+                                    }
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
+                                    {querySettings.responseTimeout}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                  Max Associations
+                                </label>
+                                {editingQuerySettings && editedQuerySettings ? (
+                                  <Input
+                                    type="number"
+                                    value={editedQuerySettings.maxAssociations}
+                                    onChange={(e) =>
+                                      setEditedQuerySettings({
+                                        ...editedQuerySettings,
+                                        maxAssociations: Number(e.target.value),
+                                      })
+                                    }
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
+                                    {querySettings.maxAssociations}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                  Max PDU Receive
+                                </label>
+                                {editingQuerySettings && editedQuerySettings ? (
+                                  <Input
+                                    type="number"
+                                    value={editedQuerySettings.maxPduReceive}
+                                    onChange={(e) =>
+                                      setEditedQuerySettings({
+                                        ...editedQuerySettings,
+                                        maxPduReceive: Number(e.target.value),
+                                      })
+                                    }
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
+                                    {querySettings.maxPduReceive}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div>
+                                <label className="block text-xs font-medium text-foreground mb-1">
+                                  Max PDU Send
+                                </label>
+                                {editingQuerySettings && editedQuerySettings ? (
+                                  <Input
+                                    type="number"
+                                    value={editedQuerySettings.maxPduSend}
+                                    onChange={(e) =>
+                                      setEditedQuerySettings({
+                                        ...editedQuerySettings,
+                                        maxPduSend: Number(e.target.value),
+                                      })
+                                    }
+                                    className="h-9"
+                                  />
+                                ) : (
+                                  <div className="text-sm font-mono bg-muted px-3 py-2 rounded-md">
+                                    {querySettings.maxPduSend}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2">
+                              {editingQuerySettings ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={handleSaveQuerySettings}
+                                  >
+                                    Save Settings
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleCancelQuerySettings}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={handleStartEditQuerySettings}
+                                >
+                                  Edit Settings
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

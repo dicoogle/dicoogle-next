@@ -17,12 +17,6 @@ export interface SearchQuery {
   field?: string;
 }
 
-export interface DICOMAttribute {
-  tag: string;
-  vr: string;
-  value: string | string[];
-}
-
 export interface SearchResult {
   uri: string;
   fields: Record<string, any>;
@@ -70,4 +64,46 @@ export interface DICOMAttributeResponse {
 
 export interface DICOMAttribute {
   fields: Record<string, string>;
+}
+
+export interface ServiceStatus {
+  isRunning: boolean;
+  port: number;
+  hostname: string;
+  autostart: boolean;
+}
+
+export interface ServiceRequest {
+  running: boolean;
+  port: number;
+  hostname: string;
+  autostart: boolean;
+}
+
+export interface Plugin {
+  name: string;
+  type: string;
+  enabled: boolean;
+}
+
+export interface Version {
+  version: string;
+}
+
+export interface QuerySettings {
+  acceptTimeout: number;
+  connectionTimeout: number;
+  idleTimeout: number;
+  maxAssociations: number;
+  maxPduReceive: number;
+  maxPduSend: number;
+  responseTimeout: number;
+}
+
+export interface StorageServer {
+  AETitle: string;
+  ipAddrs: string;
+  port: number;
+  description?: string;
+  public?: boolean;
 }
