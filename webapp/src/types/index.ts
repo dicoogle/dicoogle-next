@@ -107,3 +107,19 @@ export interface StorageServer {
   description?: string;
   public?: boolean;
 }
+
+export interface TransferSyntaxOption {
+  name: string;
+  value: boolean;
+}
+
+export interface TransferSyntaxSettings {
+  uid: string;
+  sop_name: string;
+  options: TransferSyntaxOption[];
+}
+
+export interface User {
+  username: string;
+  roles?: string[];
+}

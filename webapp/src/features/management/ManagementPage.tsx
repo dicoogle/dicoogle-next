@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
 
-type TabType = "services" | "plugins" | "system";
+type TabType = "services" | "plugins" | "users" | "system" | "transfer";
 
 export function ManagementPage() {
   const navigate = useNavigate();
@@ -9,6 +9,8 @@ export function ManagementPage() {
   // Determine active tab from current route
   const getActiveTab = (): TabType => {
     if (location.pathname.includes("/plugins")) return "plugins";
+    if (location.pathname.includes("/users")) return "users";
+    if (location.pathname.includes("/transfer")) return "transfer";
     if (location.pathname.includes("/system")) return "system";
     return "services";
   };
@@ -20,7 +22,10 @@ export function ManagementPage() {
   };
 
   // Redirect /management to /management/services
-  if (location.pathname === "/management" || location.pathname === "/management/") {
+  if (
+    location.pathname === "/management" ||
+    location.pathname === "/management/"
+  ) {
     return <Navigate to="/management/services" replace />;
   }
 
@@ -40,7 +45,9 @@ export function ManagementPage() {
       <div className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <nav className="flex gap-1 overflow-x-auto" aria-label="Tabs">
-            {(["services", "plugins", "system"] as const).map((tab) => (
+            {(
+              ["services", "plugins", "users", "transfer", "system"] as const
+            ).map((tab) => (
               <button
                 key={tab}
                 onClick={() => handleTabChange(tab)}
@@ -50,9 +57,7 @@ export function ManagementPage() {
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                {tab === "plugins"
-                  ? "Plugins"
-                  : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             ))}
           </nav>

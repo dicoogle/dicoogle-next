@@ -10,6 +10,8 @@ import type {
   StorageServer,
   Version,
   Plugin,
+  TransferSyntaxSettings,
+  User,
 } from "@/types/index";
 import DicoogleClient from "dicoogle-client";
 
@@ -22,7 +24,6 @@ const getBaseUrl = (): string => {
   if (envUrl && envUrl.startsWith("/")) {
     const { protocol, hostname, port } = window.location;
     const fullUrl = `${protocol}//${hostname}${port ? ":" + port : ""}${envUrl}`;
-    // console.log('[DicoogleService] Using proxy URL:', fullUrl);
     return fullUrl;
   }
 
@@ -31,12 +32,10 @@ const getBaseUrl = (): string => {
     envUrl &&
     (envUrl.startsWith("http://") || envUrl.startsWith("https://"))
   ) {
-    // console.log("[DicoogleService] Using direct URL:", envUrl);
     return envUrl;
   }
 
   // Default fallback
-  // console.log('[DicoogleService] Using default URL: http://localhost:8080');
   return "http://localhost:8080";
 };
 
@@ -76,23 +75,20 @@ interface PluginInfo {
   enabled: boolean;
 }
 
+// Type for paginated transfer syntax response
+export interface PaginatedTransferSyntax {
+  items: TransferSyntaxSettings[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 class DicoogleService {
   private token: string | null = null;
 
   constructor() {
-    // Initialize client with the base URL
-    // console.log(
-    //   "[DicoogleService] Initializing Dicoogle client with base URL:",
-    //   DICOOGLE_URL,
-    // );
-
     try {
       dicoogleClient = DicoogleClient(DICOOGLE_URL);
-      // console.log("[DicoogleService] Client initialized successfully");
-      // console.log(
-      //   "[DicoogleService] Requests will go to:",
-      //   DICOOGLE_URL + "/[endpoint]",
-      // );
     } catch (error) {
       console.error("[DicoogleService] Failed to initialize client:", error);
     }
@@ -101,7 +97,6 @@ class DicoogleService {
     const savedToken = localStorage.getItem("dicoogle_token");
     if (savedToken) {
       this.token = savedToken;
-      // console.log("[DicoogleService] Restored token from localStorage");
     }
   }
 
@@ -114,6 +109,8 @@ class DicoogleService {
     this.token = null;
     localStorage.removeItem("dicoogle_token");
     localStorage.removeItem("dicoogle_username");
+    localStorage.removeItem("dicoogle_admin");
+    localStorage.removeItem("dicoogle_roles");
   }
 
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -122,30 +119,36 @@ class DicoogleService {
         throw new Error("Dicoogle client not initialized");
       }
 
-      // console.log(
-      //   "[DicoogleService] Attempting login for user:",
-      //   credentials.username,
-      // );
-
       const result = await dicoogleClient.login(
         credentials.username,
         credentials.password,
       );
 
-      // console.log("[DicoogleService] Login result:", result);
-
       if (result) {
         this.setToken("authenticated");
-        // Store username for later retrieval
+        
+        // Store username and check if user is admin
         localStorage.setItem("dicoogle_username", credentials.username);
+        
+        // Check if user has admin role
+        const isAdmin = result.admin || result.roles?.includes('admin') || false;
+        localStorage.setItem("dicoogle_admin", String(isAdmin));
+        
+        if (result.roles) {
+          localStorage.setItem("dicoogle_roles", JSON.stringify(result.roles));
+        }
+
+        return {
+          success: true,
+          user: credentials.username,
+          admin: isAdmin,
+          roles: result.roles || [],
+          token: "authenticated",
+        };
       }
 
       return {
-        success: !!result,
-        user: credentials.username,
-        admin: false,
-        roles: [],
-        token: "authenticated",
+        success: false,
       };
     } catch (error: any) {
       console.error("[DicoogleService] Login failed:", error);
@@ -161,7 +164,6 @@ class DicoogleService {
         return false;
       }
 
-      // console.log("[DicoogleService] Logging out...");
       await dicoogleClient.logout();
       this.clearToken();
       return true;
@@ -181,14 +183,17 @@ class DicoogleService {
         };
       }
 
-      // Retrieve stored username
+      // Retrieve stored username and admin status
       const username = localStorage.getItem("dicoogle_username") || "User";
+      const isAdmin = localStorage.getItem("dicoogle_admin") === "true";
+      const rolesStr = localStorage.getItem("dicoogle_roles");
+      const roles = rolesStr ? JSON.parse(rolesStr) : [];
 
       return {
         success: true,
         user: username,
-        admin: false,
-        roles: [],
+        admin: isAdmin,
+        roles,
       };
     } catch (error: any) {
       console.error("[DicoogleService] Token validation failed:", error);
@@ -202,20 +207,10 @@ class DicoogleService {
       throw new Error("Dicoogle client not initialized");
     }
 
-    // console.log("[DicoogleService] Searching with:", {
-    //   query: query.query,
-    //   providers: query.providers,
-    // });
-
     const outcome = await dicoogleClient.search(query.query, {
       provider: query.providers?.[0] || "lucene",
       keyword: true,
     });
-
-    // console.log("[DicoogleService] Search results:", {
-    //   count: outcome.results?.length || 0,
-    //   elapsedTime: outcome.elapsedTime,
-    // });
 
     return {
       results: outcome.results || [],
@@ -268,12 +263,9 @@ class DicoogleService {
   }
 
   // ============ Management API Methods ============
-  // Now using built-in dicoogle-client-js methods!
 
   async getStorageStatus(): Promise<ServiceStatus> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     const status: DicoogleServiceStatus =
       (await dicoogleClient.storage.getStatus()) as DicoogleServiceStatus;
@@ -286,9 +278,7 @@ class DicoogleService {
   }
 
   async setStorageStatus(status: Partial<ServiceRequest>): Promise<void> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     await dicoogleClient.storage.configure({
       running: status.running,
@@ -299,9 +289,7 @@ class DicoogleService {
   }
 
   async getQueryStatus(): Promise<ServiceStatus> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     const status: DicoogleServiceStatus =
       await dicoogleClient.queryRetrieve.getStatus();
@@ -314,9 +302,7 @@ class DicoogleService {
   }
 
   async setQueryStatus(status: Partial<ServiceRequest>): Promise<void> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     await dicoogleClient.queryRetrieve.configure({
       running: status.running,
@@ -327,9 +313,7 @@ class DicoogleService {
   }
 
   async getStorageServers(): Promise<StorageServer[]> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     const servers: RemoteStorage[] =
       (await dicoogleClient.storage.getRemoteServers()) as RemoteStorage[];
@@ -343,9 +327,7 @@ class DicoogleService {
   }
 
   async addStorageServer(server: StorageServer): Promise<void> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     await dicoogleClient.storage.addRemoteServer({
       aetitle: server.AETitle,
@@ -357,9 +339,7 @@ class DicoogleService {
   }
 
   async removeStorageServer(server: StorageServer): Promise<void> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     await dicoogleClient.storage.removeRemoteServer({
       aetitle: server.AETitle,
@@ -371,9 +351,7 @@ class DicoogleService {
   }
 
   async getPlugins(): Promise<Plugin[]> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     const response = await dicoogleClient.getPlugins();
     return response.plugins.map((plugin: PluginInfo) => ({
@@ -384,26 +362,25 @@ class DicoogleService {
   }
 
   async getVersion(): Promise<Version> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     return await dicoogleClient.getVersion();
   }
 
   async getAETitle(): Promise<{ aetitle: string }> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     const aetitle = await dicoogleClient.getAETitle();
     return { aetitle };
   }
 
+  async setAETitle(aetitle: string): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.setAETitle(aetitle);
+  }
+
   async getQueryRetrieveSettings(): Promise<QuerySettings> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     const settings: DicomQuerySettings =
       (await dicoogleClient.queryRetrieve.getDicomQuerySettings()) as DicomQuerySettings;
@@ -422,34 +399,23 @@ class DicoogleService {
   async setQueryRetrieveSettings(
     settings: Partial<QuerySettings>,
   ): Promise<void> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
-    // Map our interface to DicomQuerySettings format
     const dicomSettings: DicomQuerySettings = {};
-
-    if (settings.acceptTimeout !== undefined) {
+    if (settings.acceptTimeout !== undefined)
       dicomSettings.acceptTimeout = settings.acceptTimeout;
-    }
-    if (settings.connectionTimeout !== undefined) {
+    if (settings.connectionTimeout !== undefined)
       dicomSettings.connectionTimeout = settings.connectionTimeout;
-    }
-    if (settings.idleTimeout !== undefined) {
+    if (settings.idleTimeout !== undefined)
       dicomSettings.idleTimeout = settings.idleTimeout;
-    }
-    if (settings.maxAssociations !== undefined) {
+    if (settings.maxAssociations !== undefined)
       dicomSettings.maxAssociations = settings.maxAssociations;
-    }
-    if (settings.maxPduReceive !== undefined) {
+    if (settings.maxPduReceive !== undefined)
       dicomSettings.maxPduReceive = settings.maxPduReceive;
-    }
-    if (settings.maxPduSend !== undefined) {
+    if (settings.maxPduSend !== undefined)
       dicomSettings.maxPduSend = settings.maxPduSend;
-    }
-    if (settings.responseTimeout !== undefined) {
+    if (settings.responseTimeout !== undefined)
       dicomSettings.responseTimeout = settings.responseTimeout;
-    }
 
     await dicoogleClient.queryRetrieve.setDicomQuerySettings(dicomSettings);
   }
@@ -459,15 +425,116 @@ class DicoogleService {
     name: string,
     enable: boolean,
   ): Promise<any> {
-    if (!dicoogleClient) {
-      throw new Error("Dicoogle client not initialized");
-    }
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 
     if (enable) {
       await dicoogleClient.enablePlugin(type as any, name);
     } else {
       await dicoogleClient.disablePlugin(type as any, name);
     }
+  }
+
+  async getServerLog(): Promise<string> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    return await dicoogleClient.getRawLog();
+  }
+
+  async getUsers(): Promise<User[]> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    const usersList = await dicoogleClient.users.list();
+    return usersList.map((u: any) => ({
+      username: u.username,
+      roles: u.roles,
+    }));
+  }
+
+  async createUser(
+    username: string,
+    password: string,
+    admin: boolean = false,
+  ): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.users.add(username, password, admin);
+  }
+
+  async deleteUser(username: string): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.users.remove(username);
+  }
+
+  /**
+   * Update user by deleting and recreating with new credentials
+   * This is a workaround since Dicoogle doesn't have a native update API
+   */
+  async updateUser(
+    username: string,
+    newPassword: string,
+    admin: boolean = false,
+  ): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    
+    // Delete existing user
+    await dicoogleClient.users.remove(username);
+    
+    // Recreate with new credentials
+    await dicoogleClient.users.add(username, newPassword, admin);
+  }
+
+  async getTransferSyntaxes(): Promise<TransferSyntaxSettings[]> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    return await dicoogleClient.getTransferSyntaxSettings();
+  }
+
+  /**
+   * Get transfer syntaxes with pagination and search support
+   * @param searchTerm Optional search term to filter transfer syntaxes by sop_name or uid
+   * @param page Page number (1-indexed)
+   * @param pageSize Number of items per page
+   */
+  async getTransferSyntaxesPaginated(
+    searchTerm: string = "",
+    page: number = 1,
+    pageSize: number = 10,
+  ): Promise<PaginatedTransferSyntax> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+
+    const allSyntaxes = await dicoogleClient.getTransferSyntaxSettings();
+
+    // Filter by search term if provided
+    let filtered = allSyntaxes;
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = allSyntaxes.filter(
+        (syntax) =>
+          syntax.sop_name.toLowerCase().includes(term) ||
+          syntax.uid.toLowerCase().includes(term),
+      );
+    }
+
+    // Calculate pagination
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize);
+    const normalizedPage = Math.max(1, Math.min(page, totalPages || 1));
+    const startIndex = (normalizedPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+
+    const items = filtered.slice(startIndex, endIndex);
+
+    return {
+      items,
+      total,
+      page: normalizedPage,
+      pageSize,
+    };
+  }
+
+  async setTransferSyntaxOption(
+    uid: string,
+    option: string,
+    value: boolean,
+  ): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.setTransferSyntaxOption(uid, option, value);
   }
 }
 

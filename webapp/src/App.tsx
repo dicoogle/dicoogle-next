@@ -3,12 +3,15 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/stores/AuthStore";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SearchPage } from "./features/search/SearchPage";
 import { ManagementPage } from "./features/management/ManagementPage";
 import { ServiceSettings } from "./features/management/components/ServiceSettings";
 import { PluginSettings } from "./features/management/components/PluginSettings";
 import { SystemInfo } from "./features/management/components/SystemInfo";
+import { UserManagement } from "./features/management/components/UserManagement";
+import { TransferSettings } from "./features/management/components/TransferSettings";
 import { Toaster } from "sonner";
 
 function App() {
@@ -52,17 +55,21 @@ function App() {
             }
           />
 
-          {/* Management routes with nested sub-routes */}
+          {/* Admin-only management routes */}
           <Route
             path="/management"
             element={
               <ProtectedRoute isAuthenticated={isAuthenticated}>
-                <ManagementPage />
+                <AdminRoute>
+                  <ManagementPage />
+                </AdminRoute>
               </ProtectedRoute>
             }
           >
             <Route path="services" element={<ServiceSettings />} />
             <Route path="plugins" element={<PluginSettings />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="transfer" element={<TransferSettings />} />
             <Route path="system" element={<SystemInfo />} />
           </Route>
 
