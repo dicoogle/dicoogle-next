@@ -1,11 +1,10 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Dialog } from "@/components/ui/Dialog";
 import { dicoogleService } from "@/services/dicoogleService";
 import { type Version } from "@/types/index";
 import { FileText, Pause, Play } from "lucide-react";
-import { toast } from "@/utils/toast";
 
 export function SystemInfo() {
   const [version, setVersion] = useState<Version | null>(null);
@@ -25,18 +24,31 @@ export function SystemInfo() {
     loadSystemInfo();
   }, []);
 
-  // Poll logs when modal is open and polling is enabled
+  const fetchLog = useCallback(async () => {
+    try {
+      const log = await dicoogleService.getServerLog();
+      setLogContent(log);
+
+      setLogLoading(false);
+    } catch (err) {
+      setLogContent((prevContent) => {
+        if (!prevContent) {
+          return "Error loading log file.";
+        }
+        return prevContent;
+      });
+      console.error("Failed to fetch log:", err);
+    }
+  }, []);
+
   useEffect(() => {
     if (logOpen && isPolling) {
-      // Initial load
       fetchLog();
 
-      // Set up polling every 2 seconds
       pollIntervalRef.current = setInterval(() => {
         fetchLog();
       }, 2000);
     } else {
-      // Clear interval when modal closes or polling is paused
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
         pollIntervalRef.current = null;
@@ -49,7 +61,7 @@ export function SystemInfo() {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [logOpen, isPolling]);
+  }, [logOpen, isPolling, fetchLog]); // fetchLog is now stable!
 
   // Auto-scroll to bottom when log content changes
   useEffect(() => {
@@ -75,19 +87,6 @@ export function SystemInfo() {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchLog = async () => {
-    try {
-      const log = await dicoogleService.getServerLog();
-      setLogContent(log);
-      if (logLoading) setLogLoading(false);
-    } catch (err) {
-      if (!logContent) {
-        setLogContent("Error loading log file.");
-      }
-      console.error("Failed to fetch log:", err);
     }
   };
 
@@ -197,34 +196,6 @@ export function SystemInfo() {
             </a>
           </p>
         </Card>
-
-        {/* Management Links */}
-        <Card className="p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">
-            Configuration
-          </h3>
-          <p className="text-xs text-muted-foreground mb-4">
-            To modify advanced settings, edit the Dicoogle configuration files
-            directly:
-          </p>
-          <ul className="text-xs text-foreground space-y-2 list-disc list-inside">
-            <li>Index settings: Edit plugin configuration files</li>
-            <li>Service ports: Modify service configuration</li>
-            <li>
-              Plugin management: Add/remove plugins from the plugins directory
-            </li>
-          </ul>
-        </Card>
-
-        {/* Reload Button */}
-        <div className="flex justify-end">
-          <button
-            onClick={loadSystemInfo}
-            className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
-          >
-            ⟳ Refresh
-          </button>
-        </div>
       </div>
 
       {/* Log Modal */}
