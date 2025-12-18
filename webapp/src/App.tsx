@@ -3,19 +3,43 @@ import { useEffect } from "react";
 import { useAuthStore } from "@/stores/AuthStore";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import { MainLayout } from "./components/layout/MainLayout";
 import { SearchPage } from "./features/search/SearchPage";
+import { ManagementPage } from "./features/management/ManagementPage";
+import { ServiceSettings } from "./features/management/components/ServiceSettings";
+import { PluginSettings } from "./features/management/components/PluginSettings";
+import { SystemInfo } from "./features/management/components/SystemInfo";
+import { UserManagement } from "./features/management/components/UserManagement";
+import { TransferSettings } from "./features/management/components/TransferSettings";
+import { Toaster } from "sonner";
 
 function App() {
-  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { isAuthenticated, authLoading, checkAuth } = useAuthStore();
 
   useEffect(() => {
     // Check authentication on app load
     checkAuth();
   }, [checkAuth]);
 
+  // Show loading screen while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
+      <Toaster
+        position="top-right"
+        expand={false}
+        richColors
+        closeButton
+        duration={4000}
+      />
       <MainLayout>
         <Routes>
           {/* Public routes */}
@@ -30,6 +54,24 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Admin-only management routes */}
+          <Route
+            path="/management"
+            element={
+              <ProtectedRoute isAuthenticated={isAuthenticated}>
+                <AdminRoute>
+                  <ManagementPage />
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          >
+            <Route path="services" element={<ServiceSettings />} />
+            <Route path="plugins" element={<PluginSettings />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="transfer" element={<TransferSettings />} />
+            <Route path="system" element={<SystemInfo />} />
+          </Route>
 
           {/* Default redirect */}
           <Route

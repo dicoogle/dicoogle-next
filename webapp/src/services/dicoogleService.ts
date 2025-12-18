@@ -12,8 +12,6 @@ import type {
   Plugin,
   TransferSyntaxSettings,
   User,
-  TaskOutcome,
-  IndexerSettings,
 } from "@/types/index";
 import DicoogleClient from "dicoogle-client";
 
@@ -42,7 +40,6 @@ const getBaseUrl = (): string => {
 };
 
 const DICOOGLE_URL = getBaseUrl();
-const TOKEN_STORAGE_KEY = "dicoogle_token";
 
 // Initialize the client
 let dicoogleClient: ReturnType<typeof DicoogleClient> | null = null;
@@ -87,30 +84,35 @@ export interface PaginatedTransferSyntax {
 }
 
 class DicoogleService {
+  private token: string | null = null;
+
   constructor() {
     try {
       dicoogleClient = DicoogleClient(DICOOGLE_URL);
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (token) {
-        dicoogleClient.setToken(token);
-      }
     } catch (error) {
       console.error("[DicoogleService] Failed to initialize client:", error);
     }
+
+    // Restore token from localStorage
+    const savedToken = localStorage.getItem("dicoogle_token");
+    if (savedToken) {
+      this.token = savedToken;
+    }
   }
 
-  /**
-   * Get the raw dicoogle-client instance for plugins
-   * This exposes the full dicoogle-client-js API
-   */
-  getClient(): ReturnType<typeof DicoogleClient> | null {
-    return dicoogleClient;
+  setToken(token: string) {
+    this.token = token;
+    localStorage.setItem("dicoogle_token", token);
   }
 
-  /**
-   * Login to Dicoogle using credentials
-   * Stores the token in localStorage for session persistence
-   */
+  clearToken() {
+    this.token = null;
+    localStorage.removeItem("dicoogle_token");
+    localStorage.removeItem("dicoogle_username");
+    localStorage.removeItem("dicoogle_admin");
+    localStorage.removeItem("dicoogle_roles");
+  }
+
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
       if (!dicoogleClient) {
@@ -122,16 +124,26 @@ class DicoogleService {
         credentials.password,
       );
 
-      if (result && result.token) {
-        // Store the actual token in localStorage for persistence across reloads
-        localStorage.setItem(TOKEN_STORAGE_KEY, result.token);
+      if (result) {
+        this.setToken("authenticated");
+        
+        // Store username and check if user is admin
+        localStorage.setItem("dicoogle_username", credentials.username);
+        
+        // Check if user has admin role
+        const isAdmin = result.admin || result.roles?.includes('admin') || false;
+        localStorage.setItem("dicoogle_admin", String(isAdmin));
+        
+        if (result.roles) {
+          localStorage.setItem("dicoogle_roles", JSON.stringify(result.roles));
+        }
 
         return {
           success: true,
-          user: result.user,
-          admin: result.admin,
+          user: credentials.username,
+          admin: isAdmin,
           roles: result.roles || [],
-          token: result.token,
+          token: "authenticated",
         };
       }
 
@@ -146,102 +158,46 @@ class DicoogleService {
     }
   }
 
-  /**
-   * Logout from Dicoogle
-   * Clears the token from localStorage
-   */
   async logout(): Promise<boolean> {
     try {
-      if (!dicoogleClient) {
+      if (!dicoogleClient || !this.token) {
         return false;
       }
 
       await dicoogleClient.logout();
-
-      // Clear token from localStorage
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-
+      this.clearToken();
       return true;
     } catch (error: any) {
       console.error("[DicoogleService] Logout failed:", error);
-      // Even if logout fails, clear local token
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
       return false;
+    } finally {
+      this.clearToken();
     }
   }
 
-  /**
-   * Check if user is authenticated
-   * Uses the dicoogle-client-js library's built-in isAuthenticated() method
-   */
-  async isAuthenticated(): Promise<boolean> {
+  async validateToken(): Promise<LoginResponse> {
     try {
-      if (!dicoogleClient) {
-        return false;
+      if (!this.token || !dicoogleClient) {
+        return {
+          success: false,
+        };
       }
 
-      const hasToken = dicoogleClient.isAuthenticated();
-
-      if (!hasToken) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        return false;
-      }
-
-      const token = dicoogleClient.getToken();
-
-      if (!token) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        return false;
-      }
-
-      await dicoogleClient.restoreSession(token);
-      if (!dicoogleClient.getUsername()) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        return false;
-      }
-
-      return true;
-    } catch (error: any) {
-      console.error("[DicoogleService] Auth check failed:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Get current user information
-   * If username/roles are not in the library's memory (e.g., after page reload),
-   * uses restoreSession() to fetch them from the backend
-   */
-  async getUserInfo(): Promise<LoginResponse> {
-    try {
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (!dicoogleClient || !token) {
-        return { success: false };
-      }
-
-      let username, roles, isAdmin;
-
-      try {
-        const userInfo = await dicoogleClient.restoreSession(token);
-        username = userInfo.user;
-        roles = userInfo.roles;
-        isAdmin = userInfo.admin;
-      } catch (error) {
-        console.error("[DicoogleService] Failed to restore session:", error);
-        // Token is invalid, clear everything
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        return { success: false };
-      }
+      // Retrieve stored username and admin status
+      const username = localStorage.getItem("dicoogle_username") || "User";
+      const isAdmin = localStorage.getItem("dicoogle_admin") === "true";
+      const rolesStr = localStorage.getItem("dicoogle_roles");
+      const roles = rolesStr ? JSON.parse(rolesStr) : [];
 
       return {
         success: true,
         user: username,
         admin: isAdmin,
-        roles: roles || [],
-        token: token,
+        roles,
       };
     } catch (error: any) {
-      console.error("[DicoogleService] Failed to get user info:", error);
+      console.error("[DicoogleService] Token validation failed:", error);
+      this.clearToken();
       return { success: false };
     }
   }
@@ -306,41 +262,6 @@ class DicoogleService {
     return `${DICOOGLE_URL}/dic2png?thumbnail=false&SOPInstanceUID=${uid}`;
   }
 
-  // ============ Indexer Methods ============
-
-  async index(uri: string | string[]): Promise<string> {
-    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
-    console.log("indexing");
-    await dicoogleClient.index(uri);
-    // Return the first URI as task identifier
-    return Array.isArray(uri) ? uri[0] : uri;
-  }
-
-  async listTasks(): Promise<TaskOutcome> {
-    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
-    return await dicoogleClient.tasks.list();
-  }
-
-  async stopTask(taskUid: string): Promise<void> {
-    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
-    await dicoogleClient.tasks.stop(taskUid);
-  }
-
-  async closeTask(taskUid: string): Promise<void> {
-    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
-    await dicoogleClient.tasks.close(taskUid);
-  }
-
-  async getIndexerSettings(): Promise<IndexerSettings> {
-    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
-    return await dicoogleClient.getIndexerSettings();
-  }
-
-  async setIndexerSettings(settings: Record<string, any>): Promise<void> {
-    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
-    await dicoogleClient.setIndexerSettings(settings);
-  }
-
   // ============ Management API Methods ============
 
   async getStorageStatus(): Promise<ServiceStatus> {
@@ -351,7 +272,7 @@ class DicoogleService {
     return {
       isRunning: status.isRunning,
       port: status.port,
-      hostname: status.hostname || "0.0.0.0",
+      hostname: status.hostname || "localhost",
       autostart: status.autostart,
     };
   }
@@ -372,11 +293,10 @@ class DicoogleService {
 
     const status: DicoogleServiceStatus =
       await dicoogleClient.queryRetrieve.getStatus();
-
     return {
       isRunning: status.isRunning,
       port: status.port,
-      hostname: status.hostname || "0.0.0.0",
+      hostname: status.hostname || "localhost",
       autostart: status.autostart,
     };
   }
@@ -552,10 +472,10 @@ class DicoogleService {
     admin: boolean = false,
   ): Promise<void> {
     if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
-
+    
     // Delete existing user
     await dicoogleClient.users.remove(username);
-
+    
     // Recreate with new credentials
     await dicoogleClient.users.add(username, newPassword, admin);
   }

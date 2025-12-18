@@ -11,7 +11,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuthStore();
 
-  // Don’t show top bar on login route
+  // Don't show top bar on login route
   const isLoginPage = location.pathname === "/login";
 
   const handleLogout = () => {
@@ -43,16 +43,26 @@ export function MainLayout({ children }: MainLayoutProps) {
 
           {/* Middle: navigation */}
           {isAuthenticated && (
-            <nav className="hidden sm:flex items-center gap-4 text-sm">
+            <nav className="hidden sm:flex items-center gap-1 text-sm">
               <button
                 onClick={() => navigate("/search")}
-                className={`px-3 py-1 rounded-md hover:bg-muted ${
+                className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
                   location.pathname.startsWith("/search")
                     ? "bg-muted font-medium"
                     : ""
                 }`}
               >
                 Search
+              </button>
+              <button
+                onClick={() => navigate("/management")}
+                className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
+                  location.pathname.startsWith("/management")
+                    ? "bg-muted font-medium"
+                    : ""
+                }`}
+              >
+                Management
               </button>
             </nav>
           )}

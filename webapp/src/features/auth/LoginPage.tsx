@@ -1,5 +1,5 @@
-import { useState, FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, FormEvent, useEffect, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -16,18 +16,34 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const loginAttemptedRef = useRef(false);
 
   const { isAuthenticated, loading, error, login } = useAuthStore();
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate("/search");
-  }
+  // Only redirect if:
+  // 1. User is authenticated
+  // 2. AND they just attempted to login (not on initial page load)
+  useEffect(() => {
+    if (isAuthenticated && loginAttemptedRef.current) {
+      // Get the redirect path from location state or default to /search
+      const from = (location.state as any)?.from?.pathname || "/search";
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    login({ username, password });
+    loginAttemptedRef.current = true;
+    await login({ username, password });
   };
+
+  // If already authenticated on initial load, redirect immediately
+  if (isAuthenticated && !loginAttemptedRef.current) {
+    const from = (location.state as any)?.from?.pathname || "/search";
+    navigate(from, { replace: true });
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
