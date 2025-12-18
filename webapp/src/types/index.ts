@@ -123,3 +123,29 @@ export interface User {
   username: string;
   roles?: string[];
 }
+
+export interface IndexerSettings {
+  path?: string;
+  zip?: boolean;
+  effort?: number;
+  thumbnail?: boolean;
+  thumbnailSize?: number;
+  watcher?: boolean;
+}
+
+export interface TaskInfo {
+  taskUid: string;
+  taskName: string;
+  taskProgress: number;
+  complete?: boolean;
+  elapsedTime?: number;
+  nIndexed?: number;
+  nErrors?: number;
+  canceled?: boolean;
+  taskTimeCreated?: string;
+}
+
+export interface TaskOutcome {
+  results: TaskInfo[];
+  count: number;
+}
