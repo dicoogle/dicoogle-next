@@ -1,11 +1,12 @@
 import { create } from "zustand";
-import { apiService } from "@/services/api";
+import { dicoogleService } from "@/services/dicoogleService";
 import type { LoginResponse, LoginCredentials } from "@/types";
 
 interface AuthState {
   isAuthenticated: boolean;
   user: LoginResponse | null;
   loading: boolean;
+  authLoading: boolean; // New: loading state for initial auth check
   error: string | null;
 
   // Actions
@@ -19,13 +20,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   user: null,
   loading: false,
+  authLoading: true, // Start as true to prevent premature redirects
   error: null,
 
   login: async (credentials: LoginCredentials) => {
     set({ loading: true, error: null });
 
     try {
-      const response = await apiService.login(credentials);
+      const response = await dicoogleService.login(credentials);
 
       if (response.success && response.token) {
         set({
@@ -54,7 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     try {
-      await apiService.logout();
+      await dicoogleService.logout();
     } finally {
       set({
         isAuthenticated: false,
@@ -66,29 +68,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   checkAuth: async () => {
+    set({ authLoading: true });
+    
     // Check if user has valid token in localStorage
     const token = localStorage.getItem("dicoogle_token");
 
     if (!token) {
-      set({ isAuthenticated: false, user: null });
+      set({ isAuthenticated: false, user: null, authLoading: false });
       return;
     }
 
-    // Validate token with backend by calling GET /login
+    // Validate token with backend
     try {
-      // console.log("[Auth] Validating stored token...");
-      const response = await apiService.validateToken();
+      const response = await dicoogleService.validateToken();
 
       if (response.success) {
-        // console.log("[Auth] Token is valid");
-        set({ isAuthenticated: true, user: response });
+        set({ isAuthenticated: true, user: response, authLoading: false });
       } else {
-        // console.log("[Auth] Token is invalid");
-        set({ isAuthenticated: false, user: null });
+        set({ isAuthenticated: false, user: null, authLoading: false });
       }
     } catch (error) {
-      // console.error("[Auth] Token validation error:", error);
-      set({ isAuthenticated: false, user: null });
+      set({ isAuthenticated: false, user: null, authLoading: false });
     }
   },
 

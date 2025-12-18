@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { apiService } from "@/services/api";
+import { dicoogleService } from "@/services/dicoogleService";
 import type { SearchQuery, SearchResult, Study, Series, Image } from "@/types";
 
 interface SearchState {
@@ -35,7 +35,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set({ loading: true, error: null, query: query.query });
 
     try {
-      const response = await apiService.search(query);
+      const response = await dicoogleService.search(query);
 
       // Parse results into studies and series with images
       const studiesMap = new Map<string, Study>();

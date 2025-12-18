@@ -4,7 +4,7 @@ import { Enums as csEnums } from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { initializeCornerstone } from "@/utils/cornerstoneInit";
 import { Button } from "@/components/ui/Button";
-import { apiService } from "@/services/api";
+import { dicoogleService } from "@/services/dicoogleService";
 import {
   ZoomIn,
   Move,
@@ -311,7 +311,7 @@ export function DicomViewer({ imageUrls, onClose, title }: DicomViewerProps) {
         const match = currentImageId.match(/uid=([^&]*)/);
         if (match && match[1]) {
           const uid = match[1];
-          const data = await apiService.getDICOMMetadata(uid);
+          const data = await dicoogleService.getDICOMMetadata(uid);
           setMetadata(data.results?.fields || data.results);
         }
       } catch (e) {
