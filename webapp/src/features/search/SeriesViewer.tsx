@@ -119,7 +119,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
       }
     };
     loadMetadata();
-  }, [viewerOpen, currentImage, showMetadata]); // Fix: Added currentImage dependency
+  }, [viewerOpen, currentImage, showMetadata]);
 
   const getSeriesUrls = () => {
     if (!currentSeries?.images) return [];

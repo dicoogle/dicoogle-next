@@ -6,13 +6,13 @@ interface AuthState {
   isAuthenticated: boolean;
   user: LoginResponse | null;
   loading: boolean;
-  authLoading: boolean; // New: loading state for initial auth check
+  authLoading: boolean; // Loading state for initial auth check
   error: string | null;
 
   // Actions
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
-  checkAuth: () => void;
+  checkAuth: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const response = await dicoogleService.login(credentials);
 
-      if (response.success && response.token) {
+      if (response.success) {
         set({
           isAuthenticated: true,
           user: response,
@@ -67,27 +67,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  // Check authentication on app load
+  // Uses dicoogleService.isAuthenticated() which relies on
+  // the dicoogle-client-js library's internal session management
   checkAuth: async () => {
     set({ authLoading: true });
-    
-    // Check if user has valid token in localStorage
-    const token = localStorage.getItem("dicoogle_token");
 
-    if (!token) {
-      set({ isAuthenticated: false, user: null, authLoading: false });
-      return;
-    }
-
-    // Validate token with backend
     try {
-      const response = await dicoogleService.validateToken();
+      const isAuth = await dicoogleService.isAuthenticated();
 
-      if (response.success) {
-        set({ isAuthenticated: true, user: response, authLoading: false });
+      if (isAuth) {
+        // Get user info from the service
+        const userInfo = await dicoogleService.getUserInfo();
+        set({ isAuthenticated: true, user: userInfo, authLoading: false });
       } else {
         set({ isAuthenticated: false, user: null, authLoading: false });
       }
     } catch (error) {
+      console.error("[AuthStore] Auth check failed:", error);
       set({ isAuthenticated: false, user: null, authLoading: false });
     }
   },

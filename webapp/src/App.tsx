@@ -18,11 +18,9 @@ function App() {
   const { isAuthenticated, authLoading, checkAuth } = useAuthStore();
 
   useEffect(() => {
-    // Check authentication on app load
     checkAuth();
   }, [checkAuth]);
 
-  // Show loading screen while checking auth
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
