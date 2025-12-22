@@ -146,6 +146,6 @@ export interface TaskInfo {
 }
 
 export interface TaskOutcome {
-  results: TaskInfo[];
+  tasks: TaskInfo[];
   count: number;
 }

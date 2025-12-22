@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Dialog } from "@/components/ui/Dialog";
-import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { dicoogleService } from "@/services/dicoogleService";
 import { useTaskStore } from "@/stores/TaskStore";
-import { useAuthStore } from "@/stores/AuthStore";
 import { toast } from "@/utils/toast";
 import {
   AlertCircle,
@@ -27,11 +25,9 @@ interface IndexerModalProps {
   onClose: () => void;
 }
 
-// Path suggestions
 const PATH_SUGGESTIONS = ["file:"];
 
 export function IndexerModal({ open, onClose }: IndexerModalProps) {
-  const { user } = useAuthStore();
   const { tasks, listTasks } = useTaskStore();
 
   const [activeTab, setActiveTab] = useState<TabType>("manual");
@@ -44,10 +40,6 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
   // Auto-indexing state
   const [watcherPath, setWatcherPath] = useState("");
   const [watcherEnabled, setWatcherEnabled] = useState(false);
-  const [effort, setEffort] = useState(100);
-  const [indexZip, setIndexZip] = useState(false);
-  const [saveThumbnail, setSaveThumbnail] = useState(true);
-  const [thumbnailSize, setThumbnailSize] = useState(128);
   const [watcherLoading, setWatcherLoading] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
@@ -59,44 +51,36 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
     new Set(),
   );
 
+  // Pagination for tasks modal
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+
   // Task polling
-  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null);
   const lastNotifiedTaskRef = useRef<string | null>(null);
   const currentTaskRef = useRef<string | null>(null);
   const pathInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      // Reset refs when opening
-      lastNotifiedTaskRef.current = null;
-      currentTaskRef.current = null;
-
-      loadSettings();
-      listTasks();
-
-      // Poll for task updates every 2 seconds
-      const interval = setInterval(() => {
-        listTasks();
-      }, 2000);
-      setPollInterval(interval);
-
-      return () => {
-        if (interval) clearInterval(interval);
-        toast.dismiss(INDEXING_TOAST_ID);
-      };
-    } else {
-      // Clear toast when closing modal
+    if (!open) {
       toast.dismiss(INDEXING_TOAST_ID);
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        setPollInterval(null);
-      }
+      return;
     }
-  }, [open]);
 
-  // Monitor task completion and show appropriate toast
+    loadSettings();
+    listTasks();
+
+    const interval = setInterval(() => {
+      listTasks();
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+      toast.dismiss(INDEXING_TOAST_ID);
+    };
+  }, [open, listTasks]);
+
   useEffect(() => {
-    if (!open) return; // Don't process tasks if modal is closed
+    if (!open) return;
 
     if (tasks.length === 0) {
       if (currentTaskRef.current) {
@@ -106,73 +90,79 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
       return;
     }
 
-    const latestTask = tasks[0];
+    const runningTask = tasks.find((task) => !task.complete && !task.canceled);
 
-    // Check if task was canceled - dismiss loading toast
-    // if (
-    //   latestTask.canceled &&
-    //   latestTask.taskUid !== lastNotifiedTaskRef.current
-    // ) {
-    //   toast.dismiss(INDEXING_TOAST_ID);
-    //   currentTaskRef.current = null;
-    //   lastNotifiedTaskRef.current = latestTask.taskUid;
-    //
-    //   if (pollInterval) {
-    //     clearInterval(pollInterval);
-    //     setPollInterval(null);
-    //   }
-    //   return;
-    // }
-
-    if (latestTask.complete || latestTask.canceled) {
-      if (latestTask.taskUid !== lastNotifiedTaskRef.current) {
-        toast.dismiss(INDEXING_TOAST_ID);
-        currentTaskRef.current = null;
-        lastNotifiedTaskRef.current = latestTask.taskUid;
-
-        if (pollInterval) {
-          clearInterval(pollInterval);
-          setPollInterval(null);
-        }
-
-        if (latestTask.nErrors && latestTask.nErrors > 0) {
-          const WarningContent = () => (
-            <div>
-              <div>Indexing completed with {latestTask.nErrors} error(s)</div>
-              <button
-                onClick={() => {
-                  setErrorTask(latestTask);
-                  setErrorModalOpen(true);
-                }}
-                className="text-xs underline mt-1 text-blue-600 hover:text-blue-700"
-              >
-                View details →
-              </button>
-            </div>
-          );
-          toast.warning(<WarningContent />, { duration: 10000 });
-        } else if (latestTask.canceled) {
-          toast.warning("Indexing canceled!");
-        } else {
-          toast.success(
-            `Indexing completed! ${latestTask.nIndexed || "N/A"} files indexed in ${Math.round((latestTask.elapsedTime || 0) / 1000)}s`,
-          );
-        }
-      }
-    } else {
-      // Task is still running
-      if (currentTaskRef.current !== latestTask.taskUid) {
-        currentTaskRef.current = latestTask.taskUid;
+    if (runningTask) {
+      if (currentTaskRef.current !== runningTask.taskUid) {
+        currentTaskRef.current = runningTask.taskUid;
       }
 
-      if (latestTask.taskProgress >= 0) {
-        const progress = Math.round(latestTask.taskProgress * 100);
+      if (runningTask.taskProgress >= 0) {
+        const progress = Math.round(runningTask.taskProgress * 100);
         toast.loading(`Indexing... ${progress}%`, INDEXING_TOAST_ID);
       } else {
         toast.loading("Indexing...", INDEXING_TOAST_ID);
       }
+    } else {
+      const latestTask = tasks[0];
+
+      if (latestTask && (latestTask.complete || latestTask.canceled)) {
+        if (latestTask.taskUid !== lastNotifiedTaskRef.current) {
+          toast.dismiss(INDEXING_TOAST_ID);
+          currentTaskRef.current = null;
+          lastNotifiedTaskRef.current = latestTask.taskUid;
+
+          if (!latestTask.canceled) {
+            if (latestTask.nErrors && latestTask.nErrors > 0) {
+              const WarningContent = () => (
+                <div>
+                  <div>
+                    Indexing completed with {latestTask.nErrors} error(s)
+                  </div>
+                  <button
+                    onClick={() => {
+                      setErrorTask(latestTask);
+                      setErrorModalOpen(true);
+                    }}
+                    className="text-xs underline mt-1 text-blue-600 hover:text-blue-700"
+                  >
+                    View details →
+                  </button>
+                </div>
+              );
+              toast.warning(<WarningContent />, { duration: 10000 });
+            } else {
+              toast.success(
+                `Indexing completed! ${latestTask.nIndexed || "N/A"} files indexed in ${Math.round((latestTask.elapsedTime || 0) / 1000)}s`,
+              );
+            }
+          }
+        } else {
+          toast.dismiss(INDEXING_TOAST_ID);
+        }
+      }
     }
   }, [tasks, open]);
+
+  const sortedTasks = [...tasks].sort((a, b) => {
+    const aRunning = !a.complete && !a.canceled;
+    const bRunning = !b.complete && !b.canceled;
+
+    if (aRunning && !bRunning) return -1;
+    if (!aRunning && bRunning) return 1;
+
+    return 0;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sortedTasks.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const pagedTasks = sortedTasks.slice(startIndex, startIndex + pageSize);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [tasks.length, totalPages, currentPage]);
 
   const loadSettings = async () => {
     try {
@@ -181,12 +171,6 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
       if (settings.path) setWatcherPath(settings.path);
       if (typeof settings.watcher === "boolean")
         setWatcherEnabled(settings.watcher);
-      if (typeof settings.effort === "number") setEffort(settings.effort);
-      if (typeof settings.zip === "boolean") setIndexZip(settings.zip);
-      if (typeof settings.thumbnail === "boolean")
-        setSaveThumbnail(settings.thumbnail);
-      if (typeof settings.thumbnailSize === "number")
-        setThumbnailSize(settings.thumbnailSize);
     } catch (err) {
       console.error("Failed to load indexer settings", err);
     } finally {
@@ -221,15 +205,18 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
 
     setLoading(true);
     try {
+      console.log("started");
       dicoogleService.index(normalizedPath);
       setPath("");
       toast.info("Indexing task started");
-      listTasks();
+
+      setTimeout(() => {
+        listTasks();
+      }, 500);
     } catch (err) {
       console.error("Indexing error:", err);
       toast.error("Failed to start indexing");
     } finally {
-      // Re-enable button immediately
       setLoading(false);
     }
   };
@@ -238,9 +225,8 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
     setCancellingTasks((prev) => new Set(prev).add(taskUid));
     try {
       await dicoogleService.stopTask(taskUid);
-      // Trigger immediate refresh without awaiting
       listTasks();
-      toast.info("Task cancellation requested");
+      toast.warning("Task Canceled");
     } catch (err) {
       toast.error("Failed to cancel task");
     } finally {
@@ -258,10 +244,6 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
       await dicoogleService.setIndexerSettings({
         path: watcherPath,
         watcher: watcherEnabled,
-        effort: effort,
-        zip: indexZip,
-        thumbnail: saveThumbnail,
-        thumbnailSize: thumbnailSize,
       });
       toast.success("Settings applied successfully");
       await loadSettings();
@@ -279,7 +261,6 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
   };
 
   const handleClose = () => {
-    // Dismiss toast when closing
     toast.dismiss(INDEXING_TOAST_ID);
     onClose();
   };
@@ -298,7 +279,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
               }`}
             >
               <FolderOpen className="h-4 w-4 inline mr-2" />
-              Manual Indexing
+              Manual Scan
             </button>
             <button
               onClick={() => setActiveTab("auto")}
@@ -309,7 +290,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
               }`}
             >
               <Eye className="h-4 w-4 inline mr-2" />
-              Auto-Indexing
+              Directory Watcher
             </button>
           </div>
         </div>
@@ -317,7 +298,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
         <div className="p-6 space-y-6">
           {/* Manual Indexing Tab */}
           {activeTab === "manual" && (
-            <div className="space-y-4">
+            <div className="space-y-4 py-6">
               <div>
                 <h3 className="text-sm font-semibold mb-2">Index Directory</h3>
                 <p className="text-xs text-muted-foreground mb-4">
@@ -416,7 +397,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
                     <Input
                       value={watcherPath}
                       onChange={(e) => setWatcherPath(e.target.value)}
-                      placeholder="file:///path/to/watch"
+                      placeholder="/path/to/watch"
                       disabled={loadingSettings}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
@@ -443,89 +424,6 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
                       <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                     </label>
                   </div>
-
-                  {/* Indexing Effort */}
-                  <div>
-                    <label className="block text-xs font-medium mb-2">
-                      Indexing Effort: {effort}%
-                    </label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="10"
-                      value={effort}
-                      onChange={(e) => setEffort(parseInt(e.target.value))}
-                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Higher effort means more thorough indexing but uses more
-                      CPU resources.
-                    </p>
-                  </div>
-
-                  {/* Index ZIP Files */}
-                  <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                    <div>
-                      <div className="text-sm font-medium">Index ZIP Files</div>
-                      <div className="text-xs text-muted-foreground">
-                        Extract and index DICOM files within ZIP archives
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={indexZip}
-                        onChange={(e) => setIndexZip(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
-
-                  {/* Save Thumbnails */}
-                  <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                    <div>
-                      <div className="text-sm font-medium">Save Thumbnails</div>
-                      <div className="text-xs text-muted-foreground">
-                        Generate and store image thumbnails during indexing
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={saveThumbnail}
-                        onChange={(e) => setSaveThumbnail(e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-muted peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
-
-                  {/* Thumbnail Size */}
-                  {saveThumbnail && (
-                    <div>
-                      <label className="block text-xs font-medium mb-2">
-                        Thumbnail Size: {thumbnailSize}px
-                      </label>
-                      <input
-                        type="range"
-                        min="64"
-                        max="512"
-                        step="64"
-                        value={thumbnailSize}
-                        onChange={(e) =>
-                          setThumbnailSize(parseInt(e.target.value))
-                        }
-                        className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                        <span>64px</span>
-                        <span>512px</span>
-                      </div>
-                    </div>
-                  )}
-
                   {/* Apply Button */}
                   <div className="pt-4 border-t">
                     <Button
@@ -565,7 +463,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
       >
         <div className="p-6">
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {tasks.map((task) => (
+            {pagedTasks.map((task) => (
               <div
                 key={task.taskUid}
                 className="p-3 rounded border border-border bg-muted/30"
@@ -653,6 +551,35 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
               </div>
             ))}
           </div>
+
+          {/* Pagination controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border text-xs text-muted-foreground">
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage === totalPages}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </Dialog>
 

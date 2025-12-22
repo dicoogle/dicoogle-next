@@ -213,7 +213,6 @@ class DicoogleService {
 
       let username, roles, isAdmin;
 
-      console.log("[DicoogleService] Restoring session with token");
       try {
         const userInfo = await dicoogleClient.restoreSession(token);
         username = userInfo.user;
@@ -303,6 +302,7 @@ class DicoogleService {
 
   async index(uri: string | string[]): Promise<string> {
     if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    console.log("indexing");
     await dicoogleClient.index(uri);
     // Return the first URI as task identifier
     return Array.isArray(uri) ? uri[0] : uri;
@@ -365,7 +365,6 @@ class DicoogleService {
     const status: DicoogleServiceStatus =
       await dicoogleClient.queryRetrieve.getStatus();
 
-    console.log(status);
     return {
       isRunning: status.isRunning,
       port: status.port,
