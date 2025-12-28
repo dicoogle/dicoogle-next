@@ -1,0 +1,4 @@
+{
+  "id": "hello-plugin",
+  "entry": "index.ts"
+}
