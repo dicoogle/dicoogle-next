@@ -3,7 +3,7 @@
  * Adds plugin management tab to settings page
  */
 
-import { WebUIPlugin, SettingsExtension, PluginContext } from "@/plugins";
+import { WebUIPlugin, SettingsExtension, PluginContext } from "@\/plugin-system";
 import { lazy } from "react";
 import { Plug } from "lucide-react";
 

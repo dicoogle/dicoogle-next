@@ -1,8 +1,14 @@
 import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { useEnabledPlugins } from "@/plugins";
+import { useEnabledPlugins } from "@/plugin-system";
 import { Suspense } from "react";
 
-type TabType = "services" | "plugins" | "users" | "system" | "transfer" | string;
+type TabType =
+  | "services"
+  | "plugins"
+  | "users"
+  | "system"
+  | "transfer"
+  | string;
 
 export function ManagementPage() {
   const navigate = useNavigate();
@@ -11,7 +17,7 @@ export function ManagementPage() {
 
   // Get settings extensions from all enabled plugins
   const settingsExtensions = plugins.flatMap((p) =>
-    p.getSettingsExtensions ? p.getSettingsExtensions() : []
+    p.getSettingsExtensions ? p.getSettingsExtensions() : [],
   );
 
   const getActiveTab = (): TabType => {
@@ -45,7 +51,9 @@ export function ManagementPage() {
 
   // Check if current tab is a plugin settings tab
   const isPluginTab = !coreTabs.some((t) => t.id === activeTab);
-  const activeSettingsExt = settingsExtensions.find((ext) => ext.id === activeTab);
+  const activeSettingsExt = settingsExtensions.find(
+    (ext) => ext.id === activeTab,
+  );
 
   return (
     <div className="min-h-screen bg-background">

@@ -13,7 +13,7 @@ import { SystemInfo } from "./features/management/components/SystemInfo";
 import { UserManagement } from "./features/management/components/UserManagement";
 import { TransferSettings } from "./features/management/components/TransferSettings";
 import { Toaster } from "sonner";
-import { getRouteExtensions } from "@/plugins";
+import { getRouteExtensions } from "@/plugin-system";
 import { Suspense } from "react";
 
 function App() {

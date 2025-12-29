@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { QueryFilterProps } from '@/plugins';
+import { QueryFilterProps } from '@\/plugin-system';
 import { Calendar } from 'lucide-react';
 
 export default function DateRangeFilter({ value, onChange, context }: QueryFilterProps) {

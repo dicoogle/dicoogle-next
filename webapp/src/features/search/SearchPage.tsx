@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/Card";
 import { Loader2, Search as SearchIcon, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useEffect, Suspense } from "react";
-import { useEnabledPlugins, usePluginContext } from "@/plugins";
+import { useEnabledPlugins, usePluginContext } from "@\/plugin-system";
 import { Button } from "@/components/ui/Button";
 
 export function SearchPage() {

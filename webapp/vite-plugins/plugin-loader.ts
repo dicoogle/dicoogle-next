@@ -98,7 +98,7 @@ function generatePluginLoaderCode(plugins: DiscoveredPlugin[]): string {
  * This file imports and registers all discovered plugins
  */
 
-import { pluginRegistry } from '@/plugins/registry';
+import { pluginRegistry } from '@/plugin-system/registry';
 `;
 
   // Generate imports
@@ -115,7 +115,7 @@ import { pluginRegistry } from '@/plugins/registry';
 export function registerAllPlugins() {
 `;
 
-  // Generate registration code with config metadata
+  // Generate registration code with config metadata and default enabled state
   plugins.forEach((plugin, index) => {
     const configMetadata = JSON.stringify({
       id: plugin.config.id,
@@ -127,9 +127,12 @@ export function registerAllPlugins() {
       dependencies: plugin.config.dependencies,
     });
 
+    // Default to enabled unless explicitly set to false
+    const defaultEnabled = plugin.config.enabled !== false;
+
     code += `  try {
-    // Pass config metadata to registry (takes precedence over code metadata)
-    pluginRegistry.registerPlugin(Plugin${index}, ${configMetadata});
+    // Pass config metadata and default enabled state to registry
+    pluginRegistry.registerPlugin(Plugin${index}, ${configMetadata}, ${defaultEnabled});
   } catch (error) {
     console.error('Failed to register plugin ${plugin.id}:', error);
   }
@@ -145,7 +148,7 @@ export const discoveredPlugins = [
 `;
 
   plugins.forEach((plugin) => {
-    code += `  { id: '${plugin.id}', name: '${plugin.name}' },
+    code += `  { id: '${plugin.id}', name: '${plugin.name}', defaultEnabled: ${plugin.config.enabled !== false} },
 `;
   });
 
@@ -192,7 +195,8 @@ export function createPluginLoader(): Plugin {
         discoveredPlugins.forEach((plugin) => {
           const displayName = plugin.config.name || plugin.id;
           const version = plugin.config.version || '?';
-          console.log(`  - ${displayName} v${version} (${plugin.id})`);
+          const enabled = plugin.config.enabled !== false ? '✓' : '✗';
+          console.log(`  ${enabled} ${displayName} v${version} (${plugin.id})`);
         });
         console.log('');
       }

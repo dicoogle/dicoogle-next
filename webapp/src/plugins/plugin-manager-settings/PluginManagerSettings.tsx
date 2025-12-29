@@ -3,9 +3,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { pluginRegistry } from '@/plugins/registry';
-import { enablePlugin, disablePlugin } from '@/plugins/manager';
-import { WebUIPlugin } from '@/plugins/types';
+import { pluginRegistry } from '@\/plugin-system/registry';
+import { enablePlugin, disablePlugin } from '@\/plugin-system/manager';
+import { WebUIPlugin } from '@\/plugin-system/types';
 import { Power, PowerOff, Info, ExternalLink } from 'lucide-react';
 
 export default function PluginManagerSettings() {

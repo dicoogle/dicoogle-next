@@ -6,6 +6,8 @@
 import { WebUIPlugin, PluginRegistry as IPluginRegistry, PluginState, PluginMetadata } from './types';
 
 const STORAGE_KEY_PREFIX = 'dicoogle_plugin_';
+const STORAGE_VERSION_KEY = 'dicoogle_plugin_version';
+const CURRENT_VERSION = '1.0'; // Increment to force clear old state
 
 class PluginRegistry implements IPluginRegistry {
   plugins: Map<string, WebUIPlugin> = new Map();
@@ -23,6 +25,15 @@ class PluginRegistry implements IPluginRegistry {
    */
   private loadStatesFromStorage(): void {
     try {
+      // Check version - clear state if version changed
+      const storedVersion = localStorage.getItem(STORAGE_VERSION_KEY);
+      if (storedVersion !== CURRENT_VERSION) {
+        console.log('Plugin system version changed - clearing old state');
+        localStorage.removeItem(`${STORAGE_KEY_PREFIX}states`);
+        localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
+        return;
+      }
+
       const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}states`);
       if (stored) {
         const states = JSON.parse(stored);
@@ -51,9 +62,13 @@ class PluginRegistry implements IPluginRegistry {
   }
 
   /**
-   * Register a plugin with optional config metadata
+   * Register a plugin with optional config metadata and default enabled state
    */
-  registerPlugin(plugin: WebUIPlugin, configMetadata?: Partial<PluginMetadata>): void {
+  registerPlugin(
+    plugin: WebUIPlugin,
+    configMetadata?: Partial<PluginMetadata>,
+    defaultEnabled: boolean = true
+  ): void {
     // Merge config metadata with plugin metadata, preferring config
     const metadata: PluginMetadata = {
       id: configMetadata?.id || plugin.metadata?.id || 'unknown',
@@ -84,19 +99,21 @@ class PluginRegistry implements IPluginRegistry {
     };
 
     // Initialize plugin state if not exists
+    // Use defaultEnabled from config, but only if no user preference exists
     if (!this.pluginStates.has(pluginId)) {
       this.pluginStates.set(pluginId, {
         pluginId,
-        enabled: true,
+        enabled: defaultEnabled,
         lastModified: Date.now(),
       });
       this.saveStatesToStorage();
     }
 
     this.plugins.set(pluginId, pluginWithMetadata);
-    console.log(
-      `Plugin "${metadata.name}" (${pluginId}) registered successfully`
-    );
+    
+    const currentState = this.pluginStates.get(pluginId);
+    const statusText = currentState?.enabled ? 'registered successfully' : 'registered (disabled by default)';
+    console.log(`Plugin "${metadata.name}" (${pluginId}) ${statusText}`);
   }
 
   getPlugin(id: string): WebUIPlugin | undefined {

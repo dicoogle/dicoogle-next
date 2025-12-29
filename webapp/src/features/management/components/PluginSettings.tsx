@@ -3,7 +3,11 @@ import { Card } from "@/components/ui/Card";
 import { dicoogleService } from "@/services/dicoogleService";
 import { toast } from "@/utils/toast";
 import { type Plugin } from "@/types/index";
-import { usePlugins, usePluginManagement, pluginRegistry } from "@/plugins";
+import {
+  usePlugins,
+  usePluginManagement,
+  pluginRegistry,
+} from "@/plugin-system";
 
 type PluginType = "index" | "query" | "storage" | "webui" | "all";
 

@@ -2,7 +2,7 @@
  * Gallery View Component - Alternative Result Renderer
  */
 
-import { ResultRendererProps } from '@/plugins';
+import { ResultRendererProps } from '@\/plugin-system';
 import { useState } from 'react';
 import { ZoomIn, Info } from 'lucide-react';
 

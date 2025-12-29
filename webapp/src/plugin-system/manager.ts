@@ -146,10 +146,12 @@ export async function initializePlugin(
       await plugin.init(ctx);
     }
     initializedPlugins.add(pluginId);
-    console.log(`✓ Plugin initialized: ${plugin.metadata.name}`);
+    const metadata = pluginRegistry.getPluginMetadata(pluginId);
+    console.log(`✓ Plugin initialized: ${metadata?.name || pluginId}`);
   } catch (error) {
+    const metadata = pluginRegistry.getPluginMetadata(pluginId);
     console.error(
-      `✗ Failed to initialize plugin ${plugin.metadata.name}:`,
+      `✗ Failed to initialize plugin ${metadata?.name || pluginId}:`,
       error
     );
     throw error;
@@ -172,10 +174,12 @@ export async function destroyPlugin(pluginId: string): Promise<void> {
       await plugin.destroy();
     }
     initializedPlugins.delete(pluginId);
-    console.log(`✓ Plugin destroyed: ${plugin.metadata.name}`);
+    const metadata = pluginRegistry.getPluginMetadata(pluginId);
+    console.log(`✓ Plugin destroyed: ${metadata?.name || pluginId}`);
   } catch (error) {
+    const metadata = pluginRegistry.getPluginMetadata(pluginId);
     console.error(
-      `✗ Failed to destroy plugin ${plugin.metadata.name}:`,
+      `✗ Failed to destroy plugin ${metadata?.name || pluginId}:`,
       error
     );
     throw error;
@@ -217,13 +221,16 @@ export async function initializeAllPlugins(
 ): Promise<void> {
   const enabledPlugins = pluginRegistry.getEnabledPlugins();
 
+  console.log(`\n🔌 Initializing ${enabledPlugins.length} enabled plugin(s)...`);
+
   for (const plugin of enabledPlugins) {
     try {
-      const ctx = context || createPluginContext(plugin.metadata.id);
-      await initializePlugin(plugin.metadata.id, ctx);
+      const pluginId = plugin.metadata?.id || 'unknown';
+      const ctx = context || createPluginContext(pluginId);
+      await initializePlugin(pluginId, ctx);
     } catch (error) {
       console.error(
-        `Failed to initialize plugin ${plugin.metadata.name}:`,
+        `Failed to initialize plugin ${plugin.metadata?.name}:`,
         error
       );
       // Continue initializing other plugins

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/AuthStore";
 import { IndexerModal } from "@/features/indexer/IndexerModal";
-import { useSidebarMenuExtensions } from "@/plugins";
+import { useSidebarMenuExtensions } from "@\/plugin-system";
 
 type MainLayoutProps = {
   children: React.ReactNode;

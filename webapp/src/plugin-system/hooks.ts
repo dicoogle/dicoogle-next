@@ -8,9 +8,6 @@ import { pluginRegistry } from './registry';
 import {
   RouteExtension,
   SidebarMenuExtension,
-  DashboardWidgetExtension,
-  ContextMenuExtension,
-  APIInterceptor,
   WebUIPlugin,
   PluginState,
   PluginContext,
@@ -79,12 +76,6 @@ export function usePluginContext(): PluginContext {
           error: '❌',
         }[type];
         console.log(`${emoji} ${message}`);
-      },
-      showModal: (component: any, options?: any) => {
-        console.warn('Modal not implemented yet');
-      },
-      navigate: (path: string) => {
-        navigate(path);
       },
     },
   };
@@ -228,7 +219,7 @@ export function getRouteExtensions(): RouteExtension[] {
         routes.push(...pluginRoutes);
       } catch (error) {
         console.error(
-          `Error getting route extensions from plugin ${plugin.metadata.id}:`,
+          `Error getting route extensions from plugin ${plugin.metadata?.id}:`,
           error
         );
       }
@@ -274,7 +265,7 @@ export function getSidebarMenuExtensions(): SidebarMenuExtension[] {
         menuItems.push(...items);
       } catch (error) {
         console.error(
-          `Error getting sidebar menu extensions from plugin ${plugin.metadata.id}:`,
+          `Error getting sidebar menu extensions from plugin ${plugin.metadata?.id}:`,
           error
         );
       }
@@ -294,122 +285,6 @@ export function useSidebarMenuExtensions(): SidebarMenuExtension[] {
   useEffect(() => {
     const updateItems = () => {
       setItems(getSidebarMenuExtensions());
-    };
-    
-    updateItems();
-    window.addEventListener('plugin-state-changed', updateItems);
-    
-    return () => {
-      window.removeEventListener('plugin-state-changed', updateItems);
-    };
-  }, []);
-
-  return items;
-}
-
-/**
- * Get all dashboard widget extensions from enabled plugins only
- */
-export function getDashboardWidgetExtensions(): DashboardWidgetExtension[] {
-  const widgets: DashboardWidgetExtension[] = [];
-
-  const plugins = pluginRegistry.getEnabledPlugins();
-  for (const plugin of plugins) {
-    if (plugin.getDashboardWidgetExtensions) {
-      try {
-        const pluginWidgets = plugin.getDashboardWidgetExtensions();
-        widgets.push(...pluginWidgets);
-      } catch (error) {
-        console.error(
-          `Error getting dashboard widget extensions from plugin ${plugin.metadata.id}:`,
-          error
-        );
-      }
-    }
-  }
-
-  return widgets;
-}
-
-/**
- * Hook to get all dashboard widget extensions
- */
-export function useDashboardWidgetExtensions(): DashboardWidgetExtension[] {
-  const [widgets, setWidgets] = useState<DashboardWidgetExtension[]>([]);
-
-  useEffect(() => {
-    const updateWidgets = () => {
-      setWidgets(getDashboardWidgetExtensions());
-    };
-    
-    updateWidgets();
-    window.addEventListener('plugin-state-changed', updateWidgets);
-    
-    return () => {
-      window.removeEventListener('plugin-state-changed', updateWidgets);
-    };
-  }, []);
-
-  return widgets;
-}
-
-/**
- * Get all API interceptors from enabled plugins only
- */
-export function getAPIInterceptors(): APIInterceptor[] {
-  const interceptors: APIInterceptor[] = [];
-
-  const plugins = pluginRegistry.getEnabledPlugins();
-  for (const plugin of plugins) {
-    if (plugin.getAPIInterceptors) {
-      try {
-        const pluginInterceptors = plugin.getAPIInterceptors();
-        interceptors.push(...pluginInterceptors);
-      } catch (error) {
-        console.error(
-          `Error getting API interceptors from plugin ${plugin.metadata.id}:`,
-          error
-        );
-      }
-    }
-  }
-
-  return interceptors;
-}
-
-/**
- * Get all context menu extensions from enabled plugins only
- */
-export function getContextMenuExtensions(): ContextMenuExtension[] {
-  const menuItems: ContextMenuExtension[] = [];
-
-  const plugins = pluginRegistry.getEnabledPlugins();
-  for (const plugin of plugins) {
-    if (plugin.getContextMenuExtensions) {
-      try {
-        const items = plugin.getContextMenuExtensions();
-        menuItems.push(...items);
-      } catch (error) {
-        console.error(
-          `Error getting context menu extensions from plugin ${plugin.metadata.id}:`,
-          error
-        );
-      }
-    }
-  }
-
-  return menuItems;
-}
-
-/**
- * Hook to get all context menu extensions
- */
-export function useContextMenuExtensions(): ContextMenuExtension[] {
-  const [items, setItems] = useState<ContextMenuExtension[]>([]);
-
-  useEffect(() => {
-    const updateItems = () => {
-      setItems(getContextMenuExtensions());
     };
     
     updateItems();

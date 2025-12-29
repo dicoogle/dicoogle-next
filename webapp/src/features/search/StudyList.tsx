@@ -14,7 +14,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import type { Study } from "@/types";
-import { useEnabledPlugins, usePluginContext } from "@/plugins";
+import { useEnabledPlugins, usePluginContext } from "@\/plugin-system";
 
 interface StudyListProps {
   studies: Study[];

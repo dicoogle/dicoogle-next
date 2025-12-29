@@ -13,7 +13,7 @@ export interface PluginMetadata {
   description: string;
   author: string;
   type: string;
-  dependencies?: string[]; // e.g., ["jszip@^3.10.1"]
+  dependencies?: string[];
 }
 
 /**
@@ -23,7 +23,7 @@ export interface PluginMetadata {
 export interface PluginConfig {
   id: string;
   entry: string;
-  enabled?: boolean;
+  enabled?: boolean; // Default enabled state (only used on first load)
   // Metadata can be in config file
   name?: string;
   version?: string;
@@ -202,7 +202,7 @@ export interface PluginState {
  * Plugin Registry Interface
  */
 export interface PluginRegistry {
-  registerPlugin: (plugin: WebUIPlugin) => void;
+  registerPlugin: (plugin: WebUIPlugin, configMetadata?: Partial<PluginMetadata>, defaultEnabled?: boolean) => void;
   getPlugin: (id: string) => WebUIPlugin | undefined;
   getAllPlugins: () => WebUIPlugin[];
   getEnabledPlugins: () => WebUIPlugin[];
