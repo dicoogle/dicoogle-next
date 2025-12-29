@@ -31,3 +31,9 @@ export {
   initializeAllPlugins,
   destroyAllPlugins,
 } from './manager';
+
+// Import and register discovered plugins from the existing loader
+import { registerAllPlugins } from 'virtual:dicoogle-plugins';
+
+// Register all discovered plugins using existing loader system
+registerAllPlugins();
