@@ -1,4 +1,9 @@
 {
   "id": "plugin-manager-settings",
-  "entry": "index.ts"
+  "entry": "index.tsx",
+  "name": "Plugin Manager Settings",
+  "version": "1.0.0",
+  "description": "Manage installed plugins from settings",
+  "author": "Dicoogle Team",
+  "type": "settings"
 }

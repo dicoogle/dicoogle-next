@@ -13,8 +13,82 @@ import {
   APIInterceptor,
   WebUIPlugin,
   PluginState,
+  PluginContext,
 } from './types';
 import { enablePlugin, disablePlugin } from './manager';
+import { dicoogleService } from '@/services/dicoogleService';
+import { useNavigate } from 'react-router-dom';
+
+/**
+ * Hook to create plugin context
+ * This provides the context object that plugins receive
+ */
+export function usePluginContext(): PluginContext {
+  const navigate = useNavigate();
+
+  return {
+    appVersion: '1.0.0',
+    logger: {
+      log: (message: string, data?: any) => console.log(`[Plugin] ${message}`, data),
+      warn: (message: string, data?: any) => console.warn(`[Plugin] ${message}`, data),
+      error: (message: string, error?: any) => console.error(`[Plugin] ${message}`, error),
+      info: (message: string, data?: any) => console.info(`[Plugin] ${message}`, data),
+    },
+    storage: {
+      get: (key: string) => {
+        try {
+          const data = localStorage.getItem(`plugin_${key}`);
+          return data ? JSON.parse(data) : undefined;
+        } catch {
+          return undefined;
+        }
+      },
+      set: (key: string, value: any) => {
+        try {
+          localStorage.setItem(`plugin_${key}`, JSON.stringify(value));
+        } catch (error) {
+          console.error('Failed to set plugin storage:', error);
+        }
+      },
+      remove: (key: string) => {
+        localStorage.removeItem(`plugin_${key}`);
+      },
+    },
+    eventBus: {
+      on: (event: string, callback: (data: any) => void) => {
+        window.addEventListener(`plugin:${event}`, ((e: CustomEvent) => {
+          callback(e.detail);
+        }) as EventListener);
+      },
+      off: (event: string, callback: (data: any) => void) => {
+        window.removeEventListener(`plugin:${event}`, callback as EventListener);
+      },
+      emit: (event: string, data: any) => {
+        window.dispatchEvent(new CustomEvent(`plugin:${event}`, { detail: data }));
+      },
+    },
+    // Expose the raw dicoogle-client instance to plugins
+    dicoogle: dicoogleService.getClient() as any,
+    ui: {
+      showToast: (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+        // Fallback to console for now - can be replaced with actual toast implementation
+        const emoji = {
+          info: 'ℹ️',
+          success: '✅',
+          warning: '⚠️',
+          error: '❌',
+        }[type];
+        console.log(`${emoji} ${message}`);
+      },
+      showModal: (component: any, options?: any) => {
+        console.warn('Modal not implemented yet');
+      },
+      navigate: (path: string) => {
+        navigate(path);
+      },
+    },
+  };
+}
 
 /**
  * Hook to get all plugins (both enabled and disabled)

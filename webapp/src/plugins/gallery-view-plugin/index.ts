@@ -10,15 +10,6 @@ import { Grid3x3 } from "lucide-react";
 const GalleryView = lazy(() => import("./GalleryView"));
 
 const galleryViewPlugin: WebUIPlugin = {
-  metadata: {
-    id: "gallery-view",
-    name: "Gallery View",
-    version: "1.0.0",
-    description: "Display search results as an image gallery",
-    author: "Dicoogle Team",
-    type: "result-renderer",
-  },
-
   init: async (context: PluginContext) => {
     context.logger.info("Gallery View Plugin initialized");
 

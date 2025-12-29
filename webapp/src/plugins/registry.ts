@@ -3,13 +3,15 @@
  * Manages plugin registration, state, and lifecycle
  */
 
-import { WebUIPlugin, PluginRegistry as IPluginRegistry, PluginState } from './types';
+import { WebUIPlugin, PluginRegistry as IPluginRegistry, PluginState, PluginMetadata } from './types';
 
 const STORAGE_KEY_PREFIX = 'dicoogle_plugin_';
 
 class PluginRegistry implements IPluginRegistry {
   plugins: Map<string, WebUIPlugin> = new Map();
   pluginStates: Map<string, PluginState> = new Map();
+  // Store metadata separately to support config-based metadata
+  pluginMetadata: Map<string, PluginMetadata> = new Map();
 
   constructor() {
     this.loadStatesFromStorage();
@@ -48,8 +50,22 @@ class PluginRegistry implements IPluginRegistry {
     }
   }
 
-  registerPlugin(plugin: WebUIPlugin): void {
-    const pluginId = plugin.metadata.id;
+  /**
+   * Register a plugin with optional config metadata
+   */
+  registerPlugin(plugin: WebUIPlugin, configMetadata?: Partial<PluginMetadata>): void {
+    // Merge config metadata with plugin metadata, preferring config
+    const metadata: PluginMetadata = {
+      id: configMetadata?.id || plugin.metadata?.id || 'unknown',
+      name: configMetadata?.name || plugin.metadata?.name || 'Unknown Plugin',
+      version: configMetadata?.version || plugin.metadata?.version || '1.0.0',
+      description: configMetadata?.description || plugin.metadata?.description || '',
+      author: configMetadata?.author || plugin.metadata?.author || 'Unknown',
+      type: configMetadata?.type || plugin.metadata?.type || 'unknown',
+      dependencies: configMetadata?.dependencies || plugin.metadata?.dependencies || [],
+    };
+
+    const pluginId = metadata.id;
 
     if (this.plugins.has(pluginId)) {
       console.warn(
@@ -57,6 +73,15 @@ class PluginRegistry implements IPluginRegistry {
       );
       return;
     }
+
+    // Store metadata separately
+    this.pluginMetadata.set(pluginId, metadata);
+
+    // Store plugin with metadata attached for backwards compatibility
+    const pluginWithMetadata = {
+      ...plugin,
+      metadata,
+    };
 
     // Initialize plugin state if not exists
     if (!this.pluginStates.has(pluginId)) {
@@ -68,14 +93,18 @@ class PluginRegistry implements IPluginRegistry {
       this.saveStatesToStorage();
     }
 
-    this.plugins.set(pluginId, plugin);
+    this.plugins.set(pluginId, pluginWithMetadata);
     console.log(
-      `Plugin "${plugin.metadata.name}" (${pluginId}) registered successfully`
+      `Plugin "${metadata.name}" (${pluginId}) registered successfully`
     );
   }
 
   getPlugin(id: string): WebUIPlugin | undefined {
     return this.plugins.get(id);
+  }
+
+  getPluginMetadata(id: string): PluginMetadata | undefined {
+    return this.pluginMetadata.get(id);
   }
 
   getAllPlugins(): WebUIPlugin[] {
@@ -87,7 +116,7 @@ class PluginRegistry implements IPluginRegistry {
    */
   getEnabledPlugins(): WebUIPlugin[] {
     return Array.from(this.plugins.values()).filter((plugin) =>
-      this.isPluginEnabled(plugin.metadata.id)
+      this.isPluginEnabled(plugin.metadata!.id)
     );
   }
 
@@ -96,7 +125,7 @@ class PluginRegistry implements IPluginRegistry {
    */
   getDisabledPlugins(): WebUIPlugin[] {
     return Array.from(this.plugins.values()).filter(
-      (plugin) => !this.isPluginEnabled(plugin.metadata.id)
+      (plugin) => !this.isPluginEnabled(plugin.metadata!.id)
     );
   }
 
@@ -129,9 +158,10 @@ class PluginRegistry implements IPluginRegistry {
     this.saveStatesToStorage();
 
     const plugin = this.getPlugin(id);
-    if (plugin) {
+    const metadata = this.getPluginMetadata(id);
+    if (plugin && metadata) {
       console.log(
-        `Plugin "${plugin.metadata.name}" (${id}) ${enabled ? 'enabled' : 'disabled'}`
+        `Plugin "${metadata.name}" (${id}) ${enabled ? 'enabled' : 'disabled'}`
       );
     }
   }

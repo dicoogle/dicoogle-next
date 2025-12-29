@@ -1,4 +1,9 @@
 {
   "id": "date-filter",
-  "entry": "index.ts"
+  "entry": "index.ts",
+  "name": "Date Range Filter",
+  "version": "1.0.0",
+  "description": "Filter search results by study date range",
+  "author": "Dicoogle Team",
+  "type": "query-filter"
 }

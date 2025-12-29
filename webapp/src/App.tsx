@@ -73,6 +73,7 @@ function App() {
               <Route path="users" element={<UserManagement />} />
               <Route path="transfer" element={<TransferSettings />} />
               <Route path="system" element={<SystemInfo />} />
+              <Route path="*" element={null} />
             </Route>
 
             {/* Plugin routes - dynamically loaded based on enabled plugins */}

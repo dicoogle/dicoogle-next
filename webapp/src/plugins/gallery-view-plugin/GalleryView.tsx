@@ -86,7 +86,17 @@ export default function GalleryView({
       {/* Gallery Grid */}
       <div className={`grid ${gridClass} gap-4`}>
         {results.map((result, index) => {
-          const thumbnailUrl = context.dicoogle.getThumbnailUrl(result.uri);
+          // Get SOP Instance UID - try multiple field names
+          const sopInstanceUID = 
+            result.fields?.SOPInstanceUID || 
+            result.fields?.sopInstanceUID ||
+            result.uri;
+          
+          // Only generate thumbnail URL if we have a valid UID
+          const thumbnailUrl = sopInstanceUID && context.dicoogle
+            ? context.dicoogle.getThumbnailUrl(sopInstanceUID)
+            : null;
+          
           const patientName = result.fields?.PatientName || 'Unknown';
           const modality = result.fields?.Modality || 'N/A';
           const studyDate = result.fields?.StudyDate || '';
@@ -102,17 +112,26 @@ export default function GalleryView({
             >
               {/* Image */}
               <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                <img
-                  src={thumbnailUrl}
-                  alt={patientName}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" text-anchor="middle" x="100" y="110"%3ENo Image%3C/text%3E%3C/svg%3E';
-                  }}
-                />
+                {thumbnailUrl ? (
+                  <img
+                    src={thumbnailUrl}
+                    alt={patientName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" text-anchor="middle" x="100" y="110"%3ENo Image%3C/text%3E%3C/svg%3E';
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <div className="text-center">
+                      <Info className="w-12 h-12 mx-auto mb-2" />
+                      <p className="text-sm">No Preview</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Hover Overlay */}
-                {hoveredIndex === index && (
+                {hoveredIndex === index && thumbnailUrl && (
                   <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center transition-opacity">
                     <ZoomIn className="w-12 h-12 text-white" />
                   </div>

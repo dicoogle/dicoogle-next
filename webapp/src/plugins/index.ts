@@ -12,6 +12,7 @@ export {
   usePlugin,
   usePluginState,
   usePluginManagement,
+  usePluginContext,
   getRouteExtensions,
   useRouteExtensions,
   getSidebarMenuExtensions,

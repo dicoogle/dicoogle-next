@@ -14,6 +14,14 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 interface PluginConfig {
   id: string;
   entry: string;
+  enabled?: boolean;
+  // Metadata fields
+  name?: string;
+  version?: string;
+  description?: string;
+  author?: string;
+  type?: string;
+  dependencies?: string[];
 }
 
 interface DiscoveredPlugin {
@@ -21,6 +29,7 @@ interface DiscoveredPlugin {
   name: string;
   path: string;
   entry: string;
+  config: PluginConfig;
 }
 
 /**
@@ -59,6 +68,7 @@ function discoverPlugins(pluginsDir: string): DiscoveredPlugin[] {
             name: entry.name,
             path: pluginEntry,
             entry: config.entry || 'index.ts',
+            config,
           });
         } else {
           console.warn(
@@ -105,10 +115,21 @@ import { pluginRegistry } from '@/plugins/registry';
 export function registerAllPlugins() {
 `;
 
-  // Generate registration code
+  // Generate registration code with config metadata
   plugins.forEach((plugin, index) => {
+    const configMetadata = JSON.stringify({
+      id: plugin.config.id,
+      name: plugin.config.name,
+      version: plugin.config.version,
+      description: plugin.config.description,
+      author: plugin.config.author,
+      type: plugin.config.type,
+      dependencies: plugin.config.dependencies,
+    });
+
     code += `  try {
-    pluginRegistry.registerPlugin(Plugin${index});
+    // Pass config metadata to registry (takes precedence over code metadata)
+    pluginRegistry.registerPlugin(Plugin${index}, ${configMetadata});
   } catch (error) {
     console.error('Failed to register plugin ${plugin.id}:', error);
   }
@@ -169,7 +190,9 @@ export function createPluginLoader(): Plugin {
       if (discoveredPlugins.length > 0) {
         console.log(`\n✓ Plugin Loader: Discovered ${discoveredPlugins.length} plugin(s)`);
         discoveredPlugins.forEach((plugin) => {
-          console.log(`  - ${plugin.id} (${plugin.name})`);
+          const displayName = plugin.config.name || plugin.id;
+          const version = plugin.config.version || '?';
+          console.log(`  - ${displayName} v${version} (${plugin.id})`);
         });
         console.log('');
       }

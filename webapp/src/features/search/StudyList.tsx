@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useSearchStore } from "@/stores/SearchStore";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -14,8 +14,8 @@ import {
   Grid3X3,
 } from "lucide-react";
 import type { Study } from "@/types";
+import { useEnabledPlugins, usePluginContext } from "@/plugins";
 
-// --- Types & Constants ---
 interface StudyListProps {
   studies: Study[];
 }
@@ -24,13 +24,12 @@ interface StudyItemProps {
   study: Study;
   isSelected: boolean;
   onClick: () => void;
-  index?: number; // Only for list view
+  index?: number;
 }
 
 const ITEMS_PER_PAGE_CARD = 3;
 const ITEMS_PER_PAGE_LIST = 10;
 
-// --- Helper Functions ---
 const formatDate = (date?: string) => {
   if (!date) return "N/A";
   const year = date.substring(0, 4);
@@ -39,19 +38,24 @@ const formatDate = (date?: string) => {
   return `${year}-${month}-${day}`;
 };
 
-// --- Extracted Components ---
-
-const TableHeader = () => (
-  <div className="grid grid-cols-[60px_1fr_140px_120px_80px] items-center gap-3 py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-border">
+const TableHeader = ({ showActions }: { showActions: boolean }) => (
+  <div className={`grid ${showActions ? 'grid-cols-[60px_1fr_140px_120px_80px_120px]' : 'grid-cols-[60px_1fr_140px_120px_80px]'} items-center gap-3 py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-border`}>
     <div className="text-center">#</div>
     <div>Patient Name</div>
     <div>Study Date</div>
     <div>Modality</div>
     <div className="text-right">UID</div>
+    {showActions && <div className="text-right">Actions</div>}
   </div>
 );
 
 const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
+  const plugins = useEnabledPlugins();
+  const context = usePluginContext();
+  const optionExtensions = plugins.flatMap((p) =>
+    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : []
+  );
+
   return (
     <Card
       className={`transition-all cursor-pointer ${
@@ -102,6 +106,28 @@ const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
                 {study.studyInstanceUID}
               </code>
             </details>
+
+            {optionExtensions.length > 0 && (
+              <div
+                className="flex items-center gap-2 pt-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {optionExtensions
+                  .sort((a, b) => (a.order || 999) - (b.order || 999))
+                  .filter((ext) => !ext.condition || ext.condition(study))
+                  .map((ext) => (
+                    <Button
+                      key={ext.id}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => ext.action(study, context)}
+                    >
+                      {ext.icon}
+                      {ext.label}
+                    </Button>
+                  ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center ml-4">
             {isSelected ? (
@@ -121,22 +147,26 @@ const StudyListItem = ({
   isSelected,
   onClick,
   index = 0,
-}: StudyItemProps) => {
+  showActions = true,
+}: StudyItemProps & { showActions?: boolean }) => {
+  const plugins = useEnabledPlugins();
+  const context = usePluginContext();
+  const optionExtensions = plugins.flatMap((p) =>
+    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : []
+  );
+
   return (
     <div
-      className={`grid grid-cols-[60px_1fr_140px_120px_80px] items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer hover:bg-muted/50 dark:hover:bg-muted ${
+      className={`grid ${showActions ? 'grid-cols-[60px_1fr_140px_120px_80px_120px]' : 'grid-cols-[60px_1fr_140px_120px_80px]'} items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer hover:bg-muted/50 dark:hover:bg-muted ${
         isSelected
           ? "bg-primary-50 dark:bg-primary-950/50 border border-primary-500"
           : "border border-border"
       }`}
       onClick={onClick}
     >
-      {/* Index column */}
       <div className="text-center text-xs font-mono text-gray-600 dark:text-gray-400">
         {index}
       </div>
-
-      {/* Patient Name column */}
       <div className="space-y-0.5">
         <div className="flex items-center gap-1">
           <User className="w-3 h-3 text-gray-500 flex-shrink-0" />
@@ -148,14 +178,10 @@ const StudyListItem = ({
           ID: {study.patientID || "N/A"}
         </div>
       </div>
-
-      {/* Study Date column */}
       <div className="flex items-center gap-1 text-xs">
         <Calendar className="w-3 h-3 text-gray-500 flex-shrink-0" />
         <span className="truncate">{formatDate(study.studyDate)}</span>
       </div>
-
-      {/* Modality column */}
       <div className="text-xs">
         {study.modality ? (
           <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded whitespace-nowrap">
@@ -165,34 +191,61 @@ const StudyListItem = ({
           <span className="text-gray-400">—</span>
         )}
       </div>
-
-      {/* UID column */}
       <div className="text-xs text-gray-500 dark:text-gray-400 text-right truncate">
         {study.studyInstanceUID.slice(-8)}
       </div>
+      {showActions && (
+        <div
+          className="flex items-center justify-end gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {optionExtensions
+            .sort((a, b) => (a.order || 999) - (b.order || 999))
+            .filter((ext) => !ext.condition || ext.condition(study))
+            .map((ext) => (
+              <Button
+                key={ext.id}
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => ext.action(study, context)}
+              >
+                {ext.icon}
+              </Button>
+            ))}
+        </div>
+      )}
     </div>
   );
 };
 
-// --- Main Component ---
-
 export function StudyList({ studies }: StudyListProps) {
-  const { selectStudy, selectedStudy } = useSearchStore();
+  const { selectStudy, selectedStudy, results } = useSearchStore();
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewMode, setViewMode] = useState<"list" | "card">("list");
+  const [viewMode, setViewMode] = useState<string>("list");
+  const plugins = useEnabledPlugins();
+  const context = usePluginContext();
+
+  const rendererExtensions = plugins.flatMap((p) =>
+    p.getResultRendererExtensions ? p.getResultRendererExtensions() : []
+  );
+
+  const optionExtensions = plugins.flatMap((p) =>
+    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : []
+  );
+
+  const hasActions = optionExtensions.length > 0;
 
   const handleStudyClick = (study: Study) => {
     selectStudy(study);
   };
 
-  // Filter studies
   const filteredStudies = selectedStudy
     ? studies.filter(
-        (s) => s.studyInstanceUID === selectedStudy.studyInstanceUID,
+        (s) => s.studyInstanceUID === selectedStudy.studyInstanceUID
       )
     : studies;
 
-  // Pagination Logic
   const itemsPerPage =
     viewMode === "list" ? ITEMS_PER_PAGE_LIST : ITEMS_PER_PAGE_CARD;
   const totalPages = Math.ceil(filteredStudies.length / itemsPerPage);
@@ -208,7 +261,7 @@ export function StudyList({ studies }: StudyListProps) {
     setCurrentPage((prev) => Math.min(totalPages, prev + 1));
   };
 
-  const handleViewModeChange = (newMode: "list" | "card") => {
+  const handleViewModeChange = (newMode: string) => {
     setViewMode(newMode);
     setCurrentPage(1);
   };
@@ -220,7 +273,6 @@ export function StudyList({ studies }: StudyListProps) {
     }
   };
 
-  // Render content based on view mode
   const renderContent = () => {
     if (displayedStudies.length === 0 && !selectedStudy) {
       return (
@@ -230,10 +282,47 @@ export function StudyList({ studies }: StudyListProps) {
       );
     }
 
+    const customRenderer = rendererExtensions.find((r) => r.id === viewMode);
+    if (customRenderer) {
+      const RendererComponent = customRenderer.component;
+      
+      // Filter raw results to match displayed studies
+      const displayedStudyUIDs = new Set(
+        displayedStudies.map((s) => s.studyInstanceUID)
+      );
+      const displayedResults = results.filter(
+        (r) =>
+          displayedStudyUIDs.has(r.fields.StudyInstanceUID) ||
+          displayedStudyUIDs.has(r.fields.studyInstanceUID)
+      );
+
+      return (
+        <Suspense fallback={<div>Loading...</div>}>
+          <RendererComponent
+            results={displayedResults}
+            loading={false}
+            context={context}
+            onResultSelect={(result) => {
+              // Find the study that matches this result
+              const studyUID =
+                result.fields.StudyInstanceUID ||
+                result.fields.studyInstanceUID;
+              const study = studies.find(
+                (s) => s.studyInstanceUID === studyUID
+              );
+              if (study) {
+                handleStudyClick(study);
+              }
+            }}
+          />
+        </Suspense>
+      );
+    }
+
     if (viewMode === "list") {
       return (
         <div className="space-y-1">
-          <TableHeader />
+          <TableHeader showActions={hasActions} />
           <div className="space-y-0.5">
             {displayedStudies.map((study, index) => (
               <StudyListItem
@@ -244,6 +333,7 @@ export function StudyList({ studies }: StudyListProps) {
                 }
                 onClick={() => resetToPage1(study)}
                 index={startIndex + index + 1}
+                showActions={hasActions}
               />
             ))}
           </div>
@@ -251,7 +341,6 @@ export function StudyList({ studies }: StudyListProps) {
       );
     }
 
-    // Card View
     return (
       <div className="grid grid-cols-1 gap-3">
         {displayedStudies.map((study) => (
@@ -270,7 +359,6 @@ export function StudyList({ studies }: StudyListProps) {
 
   return (
     <div className="space-y-3">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
           Studies{" "}
@@ -279,15 +367,14 @@ export function StudyList({ studies }: StudyListProps) {
           )}
         </h2>
 
-        {/* Page info */}
         {!selectedStudy && filteredStudies.length > itemsPerPage && (
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Page {currentPage} of {totalPages}
           </span>
         )}
 
-        {/* View mode toggle */}
-        {!selectedStudy && filteredStudies.length > 0 && (
+        {/* Only show view mode buttons if there are results and renderer plugins exist */}
+        {!selectedStudy && filteredStudies.length > 0 && rendererExtensions.length > 0 && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -307,11 +394,23 @@ export function StudyList({ studies }: StudyListProps) {
               <Grid3X3 className="w-4 h-4 mr-1" />
               Cards
             </Button>
+
+            {rendererExtensions.map((ext) => (
+              <Button
+                key={ext.id}
+                variant="outline"
+                size="sm"
+                onClick={() => handleViewModeChange(ext.id)}
+                className={viewMode === ext.id ? "border-primary" : ""}
+              >
+                {ext.icon}
+                {ext.name}
+              </Button>
+            ))}
           </div>
         )}
       </div>
 
-      {/* Selected study view (Always shows Card) */}
       {selectedStudy && filteredStudies.length > 0 ? (
         <StudyCard
           key={selectedStudy.studyInstanceUID}
@@ -320,11 +419,9 @@ export function StudyList({ studies }: StudyListProps) {
           onClick={() => resetToPage1(selectedStudy)}
         />
       ) : (
-        // Regular view (List or Card)
         renderContent()
       )}
 
-      {/* Pagination - only when not viewing selected study */}
       {!selectedStudy && filteredStudies.length > itemsPerPage && (
         <div className="flex items-center justify-between pt-4">
           <Button
