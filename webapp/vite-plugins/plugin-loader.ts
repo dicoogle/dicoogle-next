@@ -4,12 +4,9 @@
  * This plugin discovers all plugins in the plugins directory and generates code to load them
  */
 
-import { Plugin } from 'vite';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { Plugin } from "vite";
+import fs from "fs";
+import path from "path";
 
 interface PluginConfig {
   id: string;
@@ -49,17 +46,17 @@ function discoverPlugins(pluginsDir: string): DiscoveredPlugin[] {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
 
-    const configPath = path.join(pluginsDir, entry.name, 'plugin.config.json');
+    const configPath = path.join(pluginsDir, entry.name, "plugin.config.json");
 
     if (fs.existsSync(configPath)) {
       try {
-        const configContent = fs.readFileSync(configPath, 'utf-8');
+        const configContent = fs.readFileSync(configPath, "utf-8");
         const config = JSON.parse(configContent) as PluginConfig;
 
         const pluginEntry = path.join(
           pluginsDir,
           entry.name,
-          config.entry || 'index.ts'
+          config.entry || "index.ts",
         );
 
         if (fs.existsSync(pluginEntry)) {
@@ -67,19 +64,16 @@ function discoverPlugins(pluginsDir: string): DiscoveredPlugin[] {
             id: config.id || entry.name,
             name: entry.name,
             path: pluginEntry,
-            entry: config.entry || 'index.ts',
+            entry: config.entry || "index.ts",
             config,
           });
         } else {
           console.warn(
-            `Plugin entry not found at ${pluginEntry} for plugin ${entry.name}`
+            `Plugin entry not found at ${pluginEntry} for plugin ${entry.name}`,
           );
         }
       } catch (error) {
-        console.error(
-          `Error loading plugin config at ${configPath}:`,
-          error
-        );
+        console.error(`Error loading plugin config at ${configPath}:`, error);
       }
     }
   }
@@ -103,7 +97,7 @@ import { pluginRegistry } from '@/plugin-system/registry';
 
   // Generate imports
   plugins.forEach((plugin, index) => {
-    const importPath = plugin.path.replace(/\\/g, '/');
+    const importPath = plugin.path.replace(/\\/g, "/");
     code += `import Plugin${index} from '${importPath}';
 `;
   });
@@ -164,14 +158,14 @@ export default { registerAllPlugins, discoveredPlugins };
  * Vite Plugin for loading plugins at buildtime
  */
 export function createPluginLoader(): Plugin {
-  const VIRTUAL_MODULE_ID = 'virtual:dicoogle-plugins';
+  const VIRTUAL_MODULE_ID = "virtual:dicoogle-plugins";
   const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
 
-  let pluginsDir = '';
+  let pluginsDir = "";
   let discoveredPlugins: DiscoveredPlugin[] = [];
 
   return {
-    name: 'dicoogle-plugin-loader',
+    name: "dicoogle-plugin-loader",
 
     resolveId(id) {
       if (id === VIRTUAL_MODULE_ID) {
@@ -187,18 +181,20 @@ export function createPluginLoader(): Plugin {
 
     configResolved(config) {
       // Resolve plugins directory relative to project root
-      pluginsDir = path.resolve(config.root || process.cwd(), 'src', 'plugins');
+      pluginsDir = path.resolve(config.root || process.cwd(), "src", "plugins");
       discoveredPlugins = discoverPlugins(pluginsDir);
 
       if (discoveredPlugins.length > 0) {
-        console.log(`\n✓ Plugin Loader: Discovered ${discoveredPlugins.length} plugin(s)`);
+        console.log(
+          `\n✓ Plugin Loader: Discovered ${discoveredPlugins.length} plugin(s)`,
+        );
         discoveredPlugins.forEach((plugin) => {
           const displayName = plugin.config.name || plugin.id;
-          const version = plugin.config.version || '?';
-          const enabled = plugin.config.enabled !== false ? '✓' : '✗';
+          const version = plugin.config.version || "?";
+          const enabled = plugin.config.enabled !== false ? "✓" : "✗";
           console.log(`  ${enabled} ${displayName} v${version} (${plugin.id})`);
         });
-        console.log('');
+        console.log("");
       }
     },
   };

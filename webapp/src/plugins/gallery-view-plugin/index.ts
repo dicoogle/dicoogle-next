@@ -3,9 +3,12 @@
  * Alternative gallery view for search results
  */
 
-import { WebUIPlugin, ResultRendererExtension, PluginContext } from "@/plugins";
+import {
+  WebUIPlugin,
+  ResultRendererExtension,
+  PluginContext,
+} from "@/plugin-system";
 import { lazy } from "react";
-import { Grid3x3 } from "lucide-react";
 
 const GalleryView = lazy(() => import("./GalleryView"));
 

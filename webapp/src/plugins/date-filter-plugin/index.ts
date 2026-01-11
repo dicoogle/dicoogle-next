@@ -3,7 +3,7 @@
  * Adds date range filter to search
  */
 
-import { WebUIPlugin, QueryFilterExtension, PluginContext } from "@/plugins";
+import { WebUIPlugin, QueryFilterExtension, PluginContext } from "@/plugin-system";
 import { lazy } from "react";
 
 const DateRangeFilter = lazy(() => import("./DateRangeFilter"));

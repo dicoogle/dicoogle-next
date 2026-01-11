@@ -8,9 +8,8 @@ import {
   PluginContext,
   RouteExtension,
   SidebarMenuExtension,
-} from "@/plugins";
+} from "@/plugin-system";
 import { lazy } from "react";
-import { BarChart3 } from "lucide-react";
 
 const AnalyticsPage = lazy(() => import("./AnalyticsPage"));
 
@@ -22,7 +21,6 @@ const analyticsPlugin: WebUIPlugin = {
     description: "View PACS statistics and analytics",
     author: "Dicoogle Team",
     type: "page",
-    icon: "na",
   },
 
   init: async (context: PluginContext) => {

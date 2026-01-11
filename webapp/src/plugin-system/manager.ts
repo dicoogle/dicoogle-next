@@ -3,9 +3,9 @@
  * Handles plugin lifecycle management (initialization, enabling, disabling, cleanup)
  */
 
-import { pluginRegistry } from './registry';
-import { WebUIPlugin, PluginContext } from './types';
-import DicoogleClient from 'dicoogle-client';
+import { pluginRegistry } from "./registry";
+import { PluginContext } from "./types";
+import DicoogleClient from "dicoogle-client";
 
 /**
  * Maps to track initialized plugins for cleanup
@@ -25,7 +25,10 @@ function getDicoogleClient() {
       return `${protocol}//${hostname}${port ? ":" + port : ""}${envUrl}`;
     }
 
-    if (envUrl && (envUrl.startsWith("http://") || envUrl.startsWith("https://"))) {
+    if (
+      envUrl &&
+      (envUrl.startsWith("http://") || envUrl.startsWith("https://"))
+    ) {
       return envUrl;
     }
 
@@ -34,13 +37,13 @@ function getDicoogleClient() {
 
   const DICOOGLE_URL = getBaseUrl();
   const client = DicoogleClient(DICOOGLE_URL);
-  
+
   // Use the same token as the main app
-  const token = localStorage.getItem('dicoogle_token');
+  const token = localStorage.getItem("dicoogle_token");
   if (token) {
     client.setToken(token);
   }
-  
+
   return client;
 }
 
@@ -48,10 +51,10 @@ function getDicoogleClient() {
  * Create a plugin context for initialization
  */
 export function createPluginContext(pluginId?: string): PluginContext {
-  const effectivePluginId = pluginId || 'unknown';
-  
+  const effectivePluginId = pluginId || "unknown";
+
   return {
-    appVersion: import.meta.env.VITE_APP_VERSION || '1.0.0',
+    appVersion: import.meta.env.VITE_APP_VERSION || "1.0.0",
     logger: {
       log: (message: string, data?: any) =>
         console.log(`[Plugin:${effectivePluginId}] ${message}`, data),
@@ -66,7 +69,9 @@ export function createPluginContext(pluginId?: string): PluginContext {
       get: (key: string) => {
         try {
           // Scope storage to plugin ID
-          const item = localStorage.getItem(`plugin_${effectivePluginId}_${key}`);
+          const item = localStorage.getItem(
+            `plugin_${effectivePluginId}_${key}`,
+          );
           return item ? JSON.parse(item) : null;
         } catch {
           return null;
@@ -75,7 +80,10 @@ export function createPluginContext(pluginId?: string): PluginContext {
       set: (key: string, value: any) => {
         try {
           // Scope storage to plugin ID
-          localStorage.setItem(`plugin_${effectivePluginId}_${key}`, JSON.stringify(value));
+          localStorage.setItem(
+            `plugin_${effectivePluginId}_${key}`,
+            JSON.stringify(value),
+          );
         } catch (error) {
           console.warn(`Failed to set plugin storage: ${key}`, error);
         }
@@ -98,7 +106,8 @@ export function createPluginContext(pluginId?: string): PluginContext {
  * Simple event bus implementation
  */
 function createEventBus() {
-  const listeners: Map<string, Set<Function>> = new Map();
+  type EventCallback = (data: any) => void;
+  const listeners: Map<string, Set<EventCallback>> = new Map();
 
   return {
     on: (event: string, callback: (data: any) => void) => {
@@ -128,7 +137,7 @@ function createEventBus() {
  */
 export async function initializePlugin(
   pluginId: string,
-  context?: PluginContext
+  context?: PluginContext,
 ): Promise<void> {
   const plugin = pluginRegistry.getPlugin(pluginId);
   if (!plugin) {
@@ -152,7 +161,7 @@ export async function initializePlugin(
     const metadata = pluginRegistry.getPluginMetadata(pluginId);
     console.error(
       `✗ Failed to initialize plugin ${metadata?.name || pluginId}:`,
-      error
+      error,
     );
     throw error;
   }
@@ -180,7 +189,7 @@ export async function destroyPlugin(pluginId: string): Promise<void> {
     const metadata = pluginRegistry.getPluginMetadata(pluginId);
     console.error(
       `✗ Failed to destroy plugin ${metadata?.name || pluginId}:`,
-      error
+      error,
     );
     throw error;
   }
@@ -192,13 +201,17 @@ export async function destroyPlugin(pluginId: string): Promise<void> {
  */
 export async function enablePlugin(
   pluginId: string,
-  context?: PluginContext
+  context?: PluginContext,
 ): Promise<void> {
   pluginRegistry.setPluginEnabled(pluginId, true);
   await initializePlugin(pluginId, context);
-  
+
   // Emit event to notify components to reload
-  window.dispatchEvent(new CustomEvent('plugin-state-changed', { detail: { pluginId, enabled: true } }));
+  window.dispatchEvent(
+    new CustomEvent("plugin-state-changed", {
+      detail: { pluginId, enabled: true },
+    }),
+  );
 }
 
 /**
@@ -208,30 +221,36 @@ export async function enablePlugin(
 export async function disablePlugin(pluginId: string): Promise<void> {
   await destroyPlugin(pluginId);
   pluginRegistry.setPluginEnabled(pluginId, false);
-  
+
   // Emit event to notify components to reload
-  window.dispatchEvent(new CustomEvent('plugin-state-changed', { detail: { pluginId, enabled: false } }));
+  window.dispatchEvent(
+    new CustomEvent("plugin-state-changed", {
+      detail: { pluginId, enabled: false },
+    }),
+  );
 }
 
 /**
  * Initialize all enabled plugins
  */
 export async function initializeAllPlugins(
-  context?: PluginContext
+  context?: PluginContext,
 ): Promise<void> {
   const enabledPlugins = pluginRegistry.getEnabledPlugins();
 
-  console.log(`\n🔌 Initializing ${enabledPlugins.length} enabled plugin(s)...`);
+  console.log(
+    `\n🔌 Initializing ${enabledPlugins.length} enabled plugin(s)...`,
+  );
 
   for (const plugin of enabledPlugins) {
     try {
-      const pluginId = plugin.metadata?.id || 'unknown';
+      const pluginId = plugin.metadata?.id || "unknown";
       const ctx = context || createPluginContext(pluginId);
       await initializePlugin(pluginId, ctx);
     } catch (error) {
       console.error(
         `Failed to initialize plugin ${plugin.metadata?.name}:`,
-        error
+        error,
       );
       // Continue initializing other plugins
     }

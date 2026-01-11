@@ -3,7 +3,7 @@
  * Demonstrates the basic plugin structure and functionality
  */
 
-import { WebUIPlugin, PluginContext, SidebarMenuExtension } from "@/plugins";
+import { WebUIPlugin, PluginContext, SidebarMenuExtension } from "@/plugin-system";
 import { lazy } from "react";
 
 // Lazy load the plugin component

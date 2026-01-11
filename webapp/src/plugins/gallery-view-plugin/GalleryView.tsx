@@ -2,14 +2,14 @@
  * Gallery View Component - Alternative Result Renderer
  */
 
-import { ResultRendererProps } from '@\/plugin-system';
-import { useState } from 'react';
-import { ZoomIn, Info } from 'lucide-react';
+import { ResultRendererProps } from "@/plugin-system";
+import { useState } from "react";
+import { ZoomIn, Info } from "lucide-react";
+import { SearchResult } from "@/types";
 
 export default function GalleryView({
   results,
   loading,
-  error,
   context,
   onResultSelect,
 }: ResultRendererProps) {
@@ -27,34 +27,26 @@ export default function GalleryView({
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="text-red-800 font-semibold">Error Loading Results</h3>
-          <p className="text-red-600 mt-2">{error.message}</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!results || results.length === 0) {
     return (
       <div className="text-center p-12">
         <Info className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-700">No Results Found</h3>
+        <h3 className="text-xl font-semibold text-gray-700">
+          No Results Found
+        </h3>
         <p className="text-gray-500 mt-2">Try adjusting your search criteria</p>
       </div>
     );
   }
 
-  const gridClass = {
-    2: 'grid-cols-2',
-    3: 'grid-cols-3',
-    4: 'grid-cols-4',
-    5: 'grid-cols-5',
-    6: 'grid-cols-6',
-  }[gridColumns] || 'grid-cols-4';
+  const gridClass =
+    {
+      2: "grid-cols-2",
+      3: "grid-cols-3",
+      4: "grid-cols-4",
+      5: "grid-cols-5",
+      6: "grid-cols-6",
+    }[gridColumns] || "grid-cols-4";
 
   return (
     <div className="p-6">
@@ -85,21 +77,22 @@ export default function GalleryView({
 
       {/* Gallery Grid */}
       <div className={`grid ${gridClass} gap-4`}>
-        {results.map((result, index) => {
+        {results.map((result: SearchResult, index: number) => {
           // Get SOP Instance UID - try multiple field names
-          const sopInstanceUID = 
-            result.fields?.SOPInstanceUID || 
+          const sopInstanceUID =
+            result.fields?.SOPInstanceUID ||
             result.fields?.sopInstanceUID ||
             result.uri;
-          
+
           // Only generate thumbnail URL if we have a valid UID
-          const thumbnailUrl = sopInstanceUID && context.dicoogle
-            ? context.dicoogle.getThumbnailUrl(sopInstanceUID)
-            : null;
-          
-          const patientName = result.fields?.PatientName || 'Unknown';
-          const modality = result.fields?.Modality || 'N/A';
-          const studyDate = result.fields?.StudyDate || '';
+          const thumbnailUrl =
+            sopInstanceUID && context.dicoogle
+              ? context.dicoogle.getThumbnailUrl(sopInstanceUID)
+              : null;
+
+          const patientName = result.fields?.PatientName || "Unknown";
+          const modality = result.fields?.Modality || "N/A";
+          const studyDate = result.fields?.StudyDate || "";
           const formattedDate = formatStudyDate(studyDate);
 
           return (
@@ -118,7 +111,8 @@ export default function GalleryView({
                     alt={patientName}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" text-anchor="middle" x="100" y="110"%3ENo Image%3C/text%3E%3C/svg%3E';
+                      e.currentTarget.src =
+                        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" text-anchor="middle" x="100" y="110"%3ENo Image%3C/text%3E%3C/svg%3E';
                     }}
                   />
                 ) : (
@@ -145,15 +139,21 @@ export default function GalleryView({
 
               {/* Info */}
               <div className="p-3">
-                <h3 className="font-semibold text-gray-900 truncate" title={patientName}>
+                <h3
+                  className="font-semibold text-gray-900 truncate"
+                  title={patientName}
+                >
                   {patientName}
                 </h3>
                 <p className="text-sm text-gray-500 mt-1">{formattedDate}</p>
                 <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-gray-400 truncate" title={result.uri}>
+                  <span
+                    className="text-xs text-gray-400 truncate"
+                    title={result.uri}
+                  >
                     {result.fields?.SeriesNumber
                       ? `Series ${result.fields.SeriesNumber}`
-                      : 'No series'}
+                      : "No series"}
                   </span>
                   {result.fields?.InstanceNumber && (
                     <span className="text-xs text-gray-400">
@@ -169,7 +169,7 @@ export default function GalleryView({
 
       {/* Stats Footer */}
       <div className="mt-6 text-center text-sm text-gray-500">
-        Displaying {results.length} image{results.length !== 1 ? 's' : ''}
+        Displaying {results.length} image{results.length !== 1 ? "s" : ""}
       </div>
     </div>
   );
@@ -180,7 +180,7 @@ export default function GalleryView({
  */
 function formatStudyDate(dateStr: string): string {
   if (!dateStr || dateStr.length !== 8) {
-    return 'Unknown Date';
+    return "Unknown Date";
   }
 
   const year = dateStr.substring(0, 4);
@@ -189,12 +189,12 @@ function formatStudyDate(dateStr: string): string {
 
   const date = new Date(`${year}-${month}-${day}`);
   if (isNaN(date.getTime())) {
-    return 'Invalid Date';
+    return "Invalid Date";
   }
 
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   });
 }

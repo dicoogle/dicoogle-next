@@ -2,11 +2,11 @@
  * Plugin Manager Settings Component
  */
 
-import { useState, useEffect } from 'react';
-import { pluginRegistry } from '@\/plugin-system/registry';
-import { enablePlugin, disablePlugin } from '@\/plugin-system/manager';
-import { WebUIPlugin } from '@\/plugin-system/types';
-import { Power, PowerOff, Info, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { pluginRegistry } from "@/plugin-system/registry";
+import { enablePlugin, disablePlugin } from "@/plugin-system/manager";
+import { WebUIPlugin } from "@/plugin-system/types";
+import { Power, PowerOff, Info, ExternalLink } from "lucide-react";
 
 export default function PluginManagerSettings() {
   const [plugins, setPlugins] = useState<WebUIPlugin[]>([]);
@@ -20,9 +20,12 @@ export default function PluginManagerSettings() {
       loadPlugins();
     };
 
-    window.addEventListener('plugin-state-changed', handlePluginStateChange);
+    window.addEventListener("plugin-state-changed", handlePluginStateChange);
     return () => {
-      window.removeEventListener('plugin-state-changed', handlePluginStateChange);
+      window.removeEventListener(
+        "plugin-state-changed",
+        handlePluginStateChange,
+      );
     };
   }, []);
 
@@ -41,8 +44,8 @@ export default function PluginManagerSettings() {
       }
       loadPlugins();
     } catch (error) {
-      console.error('Failed to toggle plugin:', error);
-      alert(`Failed to ${currentlyEnabled ? 'disable' : 'enable'} plugin`);
+      console.error("Failed to toggle plugin:", error);
+      alert(`Failed to ${currentlyEnabled ? "disable" : "enable"} plugin`);
     } finally {
       setLoading(false);
     }
@@ -50,9 +53,9 @@ export default function PluginManagerSettings() {
 
   const getPluginTypeLabel = (type: any): string => {
     if (Array.isArray(type)) {
-      return type.join(', ');
+      return type.join(", ");
     }
-    return type || 'page';
+    return type || "page";
   };
 
   return (
@@ -60,7 +63,8 @@ export default function PluginManagerSettings() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Plugin Manager</h2>
         <p className="text-gray-600 mt-2">
-          Manage installed plugins. Enable or disable plugins to customize your experience.
+          Manage installed plugins. Enable or disable plugins to customize your
+          experience.
         </p>
       </div>
 
@@ -73,7 +77,19 @@ export default function PluginManagerSettings() {
           </div>
         ) : (
           plugins.map((plugin) => {
-            const isEnabled = pluginRegistry.isPluginEnabled(plugin.metadata.id);
+            if (!plugin.metadata) {
+              return (
+                <div
+                  key="NA"
+                  className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                >
+                  <h3>Plugin Information Not Available</h3>
+                </div>
+              );
+            }
+            const isEnabled = pluginRegistry.isPluginEnabled(
+              plugin.metadata.id,
+            );
 
             return (
               <div
@@ -103,16 +119,13 @@ export default function PluginManagerSettings() {
                       )}
                     </div>
 
-                    <p className="text-gray-600 mt-2">{plugin.metadata.description}</p>
+                    <p className="text-gray-600 mt-2">
+                      {plugin.metadata.description}
+                    </p>
 
                     <div className="mt-3 flex items-center gap-4 text-sm text-gray-500">
                       {plugin.metadata.author && (
                         <span>By {plugin.metadata.author}</span>
-                      )}
-                      {plugin.metadata.license && (
-                        <span className="flex items-center gap-1">
-                          License: {plugin.metadata.license}
-                        </span>
                       )}
                       <span className="flex items-center gap-1">
                         Type: {getPluginTypeLabel(plugin.metadata.type)}
@@ -162,15 +175,23 @@ export default function PluginManagerSettings() {
                   {/* Toggle Button */}
                   <div className="ml-6">
                     <button
-                      onClick={() => handleToggle(plugin.metadata.id, isEnabled)}
+                      onClick={() => {
+                        if (plugin.metadata) {
+                          handleToggle(plugin.metadata.id, isEnabled);
+                        }
+                      }}
                       disabled={loading}
                       className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                         isEnabled
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          ? "bg-red-100 text-red-700 hover:bg-red-200"
+                          : "bg-green-100 text-green-700 hover:bg-green-200"
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {loading ? 'Loading...' : isEnabled ? 'Disable' : 'Enable'}
+                      {loading
+                        ? "Loading..."
+                        : isEnabled
+                          ? "Disable"
+                          : "Enable"}
                     </button>
                   </div>
                 </div>
@@ -187,8 +208,9 @@ export default function PluginManagerSettings() {
           <div className="text-sm text-blue-900">
             <p className="font-medium">About Plugins</p>
             <p className="mt-1 text-blue-800">
-              Plugins extend Dicoogle's functionality. Disabling a plugin will remove its
-              features from the interface. Changes take effect immediately.
+              Plugins extend Dicoogle's functionality. Disabling a plugin will
+              remove its features from the interface. Changes take effect
+              immediately.
             </p>
             <a
               href="https://github.com/bioinformatics-ua/dicoogle-next/blob/main/PLUGIN_TYPES_GUIDE.md"
@@ -205,7 +227,7 @@ export default function PluginManagerSettings() {
 
       {/* Stats */}
       <div className="mt-4 text-sm text-gray-500 text-center">
-        {plugins.length} plugin{plugins.length !== 1 ? 's' : ''} installed •{' '}
+        {plugins.length} plugin{plugins.length !== 1 ? "s" : ""} installed •{" "}
         {pluginRegistry.getEnabledPlugins().length} enabled
       </div>
     </div>

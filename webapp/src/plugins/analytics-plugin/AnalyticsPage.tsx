@@ -2,9 +2,9 @@
  * Analytics Dashboard Page Component
  */
 
-import { useState, useEffect } from 'react';
-import { dicoogleService } from '@/services/dicoogleService';
-import { BarChart3, TrendingUp, Users, Calendar } from 'lucide-react';
+import { useState, useEffect, useCallback } from "react";
+import { dicoogleService } from "@/services/dicoogleService";
+import { BarChart3, TrendingUp, Users, Calendar } from "lucide-react";
 
 interface Stats {
   totalStudies: number;
@@ -18,19 +18,15 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAnalytics();
-  }, []);
-
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       // Search for all studies
       const results = await dicoogleService.search({
-        query: '*',
-        providers: ['lucene'],
+        query: "*",
+        providers: ["lucene"],
       });
 
       // Calculate statistics
@@ -40,7 +36,7 @@ export default function AnalyticsPage() {
       let recentCount = 0;
 
       results.results.forEach((result: any) => {
-        const modality = result.fields?.Modality || 'Unknown';
+        const modality = result.fields?.Modality || "Unknown";
         modalityCounts[modality] = (modalityCounts[modality] || 0) + 1;
 
         const patientId = result.fields?.PatientID;
@@ -64,11 +60,15 @@ export default function AnalyticsPage() {
         uniquePatients,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load analytics');
+      setError(err instanceof Error ? err.message : "Failed to load analytics");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadAnalytics();
+  }, [loadAnalytics]);
 
   const parseStudyDate = (dateStr: string): Date | null => {
     // DICOM date format: YYYYMMDD
@@ -96,7 +96,9 @@ export default function AnalyticsPage() {
     return (
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="text-red-800 font-semibold">Error Loading Analytics</h3>
+          <h3 className="text-red-800 font-semibold">
+            Error Loading Analytics
+          </h3>
           <p className="text-red-600 mt-2">{error}</p>
           <button
             onClick={loadAnalytics}
@@ -123,19 +125,19 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <StatCard
           title="Total Studies"
-          value={stats?.totalStudies.toLocaleString() || '0'}
+          value={stats?.totalStudies.toLocaleString() || "0"}
           icon={<BarChart3 className="w-6 h-6" />}
           color="blue"
         />
         <StatCard
           title="Recent Studies (30d)"
-          value={stats?.recentStudies.toLocaleString() || '0'}
+          value={stats?.recentStudies.toLocaleString() || "0"}
           icon={<Calendar className="w-6 h-6" />}
           color="green"
         />
         <StatCard
           title="Unique Patients"
-          value={stats?.uniquePatients.size.toLocaleString() || '0'}
+          value={stats?.uniquePatients.size.toLocaleString() || "0"}
           icon={<Users className="w-6 h-6" />}
           color="purple"
         />
@@ -153,7 +155,9 @@ export default function AnalyticsPage() {
               .sort(([, a], [, b]) => b - a)
               .map(([modality, count]) => (
                 <div key={modality} className="flex items-center">
-                  <div className="w-24 font-medium text-gray-700">{modality}</div>
+                  <div className="w-24 font-medium text-gray-700">
+                    {modality}
+                  </div>
                   <div className="flex-1">
                     <div className="bg-gray-200 rounded-full h-4 overflow-hidden">
                       <div
@@ -192,14 +196,14 @@ interface StatCardProps {
   title: string;
   value: string;
   icon: React.ReactNode;
-  color: 'blue' | 'green' | 'purple';
+  color: "blue" | "green" | "purple";
 }
 
 function StatCard({ title, value, icon, color }: StatCardProps) {
   const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
+    blue: "bg-blue-50 text-blue-600",
+    green: "bg-green-50 text-green-600",
+    purple: "bg-purple-50 text-purple-600",
   };
 
   return (

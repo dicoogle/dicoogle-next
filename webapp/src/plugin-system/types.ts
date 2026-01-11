@@ -66,7 +66,10 @@ export interface PluginEventBus {
 }
 
 export interface PluginUIHooks {
-  showToast: (message: string, type: "success" | "error" | "info" | "warning") => void;
+  showToast: (
+    message: string,
+    type: "success" | "error" | "info" | "warning",
+  ) => void;
 }
 
 /**
@@ -95,15 +98,17 @@ export interface WebUIPlugin {
  * Query Filter Extension
  * Adds filtering UI to search page
  */
+export interface QueryFilterProps {
+  value: any;
+  onChange: (value: any) => void;
+  context: PluginContext;
+}
+
 export interface QueryFilterExtension {
   id: string;
   label: string;
   description?: string;
-  component: React.ComponentType<{
-    value: any;
-    onChange: (value: any) => void;
-    context: PluginContext;
-  }>;
+  component: React.ComponentType<QueryFilterProps>; // Use the extracted type here
   defaultValue: any;
   applyFilter?: (value: any) => string | null;
   order?: number;
@@ -138,17 +143,20 @@ export interface ResultBatchExtension {
  * Result Renderer Extension
  * Custom ways to display search results
  */
+
+export interface ResultRendererProps {
+  results: SearchResult[];
+  loading: boolean;
+  context: PluginContext;
+  onResultSelect?: (result: SearchResult) => void;
+}
+
 export interface ResultRendererExtension {
   id: string;
   name: string;
   icon: ReactNode;
   order?: number;
-  component: React.ComponentType<{
-    results: SearchResult[];
-    loading: boolean;
-    context: PluginContext;
-    onResultSelect?: (result: SearchResult) => void;
-  }>;
+  component: React.ComponentType<ResultRendererProps>;
 }
 
 /**
@@ -171,6 +179,7 @@ export interface SidebarMenuExtension {
  */
 export interface RouteExtension {
   path: string;
+  name: string;
   component: React.ComponentType;
   requiresAuth?: boolean;
   requiresAdmin?: boolean;
@@ -202,7 +211,11 @@ export interface PluginState {
  * Plugin Registry Interface
  */
 export interface PluginRegistry {
-  registerPlugin: (plugin: WebUIPlugin, configMetadata?: Partial<PluginMetadata>, defaultEnabled?: boolean) => void;
+  registerPlugin: (
+    plugin: WebUIPlugin,
+    configMetadata?: Partial<PluginMetadata>,
+    defaultEnabled?: boolean,
+  ) => void;
   getPlugin: (id: string) => WebUIPlugin | undefined;
   getAllPlugins: () => WebUIPlugin[];
   getEnabledPlugins: () => WebUIPlugin[];
@@ -211,6 +224,6 @@ export interface PluginRegistry {
   setPluginEnabled: (id: string, enabled: boolean) => void;
   getPluginState: (id: string) => PluginState | undefined;
   getPluginsByType: <T extends keyof WebUIPlugin>(
-    methodName: T
+    methodName: T,
   ) => Array<{ plugin: WebUIPlugin; method: any }>;
 }

@@ -3,11 +3,10 @@
  * Exports all plugin-related types and utilities
  */
 
-export * from './types';
-export * from './registry';
-export * from './manager';
-export * from './hooks';
+export * from "./types";
+export * from "./manager";
+export * from "./hooks";
 
 // Re-export for convenience
-export { pluginRegistry } from './registry';
-export { createPluginContext, initializeAllPlugins } from './manager';
+export { pluginRegistry } from "./registry";
+export { createPluginContext, initializeAllPlugins } from "./manager";

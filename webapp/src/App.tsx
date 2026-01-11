@@ -18,7 +18,7 @@ import { Suspense } from "react";
 
 function App() {
   const { isAuthenticated, authLoading, checkAuth } = useAuthStore();
-  const [pluginRoutes, setPluginRoutes] = useState(() => getRouteExtensions());
+  const [pluginRoutes] = useState(() => getRouteExtensions());
 
   useEffect(() => {
     checkAuth();

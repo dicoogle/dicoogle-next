@@ -14,7 +14,7 @@ import {
   Grid3X3,
 } from "lucide-react";
 import type { Study } from "@/types";
-import { useEnabledPlugins, usePluginContext } from "@\/plugin-system";
+import { useEnabledPlugins, usePluginContext } from "@/plugin-system";
 
 interface StudyListProps {
   studies: Study[];
@@ -39,7 +39,9 @@ const formatDate = (date?: string) => {
 };
 
 const TableHeader = ({ showActions }: { showActions: boolean }) => (
-  <div className={`grid ${showActions ? 'grid-cols-[60px_1fr_140px_120px_80px_120px]' : 'grid-cols-[60px_1fr_140px_120px_80px]'} items-center gap-3 py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-border`}>
+  <div
+    className={`grid ${showActions ? "grid-cols-[60px_1fr_140px_120px_80px_120px]" : "grid-cols-[60px_1fr_140px_120px_80px]"} items-center gap-3 py-2 px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-border`}
+  >
     <div className="text-center">#</div>
     <div>Patient Name</div>
     <div>Study Date</div>
@@ -53,7 +55,7 @@ const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
   const plugins = useEnabledPlugins();
   const context = usePluginContext();
   const optionExtensions = plugins.flatMap((p) =>
-    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : []
+    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : [],
   );
 
   return (
@@ -152,12 +154,12 @@ const StudyListItem = ({
   const plugins = useEnabledPlugins();
   const context = usePluginContext();
   const optionExtensions = plugins.flatMap((p) =>
-    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : []
+    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : [],
   );
 
   return (
     <div
-      className={`grid ${showActions ? 'grid-cols-[60px_1fr_140px_120px_80px_120px]' : 'grid-cols-[60px_1fr_140px_120px_80px]'} items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer hover:bg-muted/50 dark:hover:bg-muted ${
+      className={`grid ${showActions ? "grid-cols-[60px_1fr_140px_120px_80px_120px]" : "grid-cols-[60px_1fr_140px_120px_80px]"} items-center gap-3 py-2 px-3 rounded-lg transition-all cursor-pointer hover:bg-muted/50 dark:hover:bg-muted ${
         isSelected
           ? "bg-primary-50 dark:bg-primary-950/50 border border-primary-500"
           : "border border-border"
@@ -227,11 +229,11 @@ export function StudyList({ studies }: StudyListProps) {
   const context = usePluginContext();
 
   const rendererExtensions = plugins.flatMap((p) =>
-    p.getResultRendererExtensions ? p.getResultRendererExtensions() : []
+    p.getResultRendererExtensions ? p.getResultRendererExtensions() : [],
   );
 
   const optionExtensions = plugins.flatMap((p) =>
-    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : []
+    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : [],
   );
 
   const hasActions = optionExtensions.length > 0;
@@ -242,7 +244,7 @@ export function StudyList({ studies }: StudyListProps) {
 
   const filteredStudies = selectedStudy
     ? studies.filter(
-        (s) => s.studyInstanceUID === selectedStudy.studyInstanceUID
+        (s) => s.studyInstanceUID === selectedStudy.studyInstanceUID,
       )
     : studies;
 
@@ -285,15 +287,15 @@ export function StudyList({ studies }: StudyListProps) {
     const customRenderer = rendererExtensions.find((r) => r.id === viewMode);
     if (customRenderer) {
       const RendererComponent = customRenderer.component;
-      
+
       // Filter raw results to match displayed studies
       const displayedStudyUIDs = new Set(
-        displayedStudies.map((s) => s.studyInstanceUID)
+        displayedStudies.map((s) => s.studyInstanceUID),
       );
       const displayedResults = results.filter(
         (r) =>
           displayedStudyUIDs.has(r.fields.StudyInstanceUID) ||
-          displayedStudyUIDs.has(r.fields.studyInstanceUID)
+          displayedStudyUIDs.has(r.fields.studyInstanceUID),
       );
 
       return (
@@ -308,7 +310,7 @@ export function StudyList({ studies }: StudyListProps) {
                 result.fields.StudyInstanceUID ||
                 result.fields.studyInstanceUID;
               const study = studies.find(
-                (s) => s.studyInstanceUID === studyUID
+                (s) => s.studyInstanceUID === studyUID,
               );
               if (study) {
                 handleStudyClick(study);
@@ -374,41 +376,43 @@ export function StudyList({ studies }: StudyListProps) {
         )}
 
         {/* Only show view mode buttons if there are results and renderer plugins exist */}
-        {!selectedStudy && filteredStudies.length > 0 && rendererExtensions.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleViewModeChange("list")}
-              className={viewMode === "list" ? "border-primary" : ""}
-            >
-              <LayoutList className="w-4 h-4 mr-1" />
-              List
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleViewModeChange("card")}
-              className={viewMode === "card" ? "border-primary" : ""}
-            >
-              <Grid3X3 className="w-4 h-4 mr-1" />
-              Cards
-            </Button>
-
-            {rendererExtensions.map((ext) => (
+        {!selectedStudy &&
+          filteredStudies.length > 0 &&
+          rendererExtensions.length > 0 && (
+            <div className="flex items-center gap-2">
               <Button
-                key={ext.id}
                 variant="outline"
                 size="sm"
-                onClick={() => handleViewModeChange(ext.id)}
-                className={viewMode === ext.id ? "border-primary" : ""}
+                onClick={() => handleViewModeChange("list")}
+                className={viewMode === "list" ? "border-primary" : ""}
               >
-                {ext.icon}
-                {ext.name}
+                <LayoutList className="w-4 h-4 mr-1" />
+                List
               </Button>
-            ))}
-          </div>
-        )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleViewModeChange("card")}
+                className={viewMode === "card" ? "border-primary" : ""}
+              >
+                <Grid3X3 className="w-4 h-4 mr-1" />
+                Cards
+              </Button>
+
+              {rendererExtensions.map((ext) => (
+                <Button
+                  key={ext.id}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleViewModeChange(ext.id)}
+                  className={viewMode === ext.id ? "border-primary" : ""}
+                >
+                  {ext.icon}
+                  {ext.name}
+                </Button>
+              ))}
+            </div>
+          )}
       </div>
 
       {selectedStudy && filteredStudies.length > 0 ? (

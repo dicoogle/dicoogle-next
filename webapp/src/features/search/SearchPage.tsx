@@ -9,20 +9,33 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card";
-import { Loader2, Search as SearchIcon, Filter, ChevronDown, ChevronUp } from "lucide-react";
-import { useState, useEffect, Suspense } from "react";
-import { useEnabledPlugins, usePluginContext } from "@\/plugin-system";
+import {
+  Loader2,
+  Search as SearchIcon,
+  Filter,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { useState, useEffect, Suspense, useMemo } from "react";
+import { useEnabledPlugins, usePluginContext } from "@/plugin-system";
 import { Button } from "@/components/ui/Button";
 
 export function SearchPage() {
-  const { studies, loading, error, selectedStudy, query, search } = useSearchStore();
+  const { studies, loading, error, selectedStudy, query, search } =
+    useSearchStore();
   const [showFilters, setShowFilters] = useState(false);
   const [filterValues, setFilterValues] = useState<Record<string, any>>({});
   const plugins = useEnabledPlugins();
   const context = usePluginContext();
 
-  const filterExtensions = plugins.flatMap((plugin) =>
-    plugin.getQueryFilterExtensions ? plugin.getQueryFilterExtensions() : []
+  const filterExtensions = useMemo(
+    () =>
+      plugins.flatMap((plugin) =>
+        plugin.getQueryFilterExtensions
+          ? plugin.getQueryFilterExtensions()
+          : [],
+      ),
+    [plugins],
   );
 
   // Initialize filter values with defaults
@@ -32,15 +45,15 @@ export function SearchPage() {
       initialValues[ext.id] = ext.defaultValue;
     });
     setFilterValues(initialValues);
-  }, [filterExtensions.length]);
+  }, [filterExtensions]);
 
   // Count active filters
   const activeFilterCount = filterExtensions.filter((ext) => {
     const value = filterValues[ext.id];
-    if (typeof value === 'object' && value !== null) {
+    if (typeof value === "object" && value !== null) {
       return value.enabled === true;
     }
-    return value !== ext.defaultValue && value !== null && value !== '';
+    return value !== ext.defaultValue && value !== null && value !== "";
   }).length;
 
   const handleFilterChange = (filterId: string, value: any) => {
@@ -53,7 +66,7 @@ export function SearchPage() {
     if (query) {
       // Build filter query parts
       const filterParts: string[] = [];
-      
+
       // Apply this filter
       const filter = filterExtensions.find((f) => f.id === filterId);
       if (filter && filter.applyFilter) {
@@ -77,11 +90,19 @@ export function SearchPage() {
       });
 
       // Combine base query with filters
-      const baseQuery = query.split(' AND ').filter(part => 
-        !filterExtensions.some(ext => ext.applyFilter && part.includes(ext.id))
-      ).join(' AND ');
+      const baseQuery = query
+        .split(" AND ")
+        .filter(
+          (part) =>
+            !filterExtensions.some(
+              (ext) => ext.applyFilter && part.includes(ext.id),
+            ),
+        )
+        .join(" AND ");
 
-      const fullQuery = [baseQuery, ...filterParts].filter(Boolean).join(' AND ');
+      const fullQuery = [baseQuery, ...filterParts]
+        .filter(Boolean)
+        .join(" AND ");
 
       // Re-run search with filtered query
       search({ query: fullQuery });
@@ -169,10 +190,18 @@ export function SearchPage() {
                               </p>
                             )}
                           </div>
-                          <Suspense fallback={<div className="text-xs text-gray-500">Loading...</div>}>
+                          <Suspense
+                            fallback={
+                              <div className="text-xs text-gray-500">
+                                Loading...
+                              </div>
+                            }
+                          >
                             <FilterComponent
                               value={filterValues[ext.id] ?? ext.defaultValue}
-                              onChange={(value) => handleFilterChange(ext.id, value)}
+                              onChange={(value) =>
+                                handleFilterChange(ext.id, value)
+                              }
                               context={context}
                             />
                           </Suspense>

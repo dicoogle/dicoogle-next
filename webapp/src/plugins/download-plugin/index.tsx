@@ -5,7 +5,7 @@
  * Metadata is defined in plugin.config.json
  */
 
-import { WebUIPlugin, ResultOptionsExtension, PluginContext } from "@\/plugin-system";
+import { WebUIPlugin, ResultOptionsExtension, PluginContext } from "@/plugin-system";
 import { Download } from "lucide-react";
 import type { Study } from "@/types";
 import JSZip from "jszip";

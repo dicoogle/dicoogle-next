@@ -3,33 +3,34 @@
  * Provides utilities for plugin interaction and React hooks
  */
 
-import { useEffect, useState, useCallback } from 'react';
-import { pluginRegistry } from './registry';
+import { useEffect, useState, useCallback } from "react";
+import { pluginRegistry } from "./registry";
 import {
   RouteExtension,
   SidebarMenuExtension,
   WebUIPlugin,
   PluginState,
   PluginContext,
-} from './types';
-import { enablePlugin, disablePlugin } from './manager';
-import { dicoogleService } from '@/services/dicoogleService';
-import { useNavigate } from 'react-router-dom';
+} from "./types";
+import { enablePlugin, disablePlugin } from "./manager";
+import { dicoogleService } from "@/services/dicoogleService";
 
 /**
  * Hook to create plugin context
  * This provides the context object that plugins receive
  */
 export function usePluginContext(): PluginContext {
-  const navigate = useNavigate();
-
   return {
-    appVersion: '1.0.0',
+    appVersion: "1.0.0",
     logger: {
-      log: (message: string, data?: any) => console.log(`[Plugin] ${message}`, data),
-      warn: (message: string, data?: any) => console.warn(`[Plugin] ${message}`, data),
-      error: (message: string, error?: any) => console.error(`[Plugin] ${message}`, error),
-      info: (message: string, data?: any) => console.info(`[Plugin] ${message}`, data),
+      log: (message: string, data?: any) =>
+        console.log(`[Plugin] ${message}`, data),
+      warn: (message: string, data?: any) =>
+        console.warn(`[Plugin] ${message}`, data),
+      error: (message: string, error?: any) =>
+        console.error(`[Plugin] ${message}`, error),
+      info: (message: string, data?: any) =>
+        console.info(`[Plugin] ${message}`, data),
     },
     storage: {
       get: (key: string) => {
@@ -44,7 +45,7 @@ export function usePluginContext(): PluginContext {
         try {
           localStorage.setItem(`plugin_${key}`, JSON.stringify(value));
         } catch (error) {
-          console.error('Failed to set plugin storage:', error);
+          console.error("Failed to set plugin storage:", error);
         }
       },
       remove: (key: string) => {
@@ -58,22 +59,30 @@ export function usePluginContext(): PluginContext {
         }) as EventListener);
       },
       off: (event: string, callback: (data: any) => void) => {
-        window.removeEventListener(`plugin:${event}`, callback as EventListener);
+        window.removeEventListener(
+          `plugin:${event}`,
+          callback as EventListener,
+        );
       },
       emit: (event: string, data: any) => {
-        window.dispatchEvent(new CustomEvent(`plugin:${event}`, { detail: data }));
+        window.dispatchEvent(
+          new CustomEvent(`plugin:${event}`, { detail: data }),
+        );
       },
     },
     // Expose the raw dicoogle-client instance to plugins
     dicoogle: dicoogleService.getClient() as any,
     ui: {
-      showToast: (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+      showToast: (
+        message: string,
+        type: "info" | "success" | "warning" | "error" = "info",
+      ) => {
         // Fallback to console for now - can be replaced with actual toast implementation
         const emoji = {
-          info: 'ℹ️',
-          success: '✅',
-          warning: '⚠️',
-          error: '❌',
+          info: "ℹ️",
+          success: "✅",
+          warning: "⚠️",
+          error: "❌",
         }[type];
         console.log(`${emoji} ${message}`);
       },
@@ -104,12 +113,12 @@ export function useEnabledPlugins(): WebUIPlugin[] {
     const updatePlugins = () => {
       setPlugins(pluginRegistry.getEnabledPlugins());
     };
-    
+
     updatePlugins();
-    window.addEventListener('plugin-state-changed', updatePlugins);
-    
+    window.addEventListener("plugin-state-changed", updatePlugins);
+
     return () => {
-      window.removeEventListener('plugin-state-changed', updatePlugins);
+      window.removeEventListener("plugin-state-changed", updatePlugins);
     };
   }, []);
 
@@ -126,12 +135,12 @@ export function useDisabledPlugins(): WebUIPlugin[] {
     const updatePlugins = () => {
       setPlugins(pluginRegistry.getDisabledPlugins());
     };
-    
+
     updatePlugins();
-    window.addEventListener('plugin-state-changed', updatePlugins);
-    
+    window.addEventListener("plugin-state-changed", updatePlugins);
+
     return () => {
-      window.removeEventListener('plugin-state-changed', updatePlugins);
+      window.removeEventListener("plugin-state-changed", updatePlugins);
     };
   }, []);
 
@@ -161,12 +170,12 @@ export function usePluginState(id: string): PluginState | undefined {
     const updateState = () => {
       setState(pluginRegistry.getPluginState(id));
     };
-    
+
     updateState();
-    window.addEventListener('plugin-state-changed', updateState);
-    
+    window.addEventListener("plugin-state-changed", updateState);
+
     return () => {
-      window.removeEventListener('plugin-state-changed', updateState);
+      window.removeEventListener("plugin-state-changed", updateState);
     };
   }, [id]);
 
@@ -192,14 +201,14 @@ export function usePluginManagement() {
         }
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : 'Unknown error occurred';
+          err instanceof Error ? err.message : "Unknown error occurred";
         setError(message);
         throw err;
       } finally {
         setIsLoading(false);
       }
     },
-    []
+    [],
   );
 
   return { togglePlugin, isLoading, error };
@@ -220,7 +229,7 @@ export function getRouteExtensions(): RouteExtension[] {
       } catch (error) {
         console.error(
           `Error getting route extensions from plugin ${plugin.metadata?.id}:`,
-          error
+          error,
         );
       }
     }
@@ -239,12 +248,12 @@ export function useRouteExtensions(): RouteExtension[] {
     const updateRoutes = () => {
       setRoutes(getRouteExtensions());
     };
-    
+
     updateRoutes();
-    window.addEventListener('plugin-state-changed', updateRoutes);
-    
+    window.addEventListener("plugin-state-changed", updateRoutes);
+
     return () => {
-      window.removeEventListener('plugin-state-changed', updateRoutes);
+      window.removeEventListener("plugin-state-changed", updateRoutes);
     };
   }, []);
 
@@ -266,7 +275,7 @@ export function getSidebarMenuExtensions(): SidebarMenuExtension[] {
       } catch (error) {
         console.error(
           `Error getting sidebar menu extensions from plugin ${plugin.metadata?.id}:`,
-          error
+          error,
         );
       }
     }
@@ -286,12 +295,12 @@ export function useSidebarMenuExtensions(): SidebarMenuExtension[] {
     const updateItems = () => {
       setItems(getSidebarMenuExtensions());
     };
-    
+
     updateItems();
-    window.addEventListener('plugin-state-changed', updateItems);
-    
+    window.addEventListener("plugin-state-changed", updateItems);
+
     return () => {
-      window.removeEventListener('plugin-state-changed', updateItems);
+      window.removeEventListener("plugin-state-changed", updateItems);
     };
   }, []);
 

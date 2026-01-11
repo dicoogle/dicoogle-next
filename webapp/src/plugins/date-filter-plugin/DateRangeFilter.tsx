@@ -2,14 +2,18 @@
  * Date Range Filter Component
  */
 
-import { useState } from 'react';
-import { QueryFilterProps } from '@\/plugin-system';
-import { Calendar } from 'lucide-react';
+import { useState } from "react";
+import { QueryFilterProps } from "@/plugin-system";
+import { Calendar } from "lucide-react";
 
-export default function DateRangeFilter({ value, onChange, context }: QueryFilterProps) {
+export default function DateRangeFilter({
+  value,
+  onChange,
+  context,
+}: QueryFilterProps) {
   const [enabled, setEnabled] = useState(value?.enabled || false);
-  const [from, setFrom] = useState(value?.from || '');
-  const [to, setTo] = useState(value?.to || '');
+  const [from, setFrom] = useState(value?.from || "");
+  const [to, setTo] = useState(value?.to || "");
 
   const handleToggle = (checked: boolean) => {
     setEnabled(checked);
@@ -39,8 +43,8 @@ export default function DateRangeFilter({ value, onChange, context }: QueryFilte
     const end = new Date();
     const start = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
-    const fromDate = start.toISOString().split('T')[0];
-    const toDate = end.toISOString().split('T')[0];
+    const fromDate = start.toISOString().split("T")[0];
+    const toDate = end.toISOString().split("T")[0];
 
     setFrom(fromDate);
     setTo(toDate);
@@ -52,7 +56,11 @@ export default function DateRangeFilter({ value, onChange, context }: QueryFilte
       enabled: true,
     });
 
-    context.logger.info('Quick range selected', { days, from: fromDate, to: toDate });
+    context.logger.info("Quick range selected", {
+      days,
+      from: fromDate,
+      to: toDate,
+    });
   };
 
   return (
@@ -104,7 +112,9 @@ export default function DateRangeFilter({ value, onChange, context }: QueryFilte
 
           {/* Quick Range Buttons */}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Quick Select:</p>
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Quick Select:
+            </p>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setQuickRange(7)}
@@ -138,7 +148,7 @@ export default function DateRangeFilter({ value, onChange, context }: QueryFilte
             <div className="text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="font-medium text-blue-900">Active Date Range:</p>
               <p className="mt-1">
-                {new Date(from).toLocaleDateString()} →{' '}
+                {new Date(from).toLocaleDateString()} →{" "}
                 {new Date(to).toLocaleDateString()}
               </p>
             </div>

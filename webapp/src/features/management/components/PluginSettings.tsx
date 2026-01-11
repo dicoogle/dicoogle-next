@@ -359,6 +359,15 @@ export function PluginSettings() {
 
             {/* WebUI Plugins */}
             {filteredWebUIPlugins.map((plugin) => {
+              if (!plugin.metadata) {
+                return (
+                  <Card key="N/A" className="p-5">
+                    <div>
+                      <h3>Plugin Information Not Available</h3>
+                    </div>
+                  </Card>
+                );
+              }
               const pluginId = plugin.metadata.id;
               const isEnabled = pluginRegistry.isPluginEnabled(pluginId);
               const isUpdating = updatingPlugin === `webui-${pluginId}`;
