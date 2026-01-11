@@ -12,6 +12,8 @@ import type {
   Plugin,
   TransferSyntaxSettings,
   User,
+  TaskOutcome,
+  IndexerSettings,
 } from "@/types/index";
 import DicoogleClient from "dicoogle-client";
 
@@ -211,7 +213,6 @@ class DicoogleService {
 
       let username, roles, isAdmin;
 
-      console.log("[DicoogleService] Restoring session with token");
       try {
         const userInfo = await dicoogleClient.restoreSession(token);
         username = userInfo.user;
@@ -297,6 +298,41 @@ class DicoogleService {
     return `${DICOOGLE_URL}/dic2png?thumbnail=false&SOPInstanceUID=${uid}`;
   }
 
+  // ============ Indexer Methods ============
+
+  async index(uri: string | string[]): Promise<string> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    console.log("indexing");
+    await dicoogleClient.index(uri);
+    // Return the first URI as task identifier
+    return Array.isArray(uri) ? uri[0] : uri;
+  }
+
+  async listTasks(): Promise<TaskOutcome> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    return await dicoogleClient.tasks.list();
+  }
+
+  async stopTask(taskUid: string): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.tasks.stop(taskUid);
+  }
+
+  async closeTask(taskUid: string): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.tasks.close(taskUid);
+  }
+
+  async getIndexerSettings(): Promise<IndexerSettings> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    return await dicoogleClient.getIndexerSettings();
+  }
+
+  async setIndexerSettings(settings: Record<string, any>): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.setIndexerSettings(settings);
+  }
+
   // ============ Management API Methods ============
 
   async getStorageStatus(): Promise<ServiceStatus> {
@@ -329,7 +365,6 @@ class DicoogleService {
     const status: DicoogleServiceStatus =
       await dicoogleClient.queryRetrieve.getStatus();
 
-    console.log(status);
     return {
       isRunning: status.isRunning,
       port: status.port,

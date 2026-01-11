@@ -1,17 +1,29 @@
 import { toast as sonnerToast } from "sonner";
 
 export const toast = {
-  success: (message: string) => {
+  success: (message: string | React.ReactNode) => {
     sonnerToast.success(message);
   },
-  error: (message: string) => {
+  error: (message: string | React.ReactNode) => {
     sonnerToast.error(message);
   },
-  info: (message: string) => {
+  warning: (
+    message: string | React.ReactNode,
+    options?: { duration?: number },
+  ) => {
+    sonnerToast.warning(message, options);
+  },
+  info: (message: string | React.ReactNode) => {
     sonnerToast.info(message);
   },
-  loading: (message: string) => {
+  loading: (message: string | React.ReactNode, id?: string | number) => {
+    if (id) {
+      return sonnerToast.loading(message, { id });
+    }
     return sonnerToast.loading(message);
+  },
+  dismiss: (id?: string | number) => {
+    sonnerToast.dismiss(id);
   },
   promise: <T>(
     promise: Promise<T>,
