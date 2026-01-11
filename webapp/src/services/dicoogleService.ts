@@ -100,6 +100,14 @@ class DicoogleService {
   }
 
   /**
+   * Get the raw dicoogle-client instance for plugins
+   * This exposes the full dicoogle-client-js API
+   */
+  getClient(): ReturnType<typeof DicoogleClient> | null {
+    return dicoogleClient;
+  }
+
+  /**
    * Login to Dicoogle using credentials
    * Stores the token in localStorage for session persistence
    */

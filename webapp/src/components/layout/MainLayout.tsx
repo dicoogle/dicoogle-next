@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/AuthStore";
 import { IndexerModal } from "@/features/indexer/IndexerModal";
+import { useSidebarMenuExtensions } from "@/plugin-system";
 
 type MainLayoutProps = {
   children: React.ReactNode;
@@ -12,6 +13,8 @@ export function MainLayout({ children }: MainLayoutProps) {
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuthStore();
   const [indexerModalOpen, setIndexerModalOpen] = useState(false);
+
+  const pluginMenuItems = useSidebarMenuExtensions();
 
   // Don't show top bar on login route
   const isLoginPage = location.pathname === "/login";
@@ -25,6 +28,9 @@ export function MainLayout({ children }: MainLayoutProps) {
   if (isLoginPage) {
     return <>{children}</>;
   }
+
+  const isActivePath = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -46,6 +52,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           {/* Middle: navigation */}
           {isAuthenticated && (
             <nav className="hidden sm:flex items-center gap-1 text-sm">
+              {/* Core entries */}
               <button
                 onClick={() => navigate("/search")}
                 className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
@@ -74,6 +81,19 @@ export function MainLayout({ children }: MainLayoutProps) {
                   Management
                 </button>
               )}
+
+              {/* Plugin-provided entries */}
+              {pluginMenuItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(item.path)}
+                  className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
+                    isActivePath(item.path) ? "bg-muted font-medium" : ""
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
             </nav>
           )}
 
