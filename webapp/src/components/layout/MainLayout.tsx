@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/AuthStore";
+import { IndexerModal } from "@/features/indexer/IndexerModal";
 
 type MainLayoutProps = {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isAuthenticated, logout, user } = useAuthStore();
+  const [indexerModalOpen, setIndexerModalOpen] = useState(false);
 
   // Don't show top bar on login route
   const isLoginPage = location.pathname === "/login";
@@ -55,15 +57,23 @@ export function MainLayout({ children }: MainLayoutProps) {
                 Search
               </button>
               <button
-                onClick={() => navigate("/management")}
-                className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
-                  location.pathname.startsWith("/management")
-                    ? "bg-muted font-medium"
-                    : ""
-                }`}
+                onClick={() => setIndexerModalOpen(true)}
+                className="px-3 py-1 rounded-md hover:bg-muted transition-colors"
               >
-                Management
+                Indexer
               </button>
+              {user?.admin && (
+                <button
+                  onClick={() => navigate("/management")}
+                  className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
+                    location.pathname.startsWith("/management")
+                      ? "bg-muted font-medium"
+                      : ""
+                  }`}
+                >
+                  Management
+                </button>
+              )}
             </nav>
           )}
 
@@ -88,6 +98,12 @@ export function MainLayout({ children }: MainLayoutProps) {
 
       {/* Page content */}
       <main className="flex-1">{children}</main>
+
+      {/* Indexer Modal */}
+      <IndexerModal
+        open={indexerModalOpen}
+        onClose={() => setIndexerModalOpen(false)}
+      />
     </div>
   );
 }

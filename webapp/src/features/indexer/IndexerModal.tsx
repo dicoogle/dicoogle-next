@@ -267,7 +267,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
 
   return (
     <>
-      <Dialog open={open} onClose={handleClose} title="Import Data" size="lg">
+      <Dialog open={open} onClose={handleClose} title="Indexer" size="lg">
         <div className="border-b border-border">
           <div className="flex gap-1 px-6">
             <button
