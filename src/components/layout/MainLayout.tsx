@@ -43,7 +43,7 @@ export function MainLayout({ children }: MainLayoutProps) {
             onClick={() => navigate("/search")}
           >
             <img
-              src="/logo.png"
+              src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Dicoogle Logo"
               className="w-32 h-16 rounded-md object-contain"
             />

@@ -7,10 +7,15 @@ import { createPluginLoader } from "./vite-plugins/plugin-loader";
 
 export default defineConfig({
   plugins: [react(), wasm(), topLevelAwait(), createPluginLoader()],
+  base: "/experimental/",
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  build: {
+    outDir: "dist",
+    assetsDir: "assets",
   },
   server: {
     host: true,

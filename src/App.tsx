@@ -33,7 +33,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/experimental">
       <Toaster
         position="top-right"
         expand={false}
