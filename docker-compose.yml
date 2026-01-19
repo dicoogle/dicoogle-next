@@ -12,7 +12,7 @@ services:
 
   frontend:
     build:
-      context: ./webapp
+      context: ./
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: "/api"

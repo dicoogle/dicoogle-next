@@ -51,7 +51,10 @@ export function LoginPage() {
         {/* Logo and branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-128 h-32 rounded-2xl mb-4">
-            <img src="/logo.png" alt="Dicoogle Logo" />
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Dicoogle Logo"
+            />
           </div>
           <p className="text-gray-600 dark:text-gray-400">
             Medical Imaging PACS Platform
