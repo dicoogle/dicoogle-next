@@ -38,7 +38,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Top bar */}
       <header className="w-full border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+        <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           {/* Left: logo + title */}
           <div
             className="flex items-center gap-3 cursor-pointer"
