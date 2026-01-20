@@ -111,16 +111,7 @@ export function SearchPage() {
 
   return (
     <div className="px-16 h-[calc(100vh-3.5rem)] overflow-y-auto">
-      <div className="max-w-7xl mx-auto space-y-6 py-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Search Medical Images
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Search DICOM studies using either query syntax or free-text search
-          </p>
-        </div>
-
+      <div className="max-w-8xl mx-auto space-y-6 py-6">
         <Card>
           <CardHeader>
             <CardTitle>Search Criteria</CardTitle>
