@@ -12,6 +12,9 @@ import {
   Loader2,
   MonitorPlay,
   AlertCircle,
+  LayoutGrid,
+  List,
+  Search as SearchIcon,
 } from "lucide-react";
 import { dicoogleService } from "@/services/dicoogleService";
 import { DicomViewer } from "@/components/dicom/CornerstoneViewport";
@@ -36,6 +39,8 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showMetadata, setShowMetadata] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
 
   // Advanced Viewer state
   const [showAdvancedViewer, setShowAdvancedViewer] = useState(false);
@@ -148,80 +153,174 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
       {/* --- Series List (Grid) --- */}
       <Card>
         <CardHeader>
-          <CardTitle>Series for Selected Study</CardTitle>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            {study.patientName} - {study.studyDescription || "No description"}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Series for Selected Study</CardTitle>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                {study.patientName} -{" "}
+                {study.studyDescription || "No description"}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={viewMode === "grid" ? "default" : "outline"}
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="w-4 h-4 mr-1" />
+                Grid
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "list" ? "default" : "outline"}
+                onClick={() => setViewMode("list")}
+              >
+                <List className="w-4 h-4 mr-1" />
+                List
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {series.map((s) => (
-              <div
-                key={s.seriesInstanceUID}
-                className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full"
-              >
-                <button
-                  onClick={() => handleOpenViewer(s)}
-                  disabled={!s.images || s.images.length === 0}
-                  className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity flex-shrink-0"
+          {viewMode === "grid" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {series.map((s) => (
+                <div
+                  key={s.seriesInstanceUID}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full"
                 >
-                  {s.images && s.images.length > 0 ? (
-                    <img
-                      src={dicoogleService.getThumbnail(
-                        s.images[0].sopInstanceUID,
-                      )}
-                      alt="Thumbnail"
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  ) : (
-                    <ImageIcon className="w-12 h-12 text-gray-400 m-auto" />
-                  )}
-                </button>
-
-                <div className="flex-1 space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium text-sm">
-                      Series #{s.seriesNumber}
-                    </span>
-                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
-                      {s.modality || "US"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 line-clamp-2">
-                    {s.seriesDescription || "No description"}
-                  </p>
-                  <p className="text-xs text-gray-400 pb-2">
-                    {s.images?.length || 0} images
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
                     onClick={() => handleOpenViewer(s)}
                     disabled={!s.images || s.images.length === 0}
-                    className="w-full text-xs px-2"
+                    className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity flex-shrink-0"
                   >
-                    <Eye className="w-3.5 h-3.5 mr-1.5" /> Quick
-                  </Button>
+                    {s.images && s.images.length > 0 ? (
+                      <img
+                        src={dicoogleService.getThumbnail(
+                          s.images[0].sopInstanceUID,
+                        )}
+                        alt="Thumbnail"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <ImageIcon className="w-12 h-12 text-gray-400 m-auto" />
+                    )}
+                  </button>
 
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => handleOpenWorkstation(s)}
-                    disabled={!s.images || s.images.length === 0}
-                    className="w-full text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <MonitorPlay className="w-3.5 h-3.5 mr-1.5" /> Advanced
-                  </Button>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium text-sm">
+                        Series #{s.seriesNumber}
+                      </span>
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                        {s.modality || "US"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 line-clamp-2">
+                      {s.seriesDescription || "No description"}
+                    </p>
+                    <p className="text-xs text-gray-400 pb-2">
+                      {s.images?.length || 0} images
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenViewer(s)}
+                      disabled={!s.images || s.images.length === 0}
+                      className="w-full text-xs px-2"
+                    >
+                      <Eye className="w-3.5 h-3.5 mr-1.5" /> Quick
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleOpenWorkstation(s)}
+                      disabled={!s.images || s.images.length === 0}
+                      className="w-full text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <MonitorPlay className="w-3.5 h-3.5 mr-1.5" /> Advanced
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {series.map((s) => (
+                <div
+                  key={s.seriesInstanceUID}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors flex gap-4"
+                >
+                  <button
+                    onClick={() => handleOpenViewer(s)}
+                    disabled={!s.images || s.images.length === 0}
+                    className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-md relative overflow-hidden hover:opacity-90 transition-opacity flex-shrink-0"
+                  >
+                    {s.images && s.images.length > 0 ? (
+                      <img
+                        src={dicoogleService.getThumbnail(
+                          s.images[0].sopInstanceUID,
+                        )}
+                        alt="Thumbnail"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-gray-400 m-auto" />
+                    )}
+                  </button>
+
+                  <div className="flex-1 flex items-center gap-6">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">
+                          Series #{s.seriesNumber}
+                        </span>
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">
+                          {s.modality || "US"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {s.seriesDescription || "No description"}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {s.images?.length || 0} images
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenViewer(s)}
+                        disabled={!s.images || s.images.length === 0}
+                      >
+                        <Eye className="w-4 h-4 mr-1" /> Quick
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleOpenWorkstation(s)}
+                        disabled={!s.images || s.images.length === 0}
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <MonitorPlay className="w-4 h-4 mr-1" /> Advanced
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -314,15 +413,29 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
             {/* Metadata Panel */}
             {showMetadata && (
               <div className="w-80 bg-gray-900 border-l border-gray-700 p-4 overflow-y-auto rounded-lg animate-in slide-in-from-right-10">
-                <h3 className="text-white font-bold mb-4 border-b border-gray-700 pb-2">
-                  DICOM Tags
-                </h3>
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-700">
+                  <h3 className="text-white font-bold">DICOM Tags</h3>
+                </div>
+
+                {/* Search box for tags */}
+                <div className="mb-4">
+                  <div className="relative">
+                    <SearchIcon className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search tags..."
+                      value={tagSearchQuery}
+                      onChange={(e) => setTagSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 bg-gray-800 border border-gray-700 rounded text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
                 {metadataLoading ? (
                   <div className="text-gray-400 flex items-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading...
                   </div>
                 ) : metadataError ? (
-                  // Fix: Display metadataError
                   <div className="text-red-400 flex items-center gap-2 text-sm p-2 bg-red-900/20 rounded">
                     <AlertCircle className="w-4 h-4" />
                     <span>{metadataError}</span>
@@ -330,12 +443,24 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                 ) : (
                   <div className="space-y-2 text-xs font-mono text-gray-300">
                     {metadata &&
-                      Object.entries(metadata.fields).map(([k, v]) => (
-                        <div key={k} className="border-b border-gray-800 pb-1">
-                          <div className="text-gray-500">{k}</div>
-                          <div className="break-all">{String(v)}</div>
-                        </div>
-                      ))}
+                      Object.entries(metadata.fields)
+                        .filter(([k, v]) => {
+                          if (!tagSearchQuery) return true;
+                          const query = tagSearchQuery.toLowerCase();
+                          return (
+                            k.toLowerCase().includes(query) ||
+                            String(v).toLowerCase().includes(query)
+                          );
+                        })
+                        .map(([k, v]) => (
+                          <div
+                            key={k}
+                            className="border-b border-gray-800 pb-1"
+                          >
+                            <div className="text-gray-500">{k}</div>
+                            <div className="break-all">{String(v)}</div>
+                          </div>
+                        ))}
                   </div>
                 )}
               </div>
