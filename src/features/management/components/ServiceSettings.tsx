@@ -31,7 +31,7 @@ const serviceConfigs: ServiceConfig[] = [
   {
     id: "query",
     name: "DICOM Query Service",
-    description: "DICOM C-FIND and C-GET query service",
+    description: "DICOM C-FIND and C-MOVE query service",
     getStatus: () => dicoogleService.getQueryStatus(),
     setStatus: (status) => dicoogleService.setQueryStatus(status),
   },
@@ -273,14 +273,14 @@ export function ServiceSettings() {
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="flex flex-wrap gap-4">
           {serviceConfigs.map((config) => {
             const service = services.get(config.id);
             if (!service) return null;
             const isEditing = editingService === config.id;
 
             return (
-              <Card key={config.id} className="p-5">
+              <Card key={config.id} className="p-5 flex-1 min-w-[400px]">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
