@@ -39,7 +39,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showMetadata, setShowMetadata] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [tagSearchQuery, setTagSearchQuery] = useState("");
 
   // Advanced Viewer state
@@ -164,19 +164,19 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant={viewMode === "grid" ? "default" : "outline"}
-                onClick={() => setViewMode("grid")}
-              >
-                <LayoutGrid className="w-4 h-4 mr-1" />
-                Grid
-              </Button>
-              <Button
-                size="sm"
                 variant={viewMode === "list" ? "default" : "outline"}
                 onClick={() => setViewMode("list")}
               >
                 <List className="w-4 h-4 mr-1" />
                 List
+              </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "grid" ? "default" : "outline"}
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="w-4 h-4 mr-1" />
+                Grid
               </Button>
             </div>
           </div>

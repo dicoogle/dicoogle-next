@@ -100,7 +100,10 @@ const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
                 {study.studyDescription}
               </p>
             )}
-            <details className="text-xs text-gray-500 dark:text-gray-400">
+            <details
+              className="text-xs text-gray-500 dark:text-gray-400 w-[23rem]"
+              onClick={(e) => e.stopPropagation()}
+            >
               <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
                 Study UID
               </summary>
