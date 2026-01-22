@@ -129,7 +129,7 @@ export function ServiceSettings() {
       loadQuerySettings(),
       loadAeTitle(),
     ]);
-  }, [loadServices, loadStorageServers, loadQuerySettings]);
+  }, [loadServices, loadStorageServers, loadQuerySettings, loadAeTitle]);
 
   // 3. UPDATED USEEFFECT: Safe to include loadAll now
   useEffect(() => {
