@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./
+        working-directory: ./webapp/
 
     steps:
       - name: Checkout repository
@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: ./package-lock.json
+          cache-dependency-path: ./webapp/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -44,7 +44,7 @@ jobs:
   deploy:
     needs: ci-checks
     # Only deploy on pushes, not PRs
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     runs-on: self-hosted
 
     steps:
@@ -54,15 +54,9 @@ jobs:
       # Determine Ports and Names based on Branch
       - name: Set Environment Variables
         run: |
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "PROJECT_NAME=dicoogle-main" >> $GITHUB_ENV
-            echo "HOST_WEB_PORT=80" >> $GITHUB_ENV
-            echo "HOST_API_PORT=8080" >> $GITHUB_ENV
-          else
-            echo "PROJECT_NAME=dicoogle-dev" >> $GITHUB_ENV
-            echo "HOST_WEB_PORT=81" >> $GITHUB_ENV
-            echo "HOST_API_PORT=8081" >> $GITHUB_ENV
-          fi
+          echo "PROJECT_NAME=dicoogle-dev" >> $GITHUB_ENV
+          echo "HOST_WEB_PORT=81" >> $GITHUB_ENV
+          echo "HOST_API_PORT=8081" >> $GITHUB_ENV
 
       # Build and Start Containers
       - name: Deploy with Docker Compose

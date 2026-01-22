@@ -58,7 +58,7 @@ export function ManagementPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b border-border bg-card/50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <div className="mx-auto max-w-8xl px-16 py-6">
           <h1 className="text-2xl font-bold text-foreground">Management</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Configure services, plugins, and view system information
@@ -67,7 +67,7 @@ export function ManagementPage() {
       </div>
 
       <div className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-8xl px-16">
           <nav className="flex gap-1 overflow-x-auto" aria-label="Tabs">
             {coreTabs.map((tab) => (
               <button
@@ -103,7 +103,7 @@ export function ManagementPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-8xl px-16 py-6">
         <Suspense fallback={<div>Loading...</div>}>
           {isPluginTab && activeSettingsExt ? (
             (() => {

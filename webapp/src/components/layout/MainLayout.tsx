@@ -4,6 +4,8 @@ import { useAuthStore } from "@/stores/AuthStore";
 import { IndexerModal } from "@/features/indexer/IndexerModal";
 import { useSidebarMenuExtensions } from "@/plugin-system";
 
+import { Search, Settings, FolderOpen, User } from "lucide-react";
+
 type MainLayoutProps = {
   children: React.ReactNode;
 };
@@ -36,7 +38,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Top bar */}
       <header className="w-full border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+        <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           {/* Left: logo + title */}
           <div
             className="flex items-center gap-3 cursor-pointer"
@@ -55,29 +57,32 @@ export function MainLayout({ children }: MainLayoutProps) {
               {/* Core entries */}
               <button
                 onClick={() => navigate("/search")}
-                className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
+                className={`px-3 py-1 rounded-md hover:bg-muted transition-colors flex ${
                   location.pathname.startsWith("/search")
                     ? "bg-muted font-medium"
                     : ""
                 }`}
               >
+                <Search className="w-5 h-5 pr-1" />
                 Search
               </button>
               <button
                 onClick={() => setIndexerModalOpen(true)}
-                className="px-3 py-1 rounded-md hover:bg-muted transition-colors"
+                className="px-3 py-1 rounded-md hover:bg-muted transition-colors flex"
               >
-                Indexer
+                <FolderOpen className="w-5 h-5 pr-1" />
+                Import Data
               </button>
               {user?.admin && (
                 <button
                   onClick={() => navigate("/management")}
-                  className={`px-3 py-1 rounded-md hover:bg-muted transition-colors ${
+                  className={`px-3 py-1 rounded-md hover:bg-muted transition-colors flex ${
                     location.pathname.startsWith("/management")
                       ? "bg-muted font-medium"
                       : ""
                   }`}
                 >
+                  <Settings className="w-5 h-5 pr-1" />
                   Management
                 </button>
               )}
@@ -100,7 +105,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           {/* Right: user info + logout */}
           {isAuthenticated && (
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex flex-col items-end leading-tight">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 border border-border">
+                <User className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium">
                   {user?.user ?? "User"}
                 </span>
