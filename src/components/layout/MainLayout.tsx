@@ -71,7 +71,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 className="px-3 py-1 rounded-md hover:bg-muted transition-colors flex"
               >
                 <FolderOpen className="w-5 h-5 pr-1" />
-                Indexer
+                Import Data
               </button>
               {user?.admin && (
                 <button
