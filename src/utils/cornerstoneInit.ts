@@ -24,7 +24,7 @@ export function initializeCornerstone() {
       // 4. Configure Web Workers
       // We use window.location.origin to ensure absolute paths.
       // This prevents 404s when you are on a sub-route (e.g. /study/123)
-      const baseUrl = window.location.origin;
+      const baseUrl = window.location.origin + `${import.meta.env.BASE_URL}`;
 
       cornerstoneDICOMImageLoader.webWorkerManager.initialize({
         maxWebWorkers: navigator.hardwareConcurrency || 1,
