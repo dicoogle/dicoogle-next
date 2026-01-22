@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { dicoogleService } from "@/services/dicoogleService";
 import { toast } from "@/utils/toast";
-import { X, ChevronDown, ChevronRight } from "lucide-react";
+import { X, ChevronDown, ChevronRight, Pencil } from "lucide-react";
 import {
   ServiceRequest,
   type ServiceStatus,
@@ -31,7 +31,7 @@ const serviceConfigs: ServiceConfig[] = [
   {
     id: "query",
     name: "DICOM Query Service",
-    description: "DICOM C-FIND and C-GET query service",
+    description: "DICOM C-FIND and C-MOVE query service",
     getStatus: () => dicoogleService.getQueryStatus(),
     setStatus: (status) => dicoogleService.setQueryStatus(status),
   },
@@ -45,6 +45,12 @@ export function ServiceSettings() {
   const [querySettings, setQuerySettings] = useState<QuerySettings | null>(
     null,
   );
+
+  //  AETitle
+  const [aeTitle, setAeTitle] = useState<string>("");
+  const [editingAeTitle, setEditingAeTitle] = useState(false);
+  const [editedAeTitle, setEditedAeTitle] = useState<string>("");
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<string | null>(null);
@@ -107,18 +113,56 @@ export function ServiceSettings() {
     }
   }, []);
 
+  const loadAeTitle = useCallback(async () => {
+    try {
+      const title = await dicoogleService.getAETitle();
+      setAeTitle(title.aetitle);
+    } catch (err) {
+      console.error("Failed to load AE title:", err);
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     await Promise.all([
       loadServices(),
       loadStorageServers(),
       loadQuerySettings(),
+      loadAeTitle(),
     ]);
-  }, [loadServices, loadStorageServers, loadQuerySettings]);
+  }, [loadServices, loadStorageServers, loadQuerySettings, loadAeTitle]);
 
   // 3. UPDATED USEEFFECT: Safe to include loadAll now
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  const handleStartEditAeTitle = () => {
+    setEditedAeTitle(aeTitle);
+    setEditingAeTitle(true);
+  };
+
+  const handleCancelAeTitle = () => {
+    setEditingAeTitle(false);
+    setEditedAeTitle("");
+  };
+
+  const handleSaveAeTitle = async () => {
+    if (!editedAeTitle.trim()) {
+      toast.error("AE Title cannot be empty");
+      return;
+    }
+
+    try {
+      await dicoogleService.setAETitle(editedAeTitle);
+      await loadAeTitle();
+      setEditingAeTitle(false);
+      setEditedAeTitle("");
+      toast.success("AE Title updated successfully");
+    } catch (err) {
+      toast.error("Failed to update AE Title");
+      console.error(err);
+    }
+  };
 
   const handleToggleService = async (id: string) => {
     const service = services.get(id);
@@ -267,20 +311,71 @@ export function ServiceSettings() {
           Start, stop, and configure Dicoogle DICOM services
         </p>
 
+        {/* AE Title */}
+        <div className="flex items-center gap-4 p-3 rounded-lg border border-border">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground">
+              AE Title:
+            </span>
+            {editingAeTitle ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  value={editedAeTitle}
+                  onChange={(e) => setEditedAeTitle(e.target.value)}
+                  className="h-8 w-40 font-mono text-sm"
+                />
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={handleSaveAeTitle}
+                  className="h-8 px-2"
+                >
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCancelAeTitle}
+                  className="h-8 px-2"
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono bg-background px-3 py-1 rounded border border-border">
+                  {aeTitle || "Not set"}
+                </span>
+                <button
+                  onClick={handleStartEditAeTitle}
+                  className="p-1 rounded-md hover:bg-muted transition-colors"
+                  title="Edit AE Title"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                </button>
+              </div>
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground ml-auto">
+            Application Entity identifier for DICOM SCUs
+          </span>
+        </div>
+
         {error && (
           <div className="p-3 rounded-md bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm border border-red-200 dark:border-red-800 mb-4">
             {error}
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="flex flex-wrap gap-4">
           {serviceConfigs.map((config) => {
             const service = services.get(config.id);
             if (!service) return null;
             const isEditing = editingService === config.id;
 
             return (
-              <Card key={config.id} className="p-5">
+              <Card key={config.id} className="p-5 flex-1 min-w-[400px]">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">

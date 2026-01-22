@@ -29,7 +29,7 @@ export interface PluginConfig {
   version?: string;
   description?: string;
   author?: string;
-  type?: string;
+  type: string;
   dependencies?: string[];
 }
 
