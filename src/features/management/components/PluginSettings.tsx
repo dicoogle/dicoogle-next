@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/Card";
 import { dicoogleService } from "@/services/dicoogleService";
 import { toast } from "@/utils/toast";
 import { type Plugin } from "@/types/index";
+
+import { X } from "lucide-react";
 import {
   usePlugins,
   usePluginManagement,
@@ -19,6 +21,10 @@ export function PluginSettings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingPlugin, setUpdatingPlugin] = useState<string | null>(null);
+  const [showPluginInfo, setShowPluginInfo] = useState(() => {
+    const stored = localStorage.getItem("dicoogle-plugin-info-dismissed");
+    return stored !== "true"; // Show if not dismissed
+  });
 
   useEffect(() => {
     loadBackendPlugins();
@@ -37,6 +43,11 @@ export function PluginSettings() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDismissInfo = () => {
+    setShowPluginInfo(false);
+    localStorage.setItem("dicoogle-plugin-info-dismissed", "true");
   };
 
   const handleToggleBackendPlugin = async (
@@ -174,6 +185,35 @@ export function PluginSettings() {
         <div className="p-3 rounded-md bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm border border-red-200 dark:border-red-800">
           {error}
         </div>
+      )}
+      {/* Information Section - Only show if not dismissed */}
+      {showPluginInfo && (
+        <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                ℹ️ Plugin Information
+              </h4>
+              <div className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed space-y-1">
+                <p>
+                  <strong>Backend Plugins:</strong> Indexing, Query, and Storage
+                  plugins extend Dicoogle's core functionality.
+                </p>
+                <p>
+                  <strong>WebUI Plugins:</strong> Build-time plugins that extend
+                  the web interface with routes, menu items, and widgets.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleDismissInfo}
+              className="p-1 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors flex-shrink-0"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4 text-blue-700 dark:text-blue-300" />
+            </button>
+          </div>
+        </Card>
       )}
 
       {/* Plugin Type Legend - Clickable for Filtering */}
@@ -437,24 +477,6 @@ export function PluginSettings() {
           </>
         )}
       </div>
-
-      {/* Information Section */}
-      <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-        <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-2">
-          ℹ️ Plugin Information
-        </h4>
-        <div className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed space-y-1">
-          <p>
-            <strong>Backend Plugins:</strong> Indexing, Query, and Storage
-            plugins extend Dicoogle's core functionality.
-          </p>
-          <p>
-            <strong>WebUI Plugins:</strong> Build-time plugins that extend the
-            web interface with routes, menu items, and widgets. When disabled,
-            their destroy() method is called for cleanup.
-          </p>
-        </div>
-      </Card>
     </div>
   );
 }
