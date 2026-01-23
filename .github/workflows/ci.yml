@@ -1,0 +1,73 @@
+name: CI/CD Pipeline (Docker)
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  # JOB 1: QUALITY CHECKS (Runs on GitHub Cloud)
+  # We keep this to ensure code is good before wasting time building on the VM
+  ci-checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ./package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run type-check
+
+      # We run build here just to check for errors, but we DON'T upload artifacts.
+      # The actual deployment build happens inside Docker on the VM.
+      - name: Test Build
+        run: npm run build
+
+  # JOB 2: DEPLOY (Runs on YOUR VM)
+  deploy:
+    needs: ci-checks
+    # Only deploy on pushes, not PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Determine Ports and Names based on Branch
+      - name: Set Environment Variables
+        run: |
+          echo "PROJECT_NAME=dicoogle-dev" >> $GITHUB_ENV
+          echo "HOST_WEB_PORT=81" >> $GITHUB_ENV
+          echo "HOST_API_PORT=8081" >> $GITHUB_ENV
+
+      # Build and Start Containers
+      - name: Deploy with Docker Compose
+        run: |
+          echo "Deploying ${PROJECT_NAME} on Web Port ${HOST_WEB_PORT}..."
+
+          # -p sets the project name (so Main and Dev don't overwrite each other)
+          # We pass the environment variables explicitly to the command
+          docker compose -p ${{ env.PROJECT_NAME }} down -v
+          HOST_WEB_PORT=${{ env.HOST_WEB_PORT }} HOST_API_PORT=${{ env.HOST_API_PORT }} docker compose -p ${{ env.PROJECT_NAME }} up -d --build
+
+      - name: Cleanup
+        # Remove unused images to save disk space
+        run: docker image prune -f
