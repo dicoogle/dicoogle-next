@@ -1,0 +1,9 @@
+{
+  "id": "gallery-view",
+  "entry": "index.ts",
+  "name": "Gallery View",
+  "version": "1.0.0",
+  "description": "Display search results as an image gallery",
+  "author": "Dicoogle Team",
+  "type": "result-renderer"
+}
