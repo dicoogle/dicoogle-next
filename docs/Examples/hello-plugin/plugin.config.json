@@ -1,9 +1,0 @@
-{
-  "id": "hello-plugin",
-  "entry": "index.ts",
-  "name": "Hello Plugin",
-  "version": "1.0.0",
-  "description": "A simple example plugin that demonstrates the plugin system",
-  "author": "Dicoogle Team",
-  "license": "MIT"
-}
