@@ -5,6 +5,8 @@ import * as cornerstoneTools from "@cornerstonejs/tools";
 import { initializeCornerstone } from "@/utils/cornerstoneInit";
 import { Button } from "@/components/ui/Button";
 import { dicoogleService } from "@/services/dicoogleService";
+import { MetadataPanel } from "@/features/search/components/MetadataPanel";
+import { useMetadata } from "@/features/search/hooks/useMetadata";
 import {
   ZoomIn,
   Move,
@@ -52,8 +54,20 @@ export function DicomViewer({
   const [showMetadata, setShowMetadata] = useState(false);
   const [currentImageId, setCurrentImageId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [metadata, setMetadata] = useState<any>(null);
-  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
+
+  // Extract SOP UID from current image ID
+  const currentSopUID = useMemo(() => {
+    if (!currentImageId) return null;
+    const match = currentImageId.match(/uid=([^&]*)/);
+    return match && match[1] ? match[1] : null;
+  }, [currentImageId]);
+
+  // Use shared metadata hook
+  const { metadata, loading: isMetadataLoading, error: metadataError } = useMetadata(
+    currentSopUID,
+    showMetadata,
+  );
 
   // Progress State
   const [loadedCount, setLoadedCount] = useState(0);
@@ -314,29 +328,6 @@ export function DicomViewer({
 
     updateStack();
   }, [loadedCount, imageIds]);
-
-  // --- Metadata Fetching ---
-  useEffect(() => {
-    if (!showMetadata || !currentImageId) return;
-
-    const fetchMetadata = async () => {
-      setIsMetadataLoading(true);
-      try {
-        const match = currentImageId.match(/uid=([^&]*)/);
-        if (match && match[1]) {
-          const uid = match[1];
-          const data = await dicoogleService.getDICOMMetadata(uid);
-          setMetadata(data.results?.fields || data.results);
-        }
-      } catch (e) {
-        console.error("Failed to fetch metadata", e);
-      } finally {
-        setIsMetadataLoading(false);
-      }
-    };
-
-    fetchMetadata();
-  }, [currentImageId, showMetadata]);
 
   // --- Tool Switching ---
   const setTool = (toolName: string) => {
@@ -710,48 +701,15 @@ export function DicomViewer({
           />
         </div>
 
-        {/* Metadata Sidebar */}
+        {/* Shared Metadata Panel */}
         {showMetadata && (
-          <div className="w-80 bg-neutral-900 border-l border-neutral-800 overflow-y-auto z-10 transition-all duration-300">
-            <div className="p-4">
-              <h3 className="text-white font-semibold mb-4 flex items-center justify-between">
-                <span>DICOM Tags</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowMetadata(false)}
-                  className="h-6 w-6 p-0 hover:bg-neutral-800 text-neutral-400"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </h3>
-
-              {isMetadataLoading ? (
-                <div className="flex flex-col items-center justify-center py-10 text-neutral-500">
-                  <Loader2 className="w-6 h-6 animate-spin mb-2" />
-                  <span className="text-xs">Reading Tags...</span>
-                </div>
-              ) : metadata ? (
-                <div className="space-y-2 font-mono text-[10px] text-neutral-300">
-                  {Object.entries(metadata).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="border-b border-neutral-800 pb-1 break-words"
-                    >
-                      <span className="text-neutral-500 block mb-0.5">
-                        {key}
-                      </span>
-                      <span className="select-text">{String(value)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-neutral-500 text-sm text-center py-4">
-                  No metadata available
-                </p>
-              )}
-            </div>
-          </div>
+          <MetadataPanel
+            metadata={metadata}
+            loading={isMetadataLoading}
+            error={metadataError}
+            searchQuery={tagSearchQuery}
+            onSearchChange={setTagSearchQuery}
+          />
         )}
       </div>
 
