@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchStore } from "@/stores/SearchStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -9,9 +9,10 @@ import {
   LayoutGrid,
   List,
   FileText,
+  ArrowLeft,
 } from "lucide-react";
 import { dicoogleService } from "@/services/dicoogleService";
-import { SOPListModal } from "./components/SOPListModal";
+import { ImageList } from "./components/ImageList";
 import { DICOMDumpModal } from "./components/DICOMDumpModal";
 import { QuickViewer } from "./components/QuickViewer";
 import { AdvancedViewer } from "./components/AdvancedViewer";
@@ -22,8 +23,13 @@ interface SeriesViewerProps {
 }
 
 export function SeriesViewer({ study }: SeriesViewerProps) {
-  const { selectedSeries } = useSearchStore();
+  const { selectedSeries, deselectStudy } = useSearchStore();
   const series = selectedSeries || [];
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Navigation state
+  const [selectedSeriesForImages, setSelectedSeriesForImages] =
+    useState<Series | null>(null);
 
   // Viewer states
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -32,12 +38,6 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const [showAdvancedViewer, setShowAdvancedViewer] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
-  // SOP List Modal state
-  const [sopListModalOpen, setSopListModalOpen] = useState(false);
-  const [selectedSeriesForSops, setSelectedSeriesForSops] =
-    useState<Series | null>(null);
-  const [sopSearchQuery, setSopSearchQuery] = useState("");
-
   // DICOM Dump Modal state
   const [dumpModalOpen, setDumpModalOpen] = useState(false);
   const [dumpSopInstanceUID, setDumpSopInstanceUID] = useState<string | null>(
@@ -45,7 +45,21 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   );
   const [dumpSearchQuery, setDumpSearchQuery] = useState("");
 
+  // Auto-scroll to SeriesViewer when mounted or when navigating back from images
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  }, [selectedSeriesForImages]); // Re-scroll when toggling between series list and image list
+
   // --- Handlers ---
+
+  const handleBackToStudies = () => {
+    deselectStudy(); // Safely deselect the current study
+  };
 
   const handleOpenQuickViewer = (s: Series, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -65,31 +79,31 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     setShowAdvancedViewer(true);
   };
 
-  const handleOpenSopList = (s: Series, e?: React.MouseEvent) => {
+  const handleShowImages = (s: Series, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setSelectedSeriesForSops(s);
-    setSopSearchQuery("");
-    setSopListModalOpen(true);
+    setSelectedSeriesForImages(s);
+  };
+
+  const handleBackToSeries = () => {
+    setSelectedSeriesForImages(null);
   };
 
   const handleCardClick = (s: Series) => {
-    handleOpenSopList(s);
+    handleShowImages(s);
   };
 
-  const handleViewSopQuick = (sopIndex: number) => {
-    if (!selectedSeriesForSops) return;
-    setCurrentSeries(selectedSeriesForSops);
+  const handleViewImageQuick = (sopIndex: number) => {
+    if (!selectedSeriesForImages) return;
+    setCurrentSeries(selectedSeriesForImages);
     setCurrentImageIndex(sopIndex);
-    setSopListModalOpen(false);
     setViewerOpen(true);
     setShowAdvancedViewer(false);
   };
 
-  const handleViewSopAdvanced = (sopIndex: number) => {
-    if (!selectedSeriesForSops) return;
-    setCurrentSeries(selectedSeriesForSops);
+  const handleViewImageAdvanced = (sopIndex: number) => {
+    if (!selectedSeriesForImages) return;
+    setCurrentSeries(selectedSeriesForImages);
     setCurrentImageIndex(sopIndex);
-    setSopListModalOpen(false);
     setViewerOpen(false);
     setShowAdvancedViewer(true);
   };
@@ -125,7 +139,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
 
   if (series.length === 0) {
     return (
-      <Card>
+      <Card ref={containerRef}>
         <CardHeader>
           <CardTitle>Series</CardTitle>
         </CardHeader>
@@ -138,18 +152,69 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     );
   }
 
+  // If a series is selected, show the image list
+  if (selectedSeriesForImages) {
+    return (
+      <div ref={containerRef}>
+        <ImageList
+          series={selectedSeriesForImages}
+          onViewQuick={handleViewImageQuick}
+          onViewAdvanced={handleViewImageAdvanced}
+          onViewDump={handleOpenDump}
+          onBack={handleBackToSeries}
+        />
+
+        {/* --- Quick Viewer --- */}
+        {viewerOpen && currentSeries && (
+          <QuickViewer
+            series={currentSeries}
+            initialIndex={currentImageIndex}
+            onClose={handleCloseQuickViewer}
+            onOpenAdvanced={handleSwitchToAdvanced}
+          />
+        )}
+
+        {/* --- Advanced Viewer --- */}
+        {showAdvancedViewer && currentSeries && (
+          <AdvancedViewer
+            series={currentSeries}
+            initialIndex={currentImageIndex}
+            onClose={handleCloseAdvancedViewer}
+          />
+        )}
+
+        {/* --- DICOM DUMP MODAL --- */}
+        {dumpModalOpen && dumpSopInstanceUID && (
+          <DICOMDumpModal
+            sopInstanceUID={dumpSopInstanceUID}
+            searchQuery={dumpSearchQuery}
+            onSearchChange={setDumpSearchQuery}
+            onClose={handleCloseDump}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Otherwise show the series list
   return (
-    <>
+    <div ref={containerRef}>
       {/* --- Series List --- */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Series for Selected Study</CardTitle>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                {study.patientName} -{" "}
-                {study.studyDescription || "No description"}
-              </p>
+            <div className="flex items-center gap-3">
+              <Button size="sm" variant="ghost" onClick={handleBackToStudies}>
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back to Studies
+              </Button>
+              <div className="border-l border-border h-8" />
+              <div>
+                <CardTitle>Series for Selected Study</CardTitle>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {study.patientName} -{" "}
+                  {study.studyDescription || "No description"}
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button
@@ -238,11 +303,11 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={(e) => handleOpenSopList(s, e)}
+                      onClick={(e) => handleShowImages(s, e)}
                       disabled={!s.images || s.images.length === 0}
                       className="w-full text-xs px-2"
                     >
-                      <FileText className="w-3.5 h-3.5 mr-1.5" /> Select Image
+                      <FileText className="w-3.5 h-3.5 mr-1.5" /> Images
                     </Button>
                   </div>
                 </div>
@@ -315,10 +380,10 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => handleOpenSopList(s, e)}
+                          onClick={(e) => handleShowImages(s, e)}
                           disabled={!s.images || s.images.length === 0}
                         >
-                          <FileText className="w-4 h-4 mr-1" /> Select Image
+                          <FileText className="w-4 h-4 mr-1" /> View Images
                         </Button>
                       </div>
                     </div>
@@ -348,29 +413,6 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
           onClose={handleCloseAdvancedViewer}
         />
       )}
-
-      {/* --- SOP LIST MODAL --- */}
-      {sopListModalOpen && selectedSeriesForSops && (
-        <SOPListModal
-          series={selectedSeriesForSops}
-          searchQuery={sopSearchQuery}
-          onSearchChange={setSopSearchQuery}
-          onViewQuick={handleViewSopQuick}
-          onViewAdvanced={handleViewSopAdvanced}
-          onViewDump={handleOpenDump}
-          onClose={() => setSopListModalOpen(false)}
-        />
-      )}
-
-      {/* --- DICOM DUMP MODAL --- */}
-      {dumpModalOpen && dumpSopInstanceUID && (
-        <DICOMDumpModal
-          sopInstanceUID={dumpSopInstanceUID}
-          searchQuery={dumpSearchQuery}
-          onSearchChange={setDumpSearchQuery}
-          onClose={handleCloseDump}
-        />
-      )}
-    </>
+    </div>
   );
 }

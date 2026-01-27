@@ -4,7 +4,6 @@ import { Enums as csEnums } from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { initializeCornerstone } from "@/utils/cornerstoneInit";
 import { Button } from "@/components/ui/Button";
-import { dicoogleService } from "@/services/dicoogleService";
 import { MetadataPanel } from "@/features/search/components/MetadataPanel";
 import { useMetadata } from "@/features/search/hooks/useMetadata";
 import {
@@ -64,10 +63,11 @@ export function DicomViewer({
   }, [currentImageId]);
 
   // Use shared metadata hook
-  const { metadata, loading: isMetadataLoading, error: metadataError } = useMetadata(
-    currentSopUID,
-    showMetadata,
-  );
+  const {
+    metadata,
+    loading: isMetadataLoading,
+    error: metadataError,
+  } = useMetadata(currentSopUID, showMetadata);
 
   // Progress State
   const [loadedCount, setLoadedCount] = useState(0);

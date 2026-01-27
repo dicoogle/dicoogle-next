@@ -17,6 +17,7 @@ interface SearchState {
   search: (query: SearchQuery) => Promise<void>;
   clearResults: () => void;
   selectStudy: (study: Study) => void;
+  deselectStudy: () => void;
   selectSeries: (series: Series[]) => void;
 }
 
@@ -159,6 +160,13 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set({
       selectedStudy: study,
       selectedSeries: studySeries,
+    });
+  },
+
+  deselectStudy: () => {
+    set({
+      selectedStudy: null,
+      selectedSeries: [],
     });
   },
 
