@@ -33,7 +33,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter basename="/experimental">
+    <BrowserRouter basename={import.meta.env.VITE_BASE_PATH || "/experimental"}>
       <Toaster
         position="top-right"
         expand={false}
