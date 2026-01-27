@@ -32,7 +32,13 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   elapsedTime: 0,
 
   search: async (query: SearchQuery) => {
-    set({ loading: true, error: null, query: query.query });
+    set({
+      loading: true,
+      error: null,
+      query: query.query,
+      selectedStudy: null,
+      selectedSeries: [],
+    });
 
     try {
       const response = await dicoogleService.search(query);
