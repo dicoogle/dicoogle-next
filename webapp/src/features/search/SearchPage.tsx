@@ -21,8 +21,15 @@ import { useEnabledPlugins, usePluginContext } from "@/plugin-system";
 import { Button } from "@/components/ui/Button";
 
 export function SearchPage() {
-  const { studies, loading, error, selectedStudy, query, search } =
-    useSearchStore();
+  const {
+    studies,
+    loading,
+    error,
+    selectedStudy,
+    query,
+    search,
+    clearResults,
+  } = useSearchStore();
   const [showFilters, setShowFilters] = useState(false);
   const [filterValues, setFilterValues] = useState<Record<string, any>>({});
   const plugins = useEnabledPlugins();
@@ -46,6 +53,13 @@ export function SearchPage() {
     });
     setFilterValues(initialValues);
   }, [filterExtensions]);
+
+  // Cleanup: Clear search results when leaving the page
+  useEffect(() => {
+    return () => {
+      clearResults();
+    };
+  }, [clearResults]);
 
   // Count active filters
   const activeFilterCount = filterExtensions.filter((ext) => {

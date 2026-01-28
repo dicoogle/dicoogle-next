@@ -7,7 +7,7 @@ import {
   User,
   FileText,
   ChevronRight,
-  ChevronDown,
+  X,
   MapPin,
   ChevronLeft,
   LayoutList,
@@ -136,7 +136,7 @@ const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
           </div>
           <div className="flex items-center ml-4">
             {isSelected ? (
-              <ChevronDown className="w-5 h-5 text-primary-500" />
+              <X className="w-5 h-5 text-primary-500" />
             ) : (
               <ChevronRight className="w-5 h-5 text-gray-400" />
             )}
