@@ -362,6 +362,8 @@ export function ServiceSettings() {
           </span>
         </div>
 
+        <br />
+
         {error && (
           <div className="p-3 rounded-md bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm border border-red-200 dark:border-red-800 mb-4">
             {error}
