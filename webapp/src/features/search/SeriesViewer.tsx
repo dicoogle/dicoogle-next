@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/Button";
 import {
   Eye,
   Image as ImageIcon,
-  MonitorPlay,
   LayoutGrid,
   List,
   FileText,
@@ -68,15 +67,6 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     setCurrentImageIndex(0);
     setViewerOpen(true);
     setShowAdvancedViewer(false);
-  };
-
-  const handleOpenAdvancedViewer = (s: Series, e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (!s.images || s.images.length === 0) return;
-    setCurrentSeries(s);
-    setCurrentImageIndex(0);
-    setViewerOpen(false);
-    setShowAdvancedViewer(true);
   };
 
   const handleShowImages = (s: Series, e?: React.MouseEvent) => {
@@ -279,7 +269,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-auto pt-2">
+                  <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -287,17 +277,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                       disabled={!s.images || s.images.length === 0}
                       className="w-full text-xs px-2"
                     >
-                      <Eye className="w-3.5 h-3.5 mr-1.5" /> Quick
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={(e) => handleOpenAdvancedViewer(s, e)}
-                      disabled={!s.images || s.images.length === 0}
-                      className="w-full text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      <MonitorPlay className="w-3.5 h-3.5 mr-1.5" /> Advanced
+                      <Eye className="w-3.5 h-3.5 mr-1.5" /> View
                     </Button>
 
                     <Button
@@ -356,36 +336,23 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                       </p>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => handleOpenQuickViewer(s, e)}
-                          disabled={!s.images || s.images.length === 0}
-                        >
-                          <Eye className="w-4 h-4 mr-1" /> Quick
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={(e) => handleOpenAdvancedViewer(s, e)}
-                          disabled={!s.images || s.images.length === 0}
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
-                        >
-                          <MonitorPlay className="w-4 h-4 mr-1" /> Advanced
-                        </Button>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => handleShowImages(s, e)}
-                          disabled={!s.images || s.images.length === 0}
-                        >
-                          <FileText className="w-4 h-4 mr-1" /> View Images
-                        </Button>
-                      </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => handleOpenQuickViewer(s, e)}
+                        disabled={!s.images || s.images.length === 0}
+                      >
+                        <Eye className="w-4 h-4 mr-1" /> View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => handleShowImages(s, e)}
+                        disabled={!s.images || s.images.length === 0}
+                      >
+                        <FileText className="w-4 h-4 mr-1" /> View Images
+                      </Button>
                     </div>
                   </div>
                 </div>

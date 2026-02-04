@@ -17,7 +17,7 @@ export function MetadataPanel({
   onSearchChange,
 }: MetadataPanelProps) {
   return (
-    <div className="w-80 bg-gray-900 border-l border-gray-700 p-4 overflow-y-auto rounded-lg animate-in slide-in-from-right-10">
+    <div className="w-96 bg-gray-900 border-l border-gray-700 p-4 overflow-y-auto rounded-lg animate-in slide-in-from-right-10">
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-700">
         <h3 className="text-white font-bold">DICOM Tags</h3>
       </div>
