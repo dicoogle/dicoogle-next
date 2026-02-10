@@ -18,9 +18,9 @@ import type { Series } from "@/types";
 
 interface ImageListProps {
   series: Series;
-  onViewQuick: (sopIndex: number) => void;
+  onViewQuick: (sopIndex: number, e?: React.MouseEvent) => void;
   onViewAdvanced: (sopIndex: number) => void;
-  onViewDump: (sopInstanceUID: string) => void;
+  onViewDump: (sopInstanceUID: string, e?: React.MouseEvent) => void;
   onBack: () => void;
 }
 
@@ -51,6 +51,10 @@ export function ImageList({
   }, [series.images, searchQuery]);
 
   const pagination = usePagination(filteredImages, PAGE_SIZE);
+
+  const handleCardClick = (i: number) => {
+    onViewQuick(i);
+  };
 
   return (
     <Card>
@@ -124,7 +128,8 @@ export function ImageList({
               return (
                 <div
                   key={image.sopInstanceUID}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full"
+                  onClick={() => handleCardClick(absoluteIndex)}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full cursor-pointer"
                 >
                   <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity flex-shrink-0">
                     <img
@@ -166,7 +171,7 @@ export function ImageList({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onViewDump(image.sopInstanceUID)}
+                      onClick={(e) => onViewDump(image.sopInstanceUID, e)}
                       className="w-full text-xs px-2"
                       title="View DICOM Metadata"
                     >
@@ -186,7 +191,8 @@ export function ImageList({
               return (
                 <div
                   key={image.sopInstanceUID}
-                  className="border border-border rounded-lg p-4 hover:border-primary transition-colors flex items-center gap-4"
+                  onClick={() => handleCardClick(absoluteIndex)}
+                  className="border border-border rounded-lg p-4 hover:border-primary transition-colors flex items-center gap-4 cursor-pointer"
                 >
                   {/* Thumbnail */}
                   <div className="w-20 h-20 bg-muted rounded flex-shrink-0 overflow-hidden">
@@ -227,7 +233,7 @@ export function ImageList({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onViewDump(image.sopInstanceUID)}
+                      onClick={(e) => onViewDump(image.sopInstanceUID, e)}
                       title="View DICOM Metadata"
                     >
                       <Info className="w-4 h-4 mr-2" /> Metadata

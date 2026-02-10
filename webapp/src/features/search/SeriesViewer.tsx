@@ -82,7 +82,8 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     handleShowImages(s);
   };
 
-  const handleViewImageQuick = (sopIndex: number) => {
+  const handleViewImageQuick = (sopIndex: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!selectedSeriesForImages) return;
     setCurrentSeries(selectedSeriesForImages);
     setCurrentImageIndex(sopIndex);
@@ -98,7 +99,8 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     setShowAdvancedViewer(true);
   };
 
-  const handleOpenDump = (sopInstanceUID: string) => {
+  const handleOpenDump = (sopInstanceUID: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     setDumpSopInstanceUID(sopInstanceUID);
     setDumpSearchQuery("");
     setDumpModalOpen(true);
