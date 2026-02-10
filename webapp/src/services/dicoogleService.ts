@@ -246,20 +246,79 @@ class DicoogleService {
     }
   }
 
+  /**
+   * Get list of available query providers
+   * Filters plugins to return only query providers that are enabled
+   */
+  async getQueryProviders(): Promise<string[]> {
+    if (!dicoogleClient) {
+      throw new Error("Dicoogle client not initialized");
+    }
+
+    try {
+      const response = await dicoogleClient.getPlugins();
+      const queryProviders = response.plugins
+        .filter((plugin: PluginInfo) => plugin.type === "query" && plugin.enabled)
+        .map((plugin: PluginInfo) => plugin.name);
+      
+      return queryProviders.length > 0 ? queryProviders : ["lucene"];
+    } catch (error) {
+      console.error("[DicoogleService] Failed to get query providers:", error);
+      return ["lucene"]; // Fallback to lucene
+    }
+  }
+
+  /**
+   * Search for DICOM studies
+   * If no providers specified, searches all available query providers and aggregates results
+   * If providers specified, searches only those providers
+   */
   async search(query: SearchQuery): Promise<SearchResponse> {
     if (!dicoogleClient) {
       throw new Error("Dicoogle client not initialized");
     }
 
-    const outcome = await dicoogleClient.search(query.query, {
-      provider: query.providers?.[0] || "lucene",
-      keyword: true,
-    });
+    let providers: string[];
+
+    if (query.providers && query.providers.length > 0) {
+      // User specified providers - use them
+      providers = query.providers;
+    } else {
+      // No providers specified - search all available query providers
+      providers = await this.getQueryProviders();
+    }
+
+    // Search all providers in parallel
+    const searchPromises = providers.map(provider =>
+      dicoogleClient!.search(query.query, {
+        provider: provider,
+        keyword: true,
+      }).catch(error => {
+        console.error(`[DicoogleService] Search failed for provider ${provider}:`, error);
+        return { results: [], elapsedTime: 0 };
+      })
+    );
+
+    const outcomes = await Promise.all(searchPromises);
+
+    // Aggregate results from all providers
+    const allResults = outcomes.flatMap(outcome => outcome.results || []);
+    const totalElapsedTime = Math.max(...outcomes.map(o => o.elapsedTime || 0));
+
+    // Remove duplicates by SOPInstanceUID
+    const uniqueResults = Array.from(
+      new Map(
+        allResults.map(result => {
+          const sopUID = result.fields.SOPInstanceUID || result.fields.sopInstanceUID;
+          return [sopUID, result];
+        })
+      ).values()
+    );
 
     return {
-      results: outcome.results || [],
-      elapsedTime: outcome.elapsedTime || 0,
-      numResults: outcome.results?.length || 0,
+      results: uniqueResults,
+      elapsedTime: totalElapsedTime,
+      numResults: uniqueResults.length,
     };
   }
 

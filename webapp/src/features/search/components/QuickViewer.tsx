@@ -20,7 +20,7 @@ export function QuickViewer({
   onOpenAdvanced,
 }: QuickViewerProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(initialIndex);
-  const [showMetadata, setShowMetadata] = useState(false);
+  const [showMetadata, setShowMetadata] = useState(true);
   const [imageLoading, setImageLoading] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState("");
 
@@ -81,7 +81,7 @@ export function QuickViewer({
               size="sm"
               className="bg-blue-600/80 hover:bg-blue-600 text-white border border-blue-500/50"
             >
-              <MonitorPlay className="w-4 h-4 mr-2" /> Open Workstation
+              <MonitorPlay className="w-4 h-4 mr-2" /> DICOM Viewer
             </Button>
           )}
         </div>

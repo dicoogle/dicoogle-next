@@ -3,7 +3,6 @@ import {
   Search as SearchIcon,
   AlertCircle,
   Eye,
-  MonitorPlay,
   Info,
   ChevronLeft,
   ChevronRight,
@@ -19,9 +18,9 @@ import type { Series } from "@/types";
 
 interface ImageListProps {
   series: Series;
-  onViewQuick: (sopIndex: number) => void;
+  onViewQuick: (sopIndex: number, e?: React.MouseEvent) => void;
   onViewAdvanced: (sopIndex: number) => void;
-  onViewDump: (sopInstanceUID: string) => void;
+  onViewDump: (sopInstanceUID: string, e?: React.MouseEvent) => void;
   onBack: () => void;
 }
 
@@ -30,7 +29,6 @@ const PAGE_SIZE = 10;
 export function ImageList({
   series,
   onViewQuick,
-  onViewAdvanced,
   onViewDump,
   onBack,
 }: ImageListProps) {
@@ -53,6 +51,10 @@ export function ImageList({
   }, [series.images, searchQuery]);
 
   const pagination = usePagination(filteredImages, PAGE_SIZE);
+
+  const handleCardClick = (i: number) => {
+    onViewQuick(i);
+  };
 
   return (
     <Card>
@@ -126,7 +128,8 @@ export function ImageList({
               return (
                 <div
                   key={image.sopInstanceUID}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full"
+                  onClick={() => handleCardClick(absoluteIndex)}
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full cursor-pointer"
                 >
                   <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity flex-shrink-0">
                     <img
@@ -142,15 +145,20 @@ export function ImageList({
                   <div className="flex-1 space-y-1 mb-3">
                     <div className="text-xs text-muted-foreground">
                       {image.instanceNumber && (
-                        <div className="font-medium">Instance: {image.instanceNumber}</div>
+                        <div className="font-medium">
+                          Instance: {image.instanceNumber}
+                        </div>
                       )}
-                      <div className="font-mono truncate" title={image.sopInstanceUID}>
+                      <div
+                        className="font-mono truncate"
+                        title={image.sopInstanceUID}
+                      >
                         UID: {image.sopInstanceUID.slice(-12)}
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mt-auto pt-2">
+                  <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -158,25 +166,16 @@ export function ImageList({
                       className="w-full text-xs px-2"
                       title="View in Quick Viewer"
                     >
-                      <Eye className="w-3.5 h-3.5 mr-1" /> Quick
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => onViewAdvanced(absoluteIndex)}
-                      className="w-full text-xs px-2 bg-blue-600 hover:bg-blue-700 text-white"
-                      title="View in Advanced Viewer"
-                    >
-                      <MonitorPlay className="w-3.5 h-3.5 mr-1" /> Advanced
+                      <Eye className="w-3.5 h-3.5 mr-1" /> View
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onViewDump(image.sopInstanceUID)}
+                      onClick={(e) => onViewDump(image.sopInstanceUID, e)}
                       className="w-full text-xs px-2"
-                      title="View DICOM Tags"
+                      title="View DICOM Metadata"
                     >
-                      <Info className="w-3.5 h-3.5 mr-1" /> Tags
+                      <Info className="w-3.5 h-3.5 mr-1" /> Metadata
                     </Button>
                   </div>
                 </div>
@@ -192,7 +191,8 @@ export function ImageList({
               return (
                 <div
                   key={image.sopInstanceUID}
-                  className="border border-border rounded-lg p-4 hover:border-primary transition-colors flex items-center gap-4"
+                  onClick={() => handleCardClick(absoluteIndex)}
+                  className="border border-border rounded-lg p-4 hover:border-primary transition-colors flex items-center gap-4 cursor-pointer"
                 >
                   {/* Thumbnail */}
                   <div className="w-20 h-20 bg-muted rounded flex-shrink-0 overflow-hidden">
@@ -228,24 +228,15 @@ export function ImageList({
                       onClick={() => onViewQuick(absoluteIndex)}
                       title="View in Quick Viewer"
                     >
-                      <Eye className="w-4 h-4 mr-2" /> Quick
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => onViewAdvanced(absoluteIndex)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                      title="View in Advanced Viewer"
-                    >
-                      <MonitorPlay className="w-4 h-4 mr-2" /> Advanced
+                      <Eye className="w-4 h-4 mr-2" /> View
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => onViewDump(image.sopInstanceUID)}
-                      title="View DICOM Tags"
+                      onClick={(e) => onViewDump(image.sopInstanceUID, e)}
+                      title="View DICOM Metadata"
                     >
-                      <Info className="w-4 h-4 mr-2" /> Tags
+                      <Info className="w-4 h-4 mr-2" /> Metadata
                     </Button>
                   </div>
                 </div>

@@ -15,7 +15,7 @@ services:
       context: ./webapp/
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: "/api"
+        VITE_API_BASE_URL: "/next/api"
         BASE_PATH: "/next/"
         VITE_BASE_PATH: "/next"
     container_name: dicoogle-frontend
