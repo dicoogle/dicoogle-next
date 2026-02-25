@@ -5,6 +5,17 @@ import path from 'path';
 import os from 'os';
 
 const app = express();
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+
+  // Browsers send a pre-flight OPTIONS request before the real request. This answers it instantly.
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 app.use(express.json());
 
 // Configure allowed root directories for filesystem access
@@ -25,7 +36,7 @@ const getDefaultAllowedRoots = () => {
     }
     return drives;
   } else {
-    // Linux/Unix/Mac: Common mount points
+    // Linux/Unix/Mac: mount points
     return [
       '/home',
     ];
