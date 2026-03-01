@@ -1,7 +1,5 @@
 
 declare module 'chonky' {
-  import { FC, ForwardRefExoticComponent, RefAttributes, ReactNode } from 'react';
-
   export const FileBrowser: any;
   export const FileNavbar: any;
   export const FileToolbar: any;

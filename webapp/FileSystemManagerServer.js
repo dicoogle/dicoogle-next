@@ -41,7 +41,7 @@ const getDefaultAllowedRoots = () => {
     // Linux/Unix/Mac: mount points
     return [
       // '/home',
-      '/webapp'
+      '/webapp/docs'
     ];
   }
 };
