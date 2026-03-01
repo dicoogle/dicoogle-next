@@ -6,6 +6,8 @@ import { initializeCornerstone } from "@/utils/cornerstoneInit";
 import { Button } from "@/components/ui/Button";
 import { MetadataPanel } from "@/features/search/components/MetadataPanel";
 import { useMetadata } from "@/features/search/hooks/useMetadata";
+import { MagicWandSettings } from "@/components/dicom/MagicWandSettings";
+import MagicWandTool from "@/utils/tools/MagicWandTool";
 import {
   ZoomIn,
   Hand,
@@ -20,6 +22,7 @@ import {
   Minimize2,
   Maximize2,
   Undo2,
+  Wand2,
 } from "lucide-react";
 
 interface DicomViewerProps {
@@ -36,6 +39,7 @@ const TOOL_GROUP_ID = "dicoogleToolGroup";
 // Global tracker to manage cache persistence across component mounts
 let lastSeriesSignature: string | null = null;
 
+
 export function DicomViewer({
   imageUrls,
   initialIndex = 0,
@@ -50,6 +54,9 @@ export function DicomViewer({
   const [activeTool, setActiveTool] = useState<string>(
     cornerstoneTools.WindowLevelTool.toolName,
   );
+
+  // MagicWand settings
+  const [magicWandTolerance, setMagicWandTolerance] = useState(10);
 
   // Metadata States
   const [showMetadata, setShowMetadata] = useState(false);
@@ -89,9 +96,23 @@ export function DicomViewer({
     loadedCountRef.current = loadedCount;
   }, [loadedCount]);
 
+  // Update MagicWand tolerance when changed
+  useEffect(() => {
+    const toolGroup = cornerstoneTools.ToolGroupManager.getToolGroup(
+      TOOL_GROUP_ID,
+    );
+    if (!toolGroup) return;
+
+    const toolInstance = toolGroup.getToolInstance(
+      MagicWandTool.toolName,
+    ) as MagicWandTool | undefined;
+
+    if (toolInstance?.setTolerance) {
+      toolInstance.setTolerance(magicWandTolerance);
+    }
+  }, [magicWandTolerance]);
+
   // 1. Memoize Image IDs
-  // We use a stable key for image URLs to prevent unnecessary re-initialization
-  // when the array reference changes but content is same.
   const imageUrlsStr = imageUrls.join(",");
   const imageIds = useMemo(() => {
     return imageUrls.map((url) => {
@@ -166,9 +187,7 @@ export function DicomViewer({
 
         setCurrentImageId(imageIds[startIndex]);
         setCurrentIndex(startIndex);
-        setLoadedCount(1); // At least the first image is loaded
-
-        // Note: Event listener moved to separate useEffect for reliability
+        setLoadedCount(1);
 
         // --- Register Tools ---
         const toolsToRegister = [
@@ -179,13 +198,15 @@ export function DicomViewer({
           cornerstoneTools.RectangleROITool,
           cornerstoneTools.PlanarFreehandROITool,
           cornerstoneTools.EllipticalROITool,
+          MagicWandTool, // Add our custom tool
         ];
 
         toolsToRegister.forEach((tool) => {
           try {
-            if (tool) cornerstoneTools.addTool(tool);
+            if (tool) {
+              cornerstoneTools.addTool(tool);
+            }
           } catch (e) {
-            /* ignore if tool already exists */
             console.debug(e);
           }
         });
@@ -205,6 +226,11 @@ export function DicomViewer({
           toolsToRegister.forEach((tool) => {
             if (tool) toolGroup.addTool(tool.toolName);
           });
+
+          const magicWandInstance = toolGroup.getToolInstance(
+            MagicWandTool.toolName,
+          ) as MagicWandTool | undefined;
+          magicWandInstance?.setTolerance?.(magicWandTolerance);
 
           // Initial Tool State
           toolGroup.setToolActive(cornerstoneTools.WindowLevelTool.toolName, {
@@ -227,6 +253,7 @@ export function DicomViewer({
           toolGroup.setToolPassive(
             cornerstoneTools.PlanarFreehandROITool.toolName,
           );
+          toolGroup.setToolPassive(MagicWandTool.toolName);
         }
 
         setIsLoading(false);
@@ -250,7 +277,7 @@ export function DicomViewer({
     };
   }, [imageIds]);
 
-  // 3. Handle Scroll Events (Counter Update)
+  // 3. Handle Scroll Events
   useEffect(() => {
     const element = viewerRef.current;
     if (!element) return;
@@ -271,7 +298,6 @@ export function DicomViewer({
   // 4. Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input field
       const target = e.target as HTMLElement;
       if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
         return;
@@ -299,7 +325,7 @@ export function DicomViewer({
         onClose();
         return;
       } else {
-        return; // Not a key we handle
+        return;
       }
 
       if (newIndex !== currentIndex) {
@@ -311,7 +337,7 @@ export function DicomViewer({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex, onClose]);
 
-  // 5. Prefetch Images & Progressive Stack Update
+  // 5. Prefetch Images
   useEffect(() => {
     if (isLoading || imageIds.length === 0) return;
 
@@ -346,7 +372,7 @@ export function DicomViewer({
     };
   }, [imageIds, isLoading]);
 
-  // 6. Dynamic Stack Update (Blocking Logic)
+  // 6. Dynamic Stack Update
   useEffect(() => {
     const updateStack = async () => {
       const renderingEngine =
@@ -361,7 +387,6 @@ export function DicomViewer({
       const availableImages = imageIds.slice(0, limit);
       const currentStack = viewport.getImageIds();
 
-      // Only update if we have new images to add
       if (currentStack.length < availableImages.length) {
         let newIndex = viewport.getCurrentImageIdIndex();
         if (newIndex >= availableImages.length) {
@@ -414,6 +439,7 @@ export function DicomViewer({
       cornerstoneTools.RectangleROITool.toolName,
       cornerstoneTools.PlanarFreehandROITool.toolName,
       cornerstoneTools.EllipticalROITool.toolName,
+      MagicWandTool.toolName,
     ];
 
     primaryTools.forEach((t) => toolGroup.setToolPassive(t));
@@ -474,18 +500,13 @@ export function DicomViewer({
       if (!progressBarRef.current || imageIds.length <= 1) return;
 
       const rect = progressBarRef.current.getBoundingClientRect();
-      // Calculate percentage (0 to 1) based on click position
       const ratio = Math.max(
         0,
         Math.min((clientX - rect.left) / rect.width, 1),
       );
 
-      // Map percentage to an index in the total image array
       const total = imageIds.length;
       const targetIndex = Math.round(ratio * (total - 1));
-
-      // Limit to loaded images only!
-      // loadedCount is 1-based, indices are 0-based. Max index is loadedCount - 1
       const maxIndex = Math.max(0, loadedCountRef.current - 1);
       const finalIndex = Math.min(targetIndex, maxIndex);
 
@@ -496,8 +517,6 @@ export function DicomViewer({
       ) as cornerstone.StackViewport;
 
       if (viewport) {
-        // This updates the viewport but NOT our 'currentIndex' state directly.
-        // The event listener STACK_NEW_IMAGE handles the state update.
         viewport.setImageIdIndex(finalIndex);
       }
     },
@@ -505,17 +524,16 @@ export function DicomViewer({
   );
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button !== 0) return; // Only Left Click
+    if (e.button !== 0) return;
     setIsDragging(true);
     handleSeek(e.clientX);
   };
 
-  // Attach global mouse listeners when dragging starts
   useEffect(() => {
     if (!isDragging) return;
 
     const onMouseMove = (e: MouseEvent) => {
-      e.preventDefault(); // Stop text selection
+      e.preventDefault();
       handleSeek(e.clientX);
     };
 
@@ -539,23 +557,18 @@ export function DicomViewer({
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col font-sans">
-      {/* PROGRESS BAR - Minimal Modern Design */}
+      {/* PROGRESS BAR */}
       {imageIds.length > 1 && (
         <div
           ref={progressBarRef}
           className="absolute bottom-0 left-0 h-1 bg-neutral-900/40 w-full cursor-pointer hover:h-1.5 transition-all duration-200 group"
           onMouseDown={handleMouseDown}
         >
-          {/* Background track */}
           <div className="absolute inset-0 bg-neutral-800/60" />
-
-          {/* Download progress */}
           <div
             className="absolute inset-y-0 left-0 bg-blue-500/30 transition-all duration-300"
             style={{ width: `${(loadedCount / imageIds.length) * 100}%` }}
           />
-
-          {/* Current position indicator */}
           <div
             className="absolute inset-y-0 bg-blue-500 transition-all duration-75"
             style={{
@@ -567,16 +580,15 @@ export function DicomViewer({
       )}
 
       {/* Toolbar */}
-      <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2 flex items-center gap-3">
-        {/* Dicoogle Logo - Left */}
+        <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2 flex items-center gap-3 overflow-visible">
         <img
           src={`${import.meta.env.BASE_URL}logo.png`}
           alt="Dicoogle"
           className="h-8"
         />
 
-        {/* Tool Buttons - Center */}
-        <div className="flex-1 flex items-center gap-2 justify-center overflow-x-auto">
+        {/* Tool Buttons */}
+        <div className="flex-1 flex items-center gap-2 justify-center overflow-x-auto overflow-y-visible">
           <Button
             variant={
               activeTool === cornerstoneTools.WindowLevelTool.toolName
@@ -662,6 +674,32 @@ export function DicomViewer({
             <Pencil className="w-4 h-4 mr-2" />
             Freehand
           </Button>
+
+          <div className="w-px h-6 bg-neutral-700 mx-2" />
+
+          {/* Magic Wand Tool */}
+          <Button
+            variant={
+              activeTool === MagicWandTool.toolName
+                ? "default"
+                : "outline"
+            }
+            size="sm"
+            onClick={() => setTool(MagicWandTool.toolName)}
+            className={getBtnClass(MagicWandTool.toolName)}
+            title="Magic Wand - Click to select similar regions"
+          >
+            <Wand2 className="w-4 h-4 mr-2" />
+            Magic Wand
+          </Button>
+
+          {/* Magic Wand Settings */}
+          {activeTool === MagicWandTool.toolName && (
+            <MagicWandSettings
+              tolerance={magicWandTolerance}
+              onToleranceChange={setMagicWandTolerance}
+            />
+          )}
 
           <div className="w-px h-6 bg-neutral-700 mx-2" />
 
@@ -767,7 +805,6 @@ export function DicomViewer({
           />
         </div>
 
-        {/* Shared Metadata Panel */}
         {showMetadata && (
           <MetadataPanel
             metadata={metadata}
@@ -779,7 +816,7 @@ export function DicomViewer({
         )}
       </div>
 
-      {/* Footer with image counter */}
+      {/* Footer */}
       <div className="bg-neutral-900 border-t border-neutral-800 px-4 py-1.5 text-neutral-500 text-[10px] flex items-center justify-between">
         {imageIds.length > 1 && (
           <span className="text-neutral-400 font-medium">
