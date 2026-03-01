@@ -25,9 +25,11 @@ const getDefaultAllowedRoots = () => {
 
   if (platform === 'win32') {
     // Windows: Allow all drive letters that exist
+    allowedDrives = [
+      "C"
+    ]
     const drives = [];
-    for (let i = 65; i <= 90; i++) { // A-Z
-      const drive = String.fromCharCode(i) + ':\\';
+    for (var drive in drives) { // 
       if (fs.existsSync(drive)) {
         drives.push(drive);
         // Also add without trailing slash for compatibility
@@ -38,7 +40,8 @@ const getDefaultAllowedRoots = () => {
   } else {
     // Linux/Unix/Mac: mount points
     return [
-      '/home',
+      // '/home',
+      '/webapp'
     ];
   }
 };

@@ -24,4 +24,4 @@ services:
     ports:
       - "3000:3000"
     volumes: 
-      - /home:/home:ro
+      - ./webapp/:/webapp/:ro
