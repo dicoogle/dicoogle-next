@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, X, Info, Loader2, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { dicoogleService } from "@/services/dicoogleService";
@@ -23,6 +23,7 @@ export function QuickViewer({
   const [showMetadata, setShowMetadata] = useState(true);
   const [imageLoading, setImageLoading] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState("");
+  const preloadStarted = useRef(false);
 
   const currentImage: DICOMImage | undefined = series.images?.[currentImageIndex];
 
@@ -32,6 +33,18 @@ export function QuickViewer({
     loading: metadataLoading,
     error: metadataError,
   } = useMetadata(currentImage?.sopInstanceUID || null, showMetadata);
+
+  // Preload DICOM viewer on button hover
+  const handleDicomViewerHover = () => {
+    if (!preloadStarted.current) {
+      preloadStarted.current = true;
+      import("@/components/dicom/CornerstoneViewport").then(() => {
+        console.log("[Preload] DICOM viewer loaded on hover");
+      }).catch((err) => {
+        console.warn("[Preload] Failed to preload DICOM viewer:", err);
+      });
+    }
+  };
 
   // Handlers
   const handleNextImage = () => {
@@ -78,6 +91,8 @@ export function QuickViewer({
           {onOpenAdvanced && (
             <Button
               onClick={onOpenAdvanced}
+              onMouseEnter={handleDicomViewerHover}
+              onFocus={handleDicomViewerHover}
               size="sm"
               className="bg-blue-600/80 hover:bg-blue-600 text-white border border-blue-500/50"
             >
@@ -89,11 +104,10 @@ export function QuickViewer({
         <div className="flex gap-2 pointer-events-auto">
           <button
             onClick={() => setShowMetadata((prev) => !prev)}
-            className={`p-2 rounded-lg border ${
-              showMetadata
+            className={`p-2 rounded-lg border ${showMetadata
                 ? "bg-blue-600 border-blue-500 text-white"
                 : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
-            }`}
+              }`}
             title="View Metadata"
           >
             <Info className="w-5 h-5" />
@@ -157,3 +171,4 @@ export function QuickViewer({
     </div>
   );
 }
+

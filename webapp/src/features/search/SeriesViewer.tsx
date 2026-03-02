@@ -25,6 +25,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const { selectedSeries, deselectStudy } = useSearchStore();
   const series = selectedSeries || [];
   const containerRef = useRef<HTMLDivElement>(null);
+  const preloadStarted = useRef(false);
 
   // Navigation state
   const [selectedSeriesForImages, setSelectedSeriesForImages] =
@@ -43,6 +44,18 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     null,
   );
   const [dumpSearchQuery, setDumpSearchQuery] = useState("");
+
+  // Preload DICOM viewer on View button hover
+  const handleViewButtonHover = () => {
+    if (!preloadStarted.current) {
+      preloadStarted.current = true;
+      import("@/components/dicom/CornerstoneViewport").then(() => {
+        console.log("[Preload] DICOM viewer loaded on hover");
+      }).catch((err) => {
+        console.warn("[Preload] Failed to preload DICOM viewer:", err);
+      });
+    }
+  };
 
   // Auto-scroll to SeriesViewer when mounted or when navigating back from images
   useEffect(() => {
@@ -276,6 +289,8 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                       size="sm"
                       variant="outline"
                       onClick={(e) => handleOpenQuickViewer(s, e)}
+                      onMouseEnter={handleViewButtonHover}
+                      onFocus={handleViewButtonHover}
                       disabled={!s.images || s.images.length === 0}
                       className="w-full text-xs px-2"
                     >
@@ -343,6 +358,8 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                         size="sm"
                         variant="outline"
                         onClick={(e) => handleOpenQuickViewer(s, e)}
+                        onMouseEnter={handleViewButtonHover}
+                        onFocus={handleViewButtonHover}
                         disabled={!s.images || s.images.length === 0}
                       >
                         <Eye className="w-4 h-4 mr-1" /> View
