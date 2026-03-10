@@ -48,11 +48,12 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   // Preload DICOM viewer on View button hover
   const handleViewButtonHover = () => {
     if (!preloadStarted.current) {
-      preloadStarted.current = true;
       import("@/components/dicom/CornerstoneViewport").then(() => {
+        preloadStarted.current = true;
         console.log("[Preload] DICOM viewer loaded on hover");
       }).catch((err) => {
         console.warn("[Preload] Failed to preload DICOM viewer:", err);
+        preloadStarted.current = false;
       });
     }
   };

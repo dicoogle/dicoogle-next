@@ -22,12 +22,7 @@ import {
   Undo2,
 } from "lucide-react";
 
-interface DicomViewerProps {
-  imageUrls: string[];
-  initialIndex?: number;
-  onClose?: () => void;
-  title?: string;
-}
+import { DicomViewerProps } from "@/types";
 
 const RENDERING_ENGINE_ID = "dicoogleViewerEngine";
 const VIEWPORT_ID = "dicoogleViewport";

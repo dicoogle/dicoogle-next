@@ -37,11 +37,12 @@ export function QuickViewer({
   // Preload DICOM viewer on button hover
   const handleDicomViewerHover = () => {
     if (!preloadStarted.current) {
-      preloadStarted.current = true;
       import("@/components/dicom/CornerstoneViewport").then(() => {
+        preloadStarted.current = true;
         console.log("[Preload] DICOM viewer loaded on hover");
       }).catch((err) => {
         console.warn("[Preload] Failed to preload DICOM viewer:", err);
+        preloadStarted.current = false;
       });
     }
   };
@@ -105,8 +106,8 @@ export function QuickViewer({
           <button
             onClick={() => setShowMetadata((prev) => !prev)}
             className={`p-2 rounded-lg border ${showMetadata
-                ? "bg-blue-600 border-blue-500 text-white"
-                : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+              ? "bg-blue-600 border-blue-500 text-white"
+              : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
               }`}
             title="View Metadata"
           >
