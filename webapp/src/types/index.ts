@@ -149,3 +149,11 @@ export interface TaskOutcome {
   tasks: TaskInfo[];
   count: number;
 }
+
+export interface DicomViewerProps {
+  imageUrls: string[];
+  initialIndex?: number;
+  onClose?: () => void;
+  title?: string;
+}
+

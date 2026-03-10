@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { DicomViewer } from "@/components/dicom/CornerstoneViewport";
+import { DicomViewerLazy } from "@/components/dicom/DicomViewerLazy";
 import { dicoogleService } from "@/services/dicoogleService";
 import type { Series } from "@/types";
 
@@ -41,13 +41,12 @@ export function AdvancedViewer({
     <div className="fixed inset-0 z-[1000] bg-black/95 flex flex-col">
       {/* Cornerstone Viewer fills everything; toolbar/header are handled inside */}
       <div className="flex-1 bg-black">
-        <DicomViewer
+        <DicomViewerLazy
           imageUrls={getSeriesUrls()}
           initialIndex={initialIndex}
           onClose={onClose}
-          title={`Series #${series.seriesNumber} — ${
-            series.seriesDescription || "No description"
-          }`}
+          title={`Series #${series.seriesNumber} — ${series.seriesDescription || "No description"
+            }`}
         />
       </div>
     </div>
