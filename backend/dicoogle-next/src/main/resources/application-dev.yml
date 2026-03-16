@@ -1,0 +1,36 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/dicoogle_next
+    username: dicoogle
+    password: dicoogle
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+management:
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    pt.ua.dicooglenext: DEBUG
+    org.springframework.security: INFO
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+app:
+  security:
+    docs-enabled: true
+    basic-auth:
+      username: developer
+      password: developer
