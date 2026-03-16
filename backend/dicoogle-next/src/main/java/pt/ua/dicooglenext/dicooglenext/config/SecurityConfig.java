@@ -14,6 +14,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -62,10 +63,20 @@ public class SecurityConfig {
   }
 
   @Bean
-  UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
+  UserDetailsService userDetailsService(
+      PasswordEncoder passwordEncoder, SecurityProperties properties) {
+    String username = properties.getBasicAuth().getUsername();
+    String password = properties.getBasicAuth().getPassword();
+
+    if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
+      throw new IllegalStateException(
+          "Missing basic auth credentials. Configure app.security.basic-auth.username and "
+              + "app.security.basic-auth.password for the active profile.");
+    }
+
     UserDetails developer =
-        User.withUsername("developer")
-            .password(passwordEncoder.encode("developer"))
+        User.withUsername(username)
+            .password(passwordEncoder.encode(password))
             .roles("DEVELOPER")
             .build();
     return new InMemoryUserDetailsManager(developer);

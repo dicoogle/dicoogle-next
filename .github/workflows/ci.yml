@@ -6,11 +6,16 @@ on:
   pull_request:
     branches: [main, dev]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # JOB 1: FRONTEND QUALITY CHECKS (Runs on GitHub Cloud)
   # We keep this to ensure code is good before wasting time building on the VM
   frontend-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ./webapp/
@@ -43,6 +48,7 @@ jobs:
   # JOB 2: BACKEND QUALITY CHECKS (Runs on GitHub Cloud)
   backend-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: ./backend/
@@ -65,7 +71,17 @@ jobs:
         run: chmod +x mvnw
 
       - name: Verify backend
-        run: ./mvnw clean verify
+        run: ./mvnw -B -ntp clean verify
+
+      - name: Upload backend test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            backend/**/target/surefire-reports/**
+            backend/**/target/failsafe-reports/**
+          if-no-files-found: ignore
 
   # JOB 3: DEPLOY (Runs on YOUR VM)
   deploy:

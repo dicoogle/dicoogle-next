@@ -31,3 +31,6 @@ springdoc:
 app:
   security:
     docs-enabled: true
+    basic-auth:
+      username: developer
+      password: developer
