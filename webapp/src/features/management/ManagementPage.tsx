@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { useEnabledPlugins } from "@/plugin-system";
+import { useSettingsExtensions } from "@/plugin-system";
 import { Suspense } from "react";
 
 type TabType =
@@ -13,12 +13,7 @@ type TabType =
 export function ManagementPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const plugins = useEnabledPlugins();
-
-  // Get settings extensions from all enabled plugins
-  const settingsExtensions = plugins.flatMap((p) =>
-    p.getSettingsExtensions ? p.getSettingsExtensions() : [],
-  );
+  const settingsExtensions = useSettingsExtensions();
 
   const getActiveTab = (): TabType => {
     const pathParts = location.pathname.split("/");
@@ -84,7 +79,6 @@ export function ManagementPage() {
             ))}
 
             {settingsExtensions
-              .sort((a, b) => (a.order || 999) - (b.order || 999))
               .map((ext) => (
                 <button
                   key={ext.id}

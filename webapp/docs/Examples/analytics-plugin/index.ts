@@ -9,7 +9,8 @@ import {
   RouteExtension,
   SidebarMenuExtension,
 } from "@/plugin-system";
-import { lazy } from "react";
+import { createElement, lazy } from "react";
+import { BarChart3 } from "lucide-react";
 
 const AnalyticsPage = lazy(() => import("./AnalyticsPage"));
 
@@ -57,7 +58,7 @@ const analyticsPlugin: WebUIPlugin = {
     {
       id: "analytics-menu",
       label: "Analytics",
-      icon: "na",
+      icon: createElement(BarChart3, { className: "w-4 h-4" }),
       path: "/analytics",
       order: 40,
     },

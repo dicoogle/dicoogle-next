@@ -1,9 +1,9 @@
 {
-  "id": "gallery-view",
+  "id": "study-workbench",
   "entry": "index.ts",
-  "name": "Gallery View",
+  "name": "Study Workbench",
   "version": "1.0.0",
-  "description": "Display search results as an image gallery",
+  "description": "Hybrid list + preview workspace for study review",
   "author": "Dicoogle Team",
   "type": "result-renderer"
 }

@@ -6,7 +6,9 @@
 export * from "./types";
 export * from "./manager";
 export * from "./hooks";
+export * from "./context";
 
 // Re-export for convenience
 export { pluginRegistry } from "./registry";
-export { createPluginContext, initializeAllPlugins } from "./manager";
+export { initializeAllPlugins } from "./manager";
+export { createPluginContext } from "./context";

@@ -11,6 +11,7 @@ import path from "path";
 interface PluginConfig {
   id: string;
   entry: string;
+  apiVersion?: string;
   enabled?: boolean;
   // Metadata fields
   name?: string;
@@ -24,9 +25,97 @@ interface PluginConfig {
 interface DiscoveredPlugin {
   id: string;
   name: string;
+  directoryName: string;
   path: string;
   entry: string;
   config: PluginConfig;
+}
+
+const SUPPORTED_API_VERSIONS = new Set(["1", "1.0"]);
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validatePluginConfig(
+  configPath: string,
+  config: unknown,
+  folderName: string,
+): { config: PluginConfig; errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!isObject(config)) {
+    return {
+      config: { id: folderName, entry: "index.ts" },
+      errors: [`Invalid config at ${configPath}: expected a JSON object`],
+      warnings,
+    };
+  }
+
+  const normalized: PluginConfig = {
+    id: typeof config.id === "string" ? config.id.trim() : folderName,
+    entry: typeof config.entry === "string" ? config.entry.trim() : "index.ts",
+    apiVersion:
+      typeof config.apiVersion === "string" ? config.apiVersion.trim() : undefined,
+    enabled: typeof config.enabled === "boolean" ? config.enabled : undefined,
+    name: typeof config.name === "string" ? config.name : undefined,
+    version: typeof config.version === "string" ? config.version : undefined,
+    description:
+      typeof config.description === "string" ? config.description : undefined,
+    author: typeof config.author === "string" ? config.author : undefined,
+    type: typeof config.type === "string" ? config.type : undefined,
+    dependencies: Array.isArray(config.dependencies)
+      ? config.dependencies.filter((dep): dep is string => typeof dep === "string")
+      : undefined,
+  };
+
+  if (!normalized.id) {
+    errors.push(`Invalid config at ${configPath}: "id" must be a non-empty string`);
+  }
+
+  if (!normalized.entry) {
+    errors.push(`Invalid config at ${configPath}: "entry" must be a non-empty string`);
+  }
+
+  if (normalized.entry.startsWith("/") || normalized.entry.includes("..")) {
+    errors.push(
+      `Invalid config at ${configPath}: "entry" must be relative and cannot contain ".."`,
+    );
+  }
+
+  if (normalized.dependencies && normalized.dependencies.includes(normalized.id)) {
+    errors.push(
+      `Invalid config at ${configPath}: plugin cannot depend on itself (${normalized.id})`,
+    );
+  }
+
+  if (normalized.apiVersion && !SUPPORTED_API_VERSIONS.has(normalized.apiVersion)) {
+    warnings.push(
+      `Plugin ${normalized.id} declares unsupported apiVersion "${normalized.apiVersion}"`,
+    );
+  }
+
+  const knownKeys = new Set([
+    "id",
+    "entry",
+    "apiVersion",
+    "enabled",
+    "name",
+    "version",
+    "description",
+    "author",
+    "type",
+    "dependencies",
+  ]);
+
+  Object.keys(config).forEach((key) => {
+    if (!knownKeys.has(key)) {
+      warnings.push(`Plugin ${normalized.id} has unknown config key "${key}"`);
+    }
+  });
+
+  return { config: normalized, errors, warnings };
 }
 
 /**
@@ -35,6 +124,7 @@ interface DiscoveredPlugin {
  */
 function discoverPlugins(pluginsDir: string): DiscoveredPlugin[] {
   const discovered: DiscoveredPlugin[] = [];
+  const discoveredIds = new Set<string>();
 
   if (!fs.existsSync(pluginsDir)) {
     console.warn(`Plugins directory not found at ${pluginsDir}`);
@@ -51,7 +141,30 @@ function discoverPlugins(pluginsDir: string): DiscoveredPlugin[] {
     if (fs.existsSync(configPath)) {
       try {
         const configContent = fs.readFileSync(configPath, "utf-8");
-        const config = JSON.parse(configContent) as PluginConfig;
+        const parsedConfig = JSON.parse(configContent);
+        const { config, errors, warnings } = validatePluginConfig(
+          configPath,
+          parsedConfig,
+          entry.name,
+        );
+
+        for (const warning of warnings) {
+          console.warn(warning);
+        }
+
+        if (errors.length > 0) {
+          for (const err of errors) {
+            console.error(err);
+          }
+          continue;
+        }
+
+        if (discoveredIds.has(config.id)) {
+          console.error(
+            `Duplicate plugin id "${config.id}" detected at ${configPath}. Skipping duplicate.`,
+          );
+          continue;
+        }
 
         const pluginEntry = path.join(
           pluginsDir,
@@ -60,9 +173,11 @@ function discoverPlugins(pluginsDir: string): DiscoveredPlugin[] {
         );
 
         if (fs.existsSync(pluginEntry)) {
+          discoveredIds.add(config.id);
           discovered.push({
             id: config.id || entry.name,
             name: entry.name,
+            directoryName: entry.name,
             path: pluginEntry,
             entry: config.entry || "index.ts",
             config,
@@ -76,6 +191,47 @@ function discoverPlugins(pluginsDir: string): DiscoveredPlugin[] {
         console.error(`Error loading plugin config at ${configPath}:`, error);
       }
     }
+  }
+
+  const discoveredById = new Set(discovered.map((plugin) => plugin.id));
+
+  for (const plugin of discovered) {
+    for (const depId of plugin.config.dependencies || []) {
+      if (!discoveredById.has(depId)) {
+        console.error(
+          `Plugin ${plugin.id} depends on missing plugin "${depId}". It may fail to initialize.`,
+        );
+      }
+    }
+  }
+
+  const pluginMap = new Map(discovered.map((plugin) => [plugin.id, plugin]));
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+
+  const detectCycle = (pluginId: string, trace: string[]) => {
+    if (visited.has(pluginId)) {
+      return;
+    }
+    if (visiting.has(pluginId)) {
+      console.error(`Plugin dependency cycle detected: ${[...trace, pluginId].join(" -> ")}`);
+      return;
+    }
+
+    visiting.add(pluginId);
+    const plugin = pluginMap.get(pluginId);
+    const dependencies = plugin?.config.dependencies || [];
+    for (const depId of dependencies) {
+      if (pluginMap.has(depId)) {
+        detectCycle(depId, [...trace, pluginId]);
+      }
+    }
+    visiting.delete(pluginId);
+    visited.add(pluginId);
+  };
+
+  for (const plugin of discovered) {
+    detectCycle(plugin.id, []);
   }
 
   return discovered;
@@ -113,6 +269,7 @@ export function registerAllPlugins() {
   plugins.forEach((plugin, index) => {
     const configMetadata = JSON.stringify({
       id: plugin.config.id,
+      apiVersion: plugin.config.apiVersion,
       name: plugin.config.name,
       version: plugin.config.version,
       description: plugin.config.description,
@@ -142,7 +299,7 @@ export const discoveredPlugins = [
 `;
 
   plugins.forEach((plugin) => {
-    code += `  { id: '${plugin.id}', name: '${plugin.name}', defaultEnabled: ${plugin.config.enabled !== false} },
+    code += `  { id: '${plugin.id}', name: '${plugin.name}', directory: '${plugin.directoryName}', entry: '${plugin.entry}', defaultEnabled: ${plugin.config.enabled !== false} },
 `;
   });
 

@@ -35,11 +35,13 @@ const dateFilterPlugin: WebUIPlugin = {
         enabled: false,
       },
       order: 10,
-      applyFilter: (value: {
-        from: string | null;
-        to: string | null;
-        enabled: boolean;
-      }) => {
+      applyFilter: (
+        value: {
+          from: string | null;
+          to: string | null;
+          enabled: boolean;
+        }
+      ) => {
         // Only apply filter if enabled and dates are set
         if (!value.enabled || (!value.from && !value.to)) {
           return "";
