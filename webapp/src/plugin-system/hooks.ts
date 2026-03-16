@@ -1,6 +1,5 @@
 /**
- * Plugin Hooks and Context
- * Provides utilities for plugin interaction and React hooks
+ * Plugin Hooks and Extension Resolution
  */
 
 import { useEffect, useState, useCallback } from "react";
@@ -11,101 +10,311 @@ import {
   WebUIPlugin,
   PluginState,
   PluginContext,
+  QueryFilterExtension,
+  ResultOptionsExtension,
+  ResultBatchExtension,
+  ResultRendererExtension,
+  SettingsExtension,
+  ExtensionFactoryArgs,
+  ResolvedPluginExtension,
+  QueryFilterApplyArgs,
+  ResultOptionActionArgs,
+  ResultBatchActionArgs,
 } from "./types";
 import { enablePlugin, disablePlugin } from "./manager";
-import { dicoogleService } from "@/services/dicoogleService";
+import { createPluginContext, PLUGIN_STATE_CHANGED_EVENT } from "./context";
+import type { Study } from "@/types";
 
-/**
- * Hook to create plugin context
- * This provides the context object that plugins receive
- */
-export function usePluginContext(): PluginContext {
-  return {
-    appVersion: "1.0.0",
-    logger: {
-      log: (message: string, data?: any) =>
-        console.log(`[Plugin] ${message}`, data),
-      warn: (message: string, data?: any) =>
-        console.warn(`[Plugin] ${message}`, data),
-      error: (message: string, error?: any) =>
-        console.error(`[Plugin] ${message}`, error),
-      info: (message: string, data?: any) =>
-        console.info(`[Plugin] ${message}`, data),
-    },
-    storage: {
-      get: (key: string) => {
-        try {
-          const data = localStorage.getItem(`plugin_${key}`);
-          return data ? JSON.parse(data) : undefined;
-        } catch {
-          return undefined;
-        }
-      },
-      set: (key: string, value: any) => {
-        try {
-          localStorage.setItem(`plugin_${key}`, JSON.stringify(value));
-        } catch (error) {
-          console.error("Failed to set plugin storage:", error);
-        }
-      },
-      remove: (key: string) => {
-        localStorage.removeItem(`plugin_${key}`);
-      },
-    },
-    eventBus: {
-      on: (event: string, callback: (data: any) => void) => {
-        window.addEventListener(`plugin:${event}`, ((e: CustomEvent) => {
-          callback(e.detail);
-        }) as EventListener);
-      },
-      off: (event: string, callback: (data: any) => void) => {
-        window.removeEventListener(
-          `plugin:${event}`,
-          callback as EventListener,
-        );
-      },
-      emit: (event: string, data: any) => {
-        window.dispatchEvent(
-          new CustomEvent(`plugin:${event}`, { detail: data }),
-        );
-      },
-    },
-    // Expose the raw dicoogle-client instance to plugins
-    dicoogle: dicoogleService.getClient() as any,
-    ui: {
-      showToast: (
-        message: string,
-        type: "info" | "success" | "warning" | "error" = "info",
-      ) => {
-        // Fallback to console for now - can be replaced with actual toast implementation
-        const emoji = {
-          info: "ℹ️",
-          success: "✅",
-          warning: "⚠️",
-          error: "❌",
-        }[type];
-        console.log(`${emoji} ${message}`);
-      },
-    },
-  };
+type QueryFilterMethod = "getQueryFilterExtensions";
+type ResultOptionsMethod = "getResultOptionsExtensions";
+type ResultBatchMethod = "getResultBatchExtensions";
+type ResultRendererMethod = "getResultRendererExtensions";
+type SidebarMethod = "getSidebarMenuExtensions";
+type RouteMethod = "getRouteExtensions";
+type SettingsMethod = "getSettingsExtensions";
+
+interface ExtensionCache {
+  queryFilters: ResolvedPluginExtension<QueryFilterExtension>[];
+  resultOptions: ResolvedPluginExtension<ResultOptionsExtension>[];
+  resultBatches: ResolvedPluginExtension<ResultBatchExtension>[];
+  resultRenderers: ResolvedPluginExtension<ResultRendererExtension>[];
+  sidebarItems: ResolvedPluginExtension<SidebarMenuExtension>[];
+  routes: ResolvedPluginExtension<RouteExtension>[];
+  settings: ResolvedPluginExtension<SettingsExtension>[];
 }
 
-/**
- * Hook to get all plugins (both enabled and disabled)
- */
+const extensionCache: ExtensionCache = {
+  queryFilters: [],
+  resultOptions: [],
+  resultBatches: [],
+  resultRenderers: [],
+  sidebarItems: [],
+  routes: [],
+  settings: [],
+};
+
+let extensionCacheDirty = true;
+
+function toFactoryArgs(pluginId: string): ExtensionFactoryArgs {
+  return { context: createPluginContext(pluginId) };
+}
+
+function wrapQueryFilterExtensions(
+  pluginId: string,
+  extensions: QueryFilterExtension[],
+): ResolvedPluginExtension<QueryFilterExtension>[] {
+  return extensions.map((ext) => {
+    const wrapped: QueryFilterExtension = {
+      ...ext,
+      applyFilter: ext.applyFilter
+        ? (value: any, args?: QueryFilterApplyArgs) => {
+            if (!ext.applyFilter) {
+              return null;
+            }
+            if (ext.applyFilter.length >= 2) {
+              return ext.applyFilter(value, args);
+            }
+            return ext.applyFilter(value);
+          }
+        : undefined,
+    };
+
+    return {
+      ...wrapped,
+      pluginId,
+    };
+  });
+}
+
+function wrapResultOptionExtensions(
+  pluginId: string,
+  extensions: ResultOptionsExtension[],
+): ResolvedPluginExtension<ResultOptionsExtension>[] {
+  return extensions.map((ext) => {
+    const wrapped: ResultOptionsExtension = {
+      ...ext,
+      action: ((...invocation: unknown[]) => {
+        if (invocation.length === 1 && typeof invocation[0] === "object") {
+          return (ext.action as (args: ResultOptionActionArgs) => void | Promise<void>)(
+            invocation[0] as ResultOptionActionArgs,
+          );
+        }
+
+        const result = invocation[0] as Study;
+        const context = invocation[1] as PluginContext;
+
+        if (ext.action.length <= 1) {
+          return (ext.action as (args: ResultOptionActionArgs) => void | Promise<void>)({
+            result,
+            context,
+            pluginId,
+          });
+        }
+
+        return (ext.action as (result: Study, context: PluginContext) => void | Promise<void>)(
+          result,
+          context,
+        );
+      }) as ResultOptionsExtension["action"],
+    };
+
+    return {
+      ...wrapped,
+      pluginId,
+    };
+  });
+}
+
+function wrapResultBatchExtensions(
+  pluginId: string,
+  extensions: ResultBatchExtension[],
+): ResolvedPluginExtension<ResultBatchExtension>[] {
+  return extensions.map((ext) => {
+    const wrapped: ResultBatchExtension = {
+      ...ext,
+      action: ((...invocation: unknown[]) => {
+        if (invocation.length === 1 && typeof invocation[0] === "object") {
+          return (ext.action as (args: ResultBatchActionArgs) => void | Promise<void>)(
+            invocation[0] as ResultBatchActionArgs,
+          );
+        }
+
+        const results = invocation[0] as Study[];
+        const context = invocation[1] as PluginContext;
+
+        if (ext.action.length <= 1) {
+          return (ext.action as (args: ResultBatchActionArgs) => void | Promise<void>)({
+            results,
+            context,
+            pluginId,
+          });
+        }
+
+        return (ext.action as (results: Study[], context: PluginContext) => void | Promise<void>)(
+          results,
+          context,
+        );
+      }) as ResultBatchExtension["action"],
+    };
+
+    return {
+      ...wrapped,
+      pluginId,
+    };
+  });
+}
+
+function resolveExtensionsByMethod<M extends keyof WebUIPlugin, T>(
+  methodName: M,
+  resolver: (pluginId: string, plugin: WebUIPlugin, method: WebUIPlugin[M]) => T[],
+): T[] {
+  const results: T[] = [];
+  const plugins = pluginRegistry.getEnabledPlugins();
+
+  for (const plugin of plugins) {
+    const pluginId = plugin.metadata?.id;
+    if (!pluginId) {
+      continue;
+    }
+
+    const method = plugin[methodName];
+    if (typeof method !== "function") {
+      continue;
+    }
+
+    try {
+      results.push(...resolver(pluginId, plugin, method));
+    } catch (error) {
+      console.error(`Error getting ${String(methodName)} from plugin ${pluginId}:`, error);
+    }
+  }
+
+  return results;
+}
+
+function resolveQueryFilterExtensions(): ResolvedPluginExtension<QueryFilterExtension>[] {
+  return resolveExtensionsByMethod<QueryFilterMethod, ResolvedPluginExtension<QueryFilterExtension>>(
+    "getQueryFilterExtensions",
+    (pluginId, _plugin, method) => {
+      const fn = method as NonNullable<WebUIPlugin[QueryFilterMethod]>;
+      const extensions = fn(toFactoryArgs(pluginId));
+      return wrapQueryFilterExtensions(pluginId, extensions || []);
+    },
+  ).sort((a, b) => (a.order || 999) - (b.order || 999));
+}
+
+function resolveResultOptionsExtensions(): ResolvedPluginExtension<ResultOptionsExtension>[] {
+  return resolveExtensionsByMethod<
+    ResultOptionsMethod,
+    ResolvedPluginExtension<ResultOptionsExtension>
+  >("getResultOptionsExtensions", (pluginId, _plugin, method) => {
+    const fn = method as NonNullable<WebUIPlugin[ResultOptionsMethod]>;
+    const extensions = fn(toFactoryArgs(pluginId));
+    return wrapResultOptionExtensions(pluginId, extensions || []);
+  }).sort((a, b) => (a.order || 999) - (b.order || 999));
+}
+
+function resolveResultBatchExtensions(): ResolvedPluginExtension<ResultBatchExtension>[] {
+  return resolveExtensionsByMethod<
+    ResultBatchMethod,
+    ResolvedPluginExtension<ResultBatchExtension>
+  >("getResultBatchExtensions", (pluginId, _plugin, method) => {
+    const fn = method as NonNullable<WebUIPlugin[ResultBatchMethod]>;
+    const extensions = fn(toFactoryArgs(pluginId));
+    return wrapResultBatchExtensions(pluginId, extensions || []);
+  }).sort((a, b) => (a.order || 999) - (b.order || 999));
+}
+
+function resolveResultRendererExtensions(): ResolvedPluginExtension<ResultRendererExtension>[] {
+  return resolveExtensionsByMethod<
+    ResultRendererMethod,
+    ResolvedPluginExtension<ResultRendererExtension>
+  >("getResultRendererExtensions", (pluginId, _plugin, method) => {
+    const fn = method as NonNullable<WebUIPlugin[ResultRendererMethod]>;
+    const extensions = fn(toFactoryArgs(pluginId)) || [];
+    return extensions.map((ext) => ({ ...ext, pluginId }));
+  }).sort((a, b) => (a.order || 999) - (b.order || 999));
+}
+
+function resolveSidebarMenuExtensions(): ResolvedPluginExtension<SidebarMenuExtension>[] {
+  return resolveExtensionsByMethod<SidebarMethod, ResolvedPluginExtension<SidebarMenuExtension>>(
+    "getSidebarMenuExtensions",
+    (pluginId, _plugin, method) => {
+      const fn = method as NonNullable<WebUIPlugin[SidebarMethod]>;
+      const extensions = fn(toFactoryArgs(pluginId)) || [];
+      return extensions.map((ext) => ({ ...ext, pluginId }));
+    },
+  ).sort((a, b) => (a.order || 999) - (b.order || 999));
+}
+
+function resolveRouteExtensions(): ResolvedPluginExtension<RouteExtension>[] {
+  return resolveExtensionsByMethod<RouteMethod, ResolvedPluginExtension<RouteExtension>>(
+    "getRouteExtensions",
+    (pluginId, _plugin, method) => {
+      const fn = method as NonNullable<WebUIPlugin[RouteMethod]>;
+      const extensions = fn(toFactoryArgs(pluginId)) || [];
+      return extensions.map((ext) => ({ ...ext, pluginId }));
+    },
+  );
+}
+
+function resolveSettingsExtensions(): ResolvedPluginExtension<SettingsExtension>[] {
+  return resolveExtensionsByMethod<SettingsMethod, ResolvedPluginExtension<SettingsExtension>>(
+    "getSettingsExtensions",
+    (pluginId, _plugin, method) => {
+      const fn = method as NonNullable<WebUIPlugin[SettingsMethod]>;
+      const extensions = fn(toFactoryArgs(pluginId)) || [];
+      return extensions.map((ext) => ({ ...ext, pluginId }));
+    },
+  ).sort((a, b) => (a.order || 999) - (b.order || 999));
+}
+
+function refreshExtensionCache(): void {
+  extensionCache.queryFilters = resolveQueryFilterExtensions();
+  extensionCache.resultOptions = resolveResultOptionsExtensions();
+  extensionCache.resultBatches = resolveResultBatchExtensions();
+  extensionCache.resultRenderers = resolveResultRendererExtensions();
+  extensionCache.sidebarItems = resolveSidebarMenuExtensions();
+  extensionCache.routes = resolveRouteExtensions();
+  extensionCache.settings = resolveSettingsExtensions();
+  extensionCacheDirty = false;
+}
+
+function ensureExtensionCache(): void {
+  if (extensionCacheDirty) {
+    refreshExtensionCache();
+  }
+}
+
+export function invalidatePluginExtensionCache(): void {
+  extensionCacheDirty = true;
+}
+
+window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, invalidatePluginExtensionCache);
+
+export function usePluginContext(pluginId = "host-app"): PluginContext {
+  return createPluginContext(pluginId);
+}
+
 export function usePlugins(): WebUIPlugin[] {
   const [plugins, setPlugins] = useState<WebUIPlugin[]>([]);
 
   useEffect(() => {
-    setPlugins(pluginRegistry.getAllPlugins());
+    const update = () => {
+      setPlugins(pluginRegistry.getAllPlugins());
+    };
+
+    update();
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+
+    return () => {
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+    };
   }, []);
 
   return plugins;
 }
 
-/**
- * Hook to get only enabled plugins
- */
 export function useEnabledPlugins(): WebUIPlugin[] {
   const [plugins, setPlugins] = useState<WebUIPlugin[]>([]);
 
@@ -115,19 +324,16 @@ export function useEnabledPlugins(): WebUIPlugin[] {
     };
 
     updatePlugins();
-    window.addEventListener("plugin-state-changed", updatePlugins);
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, updatePlugins);
 
     return () => {
-      window.removeEventListener("plugin-state-changed", updatePlugins);
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, updatePlugins);
     };
   }, []);
 
   return plugins;
 }
 
-/**
- * Hook to get only disabled plugins
- */
 export function useDisabledPlugins(): WebUIPlugin[] {
   const [plugins, setPlugins] = useState<WebUIPlugin[]>([]);
 
@@ -137,32 +343,35 @@ export function useDisabledPlugins(): WebUIPlugin[] {
     };
 
     updatePlugins();
-    window.addEventListener("plugin-state-changed", updatePlugins);
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, updatePlugins);
 
     return () => {
-      window.removeEventListener("plugin-state-changed", updatePlugins);
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, updatePlugins);
     };
   }, []);
 
   return plugins;
 }
 
-/**
- * Hook to get a specific plugin by ID
- */
 export function usePlugin(id: string): WebUIPlugin | undefined {
   const [plugin, setPlugin] = useState<WebUIPlugin | undefined>();
 
   useEffect(() => {
-    setPlugin(pluginRegistry.getPlugin(id));
+    const update = () => {
+      setPlugin(pluginRegistry.getPlugin(id));
+    };
+
+    update();
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+
+    return () => {
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+    };
   }, [id]);
 
   return plugin;
 }
 
-/**
- * Hook to get plugin state (enabled/disabled)
- */
 export function usePluginState(id: string): PluginState | undefined {
   const [state, setState] = useState<PluginState | undefined>();
 
@@ -172,75 +381,174 @@ export function usePluginState(id: string): PluginState | undefined {
     };
 
     updateState();
-    window.addEventListener("plugin-state-changed", updateState);
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, updateState);
 
     return () => {
-      window.removeEventListener("plugin-state-changed", updateState);
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, updateState);
     };
   }, [id]);
 
   return state;
 }
 
-/**
- * Hook to enable/disable plugins
- */
 export function usePluginManagement() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const togglePlugin = useCallback(
-    async (pluginId: string, enable: boolean) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        if (enable) {
-          await enablePlugin(pluginId);
-        } else {
-          await disablePlugin(pluginId);
-        }
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Unknown error occurred";
-        setError(message);
-        throw err;
-      } finally {
-        setIsLoading(false);
+  const togglePlugin = useCallback(async (pluginId: string, enable: boolean) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      if (enable) {
+        await enablePlugin(pluginId);
+      } else {
+        await disablePlugin(pluginId);
       }
-    },
-    [],
-  );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error occurred";
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   return { togglePlugin, isLoading, error };
 }
 
-/**
- * Get all route extensions from enabled plugins only
- */
-export function getRouteExtensions(): RouteExtension[] {
-  const routes: RouteExtension[] = [];
-
-  const plugins = pluginRegistry.getEnabledPlugins();
-  for (const plugin of plugins) {
-    if (plugin.getRouteExtensions) {
-      try {
-        const pluginRoutes = plugin.getRouteExtensions();
-        routes.push(...pluginRoutes);
-      } catch (error) {
-        console.error(
-          `Error getting route extensions from plugin ${plugin.metadata?.id}:`,
-          error,
-        );
-      }
-    }
-  }
-
-  return routes;
+export function getQueryFilterExtensions(): ResolvedPluginExtension<QueryFilterExtension>[] {
+  ensureExtensionCache();
+  return extensionCache.queryFilters;
 }
 
-/**
- * Hook to get all route extensions
- */
+export function useQueryFilterExtensions(): ResolvedPluginExtension<QueryFilterExtension>[] {
+  const [filters, setFilters] = useState<ResolvedPluginExtension<QueryFilterExtension>[]>([]);
+
+  useEffect(() => {
+    const update = () => {
+      setFilters(getQueryFilterExtensions());
+    };
+
+    update();
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+
+    return () => {
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+    };
+  }, []);
+
+  return filters;
+}
+
+export function getResultOptionsExtensions(): ResolvedPluginExtension<ResultOptionsExtension>[] {
+  ensureExtensionCache();
+  return extensionCache.resultOptions;
+}
+
+export function useResultOptionsExtensions(): ResolvedPluginExtension<ResultOptionsExtension>[] {
+  const [options, setOptions] = useState<ResolvedPluginExtension<ResultOptionsExtension>[]>([]);
+
+  useEffect(() => {
+    const update = () => {
+      setOptions(getResultOptionsExtensions());
+    };
+
+    update();
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+
+    return () => {
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+    };
+  }, []);
+
+  return options;
+}
+
+export function invokeResultOptionAction(
+  extension: ResolvedPluginExtension<ResultOptionsExtension>,
+  result: Study,
+  context: PluginContext,
+): void | Promise<void> {
+  return (extension.action as (args: ResultOptionActionArgs) => void | Promise<void>)({
+    result,
+    context,
+    pluginId: extension.pluginId,
+  });
+}
+
+export function getResultBatchExtensions(): ResolvedPluginExtension<ResultBatchExtension>[] {
+  ensureExtensionCache();
+  return extensionCache.resultBatches;
+}
+
+export function useResultBatchExtensions(): ResolvedPluginExtension<ResultBatchExtension>[] {
+  const [batches, setBatches] = useState<ResolvedPluginExtension<ResultBatchExtension>[]>([]);
+
+  useEffect(() => {
+    const update = () => {
+      setBatches(getResultBatchExtensions());
+    };
+
+    update();
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+
+    return () => {
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+    };
+  }, []);
+
+  return batches;
+}
+
+export function invokeResultBatchAction(
+  extension: ResolvedPluginExtension<ResultBatchExtension>,
+  results: Study[],
+  context: PluginContext,
+  options?: {
+    searchResults?: import("@/types").SearchResult[];
+    signal?: AbortSignal;
+  },
+): void | Promise<void> {
+  return (extension.action as (args: ResultBatchActionArgs) => void | Promise<void>)({
+    results,
+    searchResults: options?.searchResults,
+    context,
+    pluginId: extension.pluginId,
+    signal: options?.signal,
+  });
+}
+
+export function getResultRendererExtensions(): ResolvedPluginExtension<ResultRendererExtension>[] {
+  ensureExtensionCache();
+  return extensionCache.resultRenderers;
+}
+
+export function useResultRendererExtensions(): ResolvedPluginExtension<ResultRendererExtension>[] {
+  const [renderers, setRenderers] = useState<
+    ResolvedPluginExtension<ResultRendererExtension>[]
+  >([]);
+
+  useEffect(() => {
+    const update = () => {
+      setRenderers(getResultRendererExtensions());
+    };
+
+    update();
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+
+    return () => {
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+    };
+  }, []);
+
+  return renderers;
+}
+
+export function getRouteExtensions(): RouteExtension[] {
+  ensureExtensionCache();
+  return extensionCache.routes;
+}
+
 export function useRouteExtensions(): RouteExtension[] {
   const [routes, setRoutes] = useState<RouteExtension[]>([]);
 
@@ -250,44 +558,21 @@ export function useRouteExtensions(): RouteExtension[] {
     };
 
     updateRoutes();
-    window.addEventListener("plugin-state-changed", updateRoutes);
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, updateRoutes);
 
     return () => {
-      window.removeEventListener("plugin-state-changed", updateRoutes);
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, updateRoutes);
     };
   }, []);
 
   return routes;
 }
 
-/**
- * Get all sidebar menu extensions from enabled plugins only
- */
 export function getSidebarMenuExtensions(): SidebarMenuExtension[] {
-  const menuItems: SidebarMenuExtension[] = [];
-
-  const plugins = pluginRegistry.getEnabledPlugins();
-  for (const plugin of plugins) {
-    if (plugin.getSidebarMenuExtensions) {
-      try {
-        const items = plugin.getSidebarMenuExtensions();
-        menuItems.push(...items);
-      } catch (error) {
-        console.error(
-          `Error getting sidebar menu extensions from plugin ${plugin.metadata?.id}:`,
-          error,
-        );
-      }
-    }
-  }
-
-  // Sort by order if provided
-  return menuItems.sort((a, b) => (a.order || 999) - (b.order || 999));
+  ensureExtensionCache();
+  return extensionCache.sidebarItems;
 }
 
-/**
- * Hook to get all sidebar menu extensions
- */
 export function useSidebarMenuExtensions(): SidebarMenuExtension[] {
   const [items, setItems] = useState<SidebarMenuExtension[]>([]);
 
@@ -297,12 +582,36 @@ export function useSidebarMenuExtensions(): SidebarMenuExtension[] {
     };
 
     updateItems();
-    window.addEventListener("plugin-state-changed", updateItems);
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, updateItems);
 
     return () => {
-      window.removeEventListener("plugin-state-changed", updateItems);
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, updateItems);
     };
   }, []);
 
   return items;
+}
+
+export function getSettingsExtensions(): ResolvedPluginExtension<SettingsExtension>[] {
+  ensureExtensionCache();
+  return extensionCache.settings;
+}
+
+export function useSettingsExtensions(): ResolvedPluginExtension<SettingsExtension>[] {
+  const [settings, setSettings] = useState<ResolvedPluginExtension<SettingsExtension>[]>([]);
+
+  useEffect(() => {
+    const update = () => {
+      setSettings(getSettingsExtensions());
+    };
+
+    update();
+    window.addEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+
+    return () => {
+      window.removeEventListener(PLUGIN_STATE_CHANGED_EVENT, update);
+    };
+  }, []);
+
+  return settings;
 }

@@ -33,6 +33,8 @@ The Vite plugin creates a virtual module that automatically discovers and import
 - Automatic discovery - no manual plugin registration needed
 - Type-safe imports at build time
 - Compile-time validation of plugin structure
+- Duplicate plugin ID detection and dependency validation
+- Optional `apiVersion` support for future compatibility checks
 - Console output showing discovered plugins with versions and enabled state
 
 **Configuration in `vite.config.ts`:**
@@ -64,6 +66,7 @@ Each plugin requires a configuration file in its directory:
 {
   "id": "unique-plugin-id",
   "entry": "index.ts",
+  "apiVersion": "1.0",
   "enabled": true,
   "name": "Display Name",
   "version": "1.0.0",
@@ -78,7 +81,11 @@ Each plugin requires a configuration file in its directory:
 
 - `id` - Unique identifier for the plugin
 - `entry` - Entry file path (defaults to `index.ts`)
+
+**Recommended Fields:**
+
 - `type` - Plugin category
+- `apiVersion` - Plugin API compatibility version
 
 **Optional Metadata:**
 
@@ -221,7 +228,7 @@ context.storage.remove(key); // Delete value
 // Actually stores: plugin_my-plugin_theme → "dark"
 ```
 
-**Event Bus** - Custom event system for inter-plugin communication:
+**Event Bus** - Shared global bus for inter-plugin communication:
 
 ```typescript
 context.eventBus.on(event, callback)    // Subscribe to event
@@ -394,7 +401,7 @@ interface QueryFilterExtension {
   description?: string; // Help text
   component: React.ComponentType<QueryFilterProps>;
   defaultValue: any; // Initial value
-  applyFilter?(value: any): string | null; // Convert to Dicoogle query
+  applyFilter?(value: any, args?: QueryFilterApplyArgs): string | null; // Convert to Dicoogle query
   order?: number; // Sort order (lower = first)
 }
 
@@ -435,7 +442,7 @@ interface ResultOptionsExtension {
   icon: ReactNode; // Button icon
   order?: number; // Sort order
   condition?: (result: Study) => boolean; // Show if true
-  action(result: Study, context: PluginContext): void | Promise<void>;
+  action(args: ResultOptionActionArgs): void | Promise<void>;
 }
 ```
 
@@ -448,7 +455,7 @@ getResultOptionsExtensions: () => [{
   icon: <Download className="w-4 h-4" />,
   order: 20,
   condition: (result) => result.studyInstanceUID !== undefined,
-  action: async (result, context) => {
+  action: async ({ result, context }) => {
     context.logger.info("Downloading:", result.patientName)
     // Download logic...
     context.ui?.showToast("Download started", "success")
@@ -488,7 +495,43 @@ getResultRendererExtensions: () => [{
 }]
 ```
 
-#### 4. Sidebar Menu Extension
+#### 4. Result Batch Extension
+
+Adds actions that process all studies from the current query (not just one result card):
+
+```typescript
+interface ResultBatchExtension {
+  id: string; // Unique ID
+  label: string; // Button label
+  icon: ReactNode; // Button icon
+  order?: number; // Sort order
+  action(args: ResultBatchActionArgs): void | Promise<void>;
+}
+
+interface ResultBatchActionArgs {
+  results: Study[]; // all studies from the current search query
+  context: PluginContext;
+  pluginId: string;
+  signal?: AbortSignal;
+}
+```
+
+**Example:** Batch export action
+
+```typescript
+getResultBatchExtensions: () => [{
+  id: "export-all-results",
+  label: "Export All",
+  icon: <Download className="w-4 h-4" />,
+  action: async ({ results, context }) => {
+    context.logger.info("Batch processing studies", { count: results.length })
+    context.ui?.showToast(`Processing ${results.length} studies`, "info")
+    // batch logic...
+  },
+}]
+```
+
+#### 5. Sidebar Menu Extension
 
 Adds navigation menu items:
 
@@ -517,7 +560,7 @@ getSidebarMenuExtensions: () => [{
 }]
 ```
 
-#### 5. Route Extension
+#### 6. Route Extension
 
 Adds new pages/routes to the application:
 
@@ -544,7 +587,7 @@ getRouteExtensions: () => [
 ];
 ```
 
-#### 6. Settings Extension
+#### 7. Settings Extension
 
 Adds tabs to the Management/Settings page:
 

@@ -14,7 +14,14 @@ import {
   Grid3X3,
 } from "lucide-react";
 import type { Study } from "@/types";
-import { useEnabledPlugins, usePluginContext } from "@/plugin-system";
+import {
+  useResultOptionsExtensions,
+  useResultBatchExtensions,
+  useResultRendererExtensions,
+  usePluginContext,
+  invokeResultOptionAction,
+  invokeResultBatchAction,
+} from "@/plugin-system";
 
 interface StudyListProps {
   studies: Study[];
@@ -52,11 +59,8 @@ const TableHeader = ({ showActions }: { showActions: boolean }) => (
 );
 
 const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
-  const plugins = useEnabledPlugins();
+  const optionExtensions = useResultOptionsExtensions();
   const context = usePluginContext();
-  const optionExtensions = plugins.flatMap((p) =>
-    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : [],
-  );
 
   return (
     <Card
@@ -117,15 +121,15 @@ const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
                 className="flex items-center gap-2 pt-2"
                 onClick={(e) => e.stopPropagation()}
               >
-                {optionExtensions
-                  .sort((a, b) => (a.order || 999) - (b.order || 999))
-                  .filter((ext) => !ext.condition || ext.condition(study))
+                {optionExtensions.filter(
+                  (ext) => !ext.condition || ext.condition(study),
+                )
                   .map((ext) => (
                     <Button
                       key={ext.id}
                       variant="outline"
                       size="sm"
-                      onClick={() => ext.action(study, context)}
+                      onClick={() => invokeResultOptionAction(ext, study, context)}
                     >
                       {ext.icon}
                       {ext.label}
@@ -154,11 +158,8 @@ const StudyListItem = ({
   index = 0,
   showActions = true,
 }: StudyItemProps & { showActions?: boolean }) => {
-  const plugins = useEnabledPlugins();
+  const optionExtensions = useResultOptionsExtensions();
   const context = usePluginContext();
-  const optionExtensions = plugins.flatMap((p) =>
-    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : [],
-  );
 
   return (
     <div
@@ -205,7 +206,6 @@ const StudyListItem = ({
           onClick={(e) => e.stopPropagation()}
         >
           {optionExtensions
-            .sort((a, b) => (a.order || 999) - (b.order || 999))
             .filter((ext) => !ext.condition || ext.condition(study))
             .map((ext) => (
               <Button
@@ -213,7 +213,7 @@ const StudyListItem = ({
                 variant="ghost"
                 size="sm"
                 className="h-7 px-2"
-                onClick={() => ext.action(study, context)}
+                onClick={() => invokeResultOptionAction(ext, study, context)}
               >
                 {ext.icon}
               </Button>
@@ -228,16 +228,11 @@ export function StudyList({ studies }: StudyListProps) {
   const { selectStudy, selectedStudy, results } = useSearchStore();
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<string>("list");
-  const plugins = useEnabledPlugins();
+  const rendererExtensions = useResultRendererExtensions();
+  const optionExtensions = useResultOptionsExtensions();
+  const batchExtensions = useResultBatchExtensions();
   const context = usePluginContext();
-
-  const rendererExtensions = plugins.flatMap((p) =>
-    p.getResultRendererExtensions ? p.getResultRendererExtensions() : [],
-  );
-
-  const optionExtensions = plugins.flatMap((p) =>
-    p.getResultOptionsExtensions ? p.getResultOptionsExtensions() : [],
-  );
+  const isCustomRendererView = rendererExtensions.some((r) => r.id === viewMode);
 
   const hasActions = optionExtensions.length > 0;
 
@@ -252,7 +247,9 @@ export function StudyList({ studies }: StudyListProps) {
     : studies;
 
   const itemsPerPage =
-    viewMode === "list" ? ITEMS_PER_PAGE_LIST : ITEMS_PER_PAGE_CARD;
+    viewMode === "list" || isCustomRendererView
+      ? ITEMS_PER_PAGE_LIST
+      : ITEMS_PER_PAGE_CARD;
   const totalPages = Math.ceil(filteredStudies.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -376,6 +373,30 @@ export function StudyList({ studies }: StudyListProps) {
           <span className="text-sm text-gray-500 dark:text-gray-400">
             Page {currentPage} of {totalPages}
           </span>
+        )}
+
+        {!selectedStudy && batchExtensions.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Batch Actions (All Results)
+            </span>
+            {batchExtensions.map((ext) => (
+              <Button
+                key={ext.id}
+                variant="outline"
+                size="sm"
+                disabled={filteredStudies.length === 0}
+                onClick={() =>
+                  invokeResultBatchAction(ext, filteredStudies, context, {
+                    searchResults: results,
+                  })
+                }
+              >
+                {ext.icon}
+                {ext.label}
+              </Button>
+            ))}
+          </div>
         )}
 
         {/* Only show view mode buttons if there are results and renderer plugins exist */}

@@ -4,21 +4,12 @@
  */
 
 import { WebUIPlugin, SettingsExtension, PluginContext } from "@/plugin-system";
-import { createElement, lazy } from "react";
+import { lazy } from "react";
 import { Plug } from "lucide-react";
 
 const PluginManagerSettings = lazy(() => import("./PluginManagerSettings"));
 
 const pluginManagerSettingsPlugin: WebUIPlugin = {
-  metadata: {
-    id: "plugin-manager-settings",
-    name: "Plugin Manager Settings",
-    version: "1.0.0",
-    description: "Manage installed plugins from settings",
-    author: "Dicoogle Team",
-    type: "settings",
-  },
-
   init: async (context: PluginContext) => {
     context.logger.info("Plugin Manager Settings initialized");
   },
@@ -26,8 +17,8 @@ const pluginManagerSettingsPlugin: WebUIPlugin = {
   getSettingsExtensions: (): SettingsExtension[] => [
     {
       id: "plugin-manager-tab",
-      label: "Plugins",
-      icon: createElement(Plug, { className: "w-4 h-4" }),
+      label: "Plugin Manager",
+      icon: <Plug className="w-4 h-4" />,
       component: PluginManagerSettings,
       order: 100,
     },

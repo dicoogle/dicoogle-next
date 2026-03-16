@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAuthStore } from "@/stores/AuthStore";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -13,12 +13,12 @@ import { SystemInfo } from "./features/management/components/SystemInfo";
 import { UserManagement } from "./features/management/components/UserManagement";
 import { TransferSettings } from "./features/management/components/TransferSettings";
 import { Toaster } from "sonner";
-import { getRouteExtensions } from "@/plugin-system";
+import { useRouteExtensions } from "@/plugin-system";
 import { Suspense } from "react";
 
 function App() {
   const { isAuthenticated, authLoading, checkAuth } = useAuthStore();
-  const [pluginRoutes] = useState(() => getRouteExtensions());
+  const pluginRoutes = useRouteExtensions();
 
   useEffect(() => {
     checkAuth();

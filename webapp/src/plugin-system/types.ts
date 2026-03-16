@@ -12,7 +12,8 @@ export interface PluginMetadata {
   version: string;
   description: string;
   author: string;
-  type: string;
+  type?: string;
+  apiVersion?: string;
   dependencies?: string[];
 }
 
@@ -23,13 +24,14 @@ export interface PluginMetadata {
 export interface PluginConfig {
   id: string;
   entry: string;
+  apiVersion?: string;
   enabled?: boolean; // Default enabled state (only used on first load)
   // Metadata can be in config file
   name?: string;
   version?: string;
   description?: string;
   author?: string;
-  type: string;
+  type?: string;
   dependencies?: string[];
 }
 
@@ -85,13 +87,46 @@ export interface WebUIPlugin {
   destroy?: () => Promise<void> | void;
 
   // Extension methods (plugins implement what they need)
-  getQueryFilterExtensions?: () => QueryFilterExtension[];
-  getResultOptionsExtensions?: () => ResultOptionsExtension[];
-  getResultBatchExtensions?: () => ResultBatchExtension[];
-  getResultRendererExtensions?: () => ResultRendererExtension[];
-  getSidebarMenuExtensions?: () => SidebarMenuExtension[];
-  getRouteExtensions?: () => RouteExtension[];
-  getSettingsExtensions?: () => SettingsExtension[];
+  getQueryFilterExtensions?: (args?: ExtensionFactoryArgs) => QueryFilterExtension[];
+  getResultOptionsExtensions?: (
+    args?: ExtensionFactoryArgs,
+  ) => ResultOptionsExtension[];
+  getResultBatchExtensions?: (args?: ExtensionFactoryArgs) => ResultBatchExtension[];
+  getResultRendererExtensions?: (
+    args?: ExtensionFactoryArgs,
+  ) => ResultRendererExtension[];
+  getSidebarMenuExtensions?: (args?: ExtensionFactoryArgs) => SidebarMenuExtension[];
+  getRouteExtensions?: (args?: ExtensionFactoryArgs) => RouteExtension[];
+  getSettingsExtensions?: (args?: ExtensionFactoryArgs) => SettingsExtension[];
+}
+
+export interface ExtensionFactoryArgs {
+  context: PluginContext;
+}
+
+export type ResolvedPluginExtension<T> = T & {
+  pluginId: string;
+};
+
+export interface QueryFilterApplyArgs {
+  context: PluginContext;
+  currentQuery?: string;
+  pluginId: string;
+}
+
+export interface ResultOptionActionArgs {
+  result: Study;
+  context: PluginContext;
+  pluginId: string;
+  signal?: AbortSignal;
+}
+
+export interface ResultBatchActionArgs {
+  results: Study[];
+  searchResults?: SearchResult[];
+  context: PluginContext;
+  pluginId: string;
+  signal?: AbortSignal;
 }
 
 /**
@@ -110,7 +145,7 @@ export interface QueryFilterExtension {
   description?: string;
   component: React.ComponentType<QueryFilterProps>; // Use the extracted type here
   defaultValue: any;
-  applyFilter?: (value: any) => string | null;
+  applyFilter?: (value: any, args?: QueryFilterApplyArgs) => string | null;
   order?: number;
 }
 
@@ -124,7 +159,9 @@ export interface ResultOptionsExtension {
   icon: ReactNode;
   order?: number;
   condition?: (result: Study) => boolean;
-  action: (result: Study, context: PluginContext) => void | Promise<void>;
+  action:
+    | ((result: Study, context: PluginContext) => void | Promise<void>)
+    | ((args: ResultOptionActionArgs) => void | Promise<void>);
 }
 
 /**
@@ -136,7 +173,9 @@ export interface ResultBatchExtension {
   label: string;
   icon: ReactNode;
   order?: number;
-  action: (results: Study[], context: PluginContext) => void | Promise<void>;
+  action:
+    | ((results: Study[], context: PluginContext) => void | Promise<void>)
+    | ((args: ResultBatchActionArgs) => void | Promise<void>);
 }
 
 /**
@@ -217,6 +256,7 @@ export interface PluginRegistry {
     defaultEnabled?: boolean,
   ) => void;
   getPlugin: (id: string) => WebUIPlugin | undefined;
+  getPluginMetadata: (id: string) => PluginMetadata | undefined;
   getAllPlugins: () => WebUIPlugin[];
   getEnabledPlugins: () => WebUIPlugin[];
   getDisabledPlugins: () => WebUIPlugin[];
