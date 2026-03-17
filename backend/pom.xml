@@ -20,6 +20,11 @@
 
     <modules>
         <module>dicoogle-next</module>
+        <module>dicoogle-next-sdk</module>
+        <module>dicoogle-next-core</module>
+        <module>dicoogle-next-protocol-dimse</module>
+        <module>dicoogle-next-protocol-dicomweb</module>
+        <module>dicoogle-next-storage-file-ro</module>
     </modules>
 
     <properties>
