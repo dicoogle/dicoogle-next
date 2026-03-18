@@ -26,7 +26,6 @@ export default function AnalyticsPage() {
       // Search for all studies
       const results = await dicoogleService.search({
         query: "*",
-        providers: ["lucene"],
       });
 
       // Calculate statistics

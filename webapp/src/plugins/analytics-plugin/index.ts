@@ -29,9 +29,7 @@ const analyticsPlugin: WebUIPlugin = {
 
     // Fetch initial statistics
     try {
-      const results = await context.dicoogle.search("*", {
-        provider: "lucene",
-      });
+      const results = await context.dicoogle.search("*");
 
       context.storage.set("lastStats", {
         totalStudies: results.results?.length || 0,
