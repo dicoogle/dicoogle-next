@@ -1,6 +1,8 @@
 package pt.ua.dicooglenext.dicooglenext.config;
 
+import java.nio.file.Path;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import pt.ua.dicooglenext.core.plugins.PluginRegistry;
@@ -12,8 +14,9 @@ import pt.ua.dicooglenext.storage.filero.FileReadOnlyStoragePlugin;
 public class PluginRuntimeConfig {
 
   @Bean
-  FileReadOnlyStoragePlugin fileReadOnlyStoragePlugin() {
-    return new FileReadOnlyStoragePlugin();
+  FileReadOnlyStoragePlugin fileReadOnlyStoragePlugin(
+      @Value("${app.storage.file-ro.root-dir:./data/storage}") String rootDir) {
+    return new FileReadOnlyStoragePlugin(Path.of(rootDir));
   }
 
   @Bean
