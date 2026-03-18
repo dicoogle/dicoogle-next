@@ -36,3 +36,17 @@ app:
   security:
     docs-enabled: false
     allowed-origins: []
+  dimse:
+    cstore:
+      enabled: false
+      ae-title: DICOOGLE
+      bind-address: 0.0.0.0
+      port: 11112
+      storage-scheme: file
+  storage:
+    file-ro:
+      root-dir: ./data/storage
+    file-rw:
+      enabled: false
+      root-dir: ./data/storage
+      scheme: file

@@ -10,6 +10,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -75,6 +76,20 @@ public class ApiExceptionHandler {
             HttpStatus.FORBIDDEN, "You are not allowed to access this resource.");
     problem.setType(URI.create("https://dicoogle-next.dev/problems/forbidden"));
     problem.setTitle("Access denied");
+    addPath(problem, request);
+    return problem;
+  }
+
+  @ExceptionHandler(ResponseStatusException.class)
+  ProblemDetail handleResponseStatusException(
+      ResponseStatusException exception, HttpServletRequest request) {
+    HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+    String detail =
+        exception.getReason() != null ? exception.getReason() : status.getReasonPhrase();
+
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+    problem.setType(URI.create("https://dicoogle-next.dev/problems/http-status"));
+    problem.setTitle(status.getReasonPhrase());
     addPath(problem, request);
     return problem;
   }
