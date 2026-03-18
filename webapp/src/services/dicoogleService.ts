@@ -260,17 +260,17 @@ class DicoogleService {
       const queryProviders = response.plugins
         .filter((plugin: PluginInfo) => plugin.type === "query" && plugin.enabled)
         .map((plugin: PluginInfo) => plugin.name);
-      
-      return queryProviders.length > 0 ? queryProviders : ["lucene"];
+
+      return queryProviders;
     } catch (error) {
       console.error("[DicoogleService] Failed to get query providers:", error);
-      return ["lucene"]; // Fallback to lucene
+      return [];
     }
   }
 
   /**
    * Search for DICOM studies
-   * If no providers specified, searches all available query providers and aggregates results
+   * If no providers specified, searches available query providers and aggregates results.
    * If providers specified, searches only those providers
    */
   async search(query: SearchQuery): Promise<SearchResponse> {
@@ -288,15 +288,33 @@ class DicoogleService {
       providers = await this.getQueryProviders();
     }
 
-    // Search all providers in parallel
-    const searchPromises = providers.map(provider =>
-      dicoogleClient!.search(query.query, {
-        provider: provider,
+    if (providers.length === 0) {
+      const outcome = await dicoogleClient.search(query.query, {
         keyword: true,
-      }).catch(error => {
-        console.error(`[DicoogleService] Search failed for provider ${provider}:`, error);
-        return { results: [], elapsedTime: 0 };
-      })
+      });
+
+      const results = outcome.results || [];
+      return {
+        results,
+        elapsedTime: outcome.elapsedTime || 0,
+        numResults: results.length,
+      };
+    }
+
+    // Search all providers in parallel
+    const searchPromises = providers.map((provider) =>
+      dicoogleClient!
+        .search(query.query, {
+          provider,
+          keyword: true,
+        })
+        .catch((error) => {
+          console.error(
+            `[DicoogleService] Search failed for provider ${provider}:`,
+            error,
+          );
+          return { results: [], elapsedTime: 0 };
+        }),
     );
 
     const outcomes = await Promise.all(searchPromises);
