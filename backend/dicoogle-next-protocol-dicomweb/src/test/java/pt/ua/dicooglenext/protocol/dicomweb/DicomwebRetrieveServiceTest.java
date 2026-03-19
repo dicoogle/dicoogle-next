@@ -1,7 +1,6 @@
 package pt.ua.dicooglenext.protocol.dicomweb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -54,7 +53,7 @@ class DicomwebRetrieveServiceTest {
             "1.2.826.0.1.3680043.2.1125.3",
             "1.2.826.0.1.3680043.2.1125.1");
     assertEquals("PATIENT-1", metadata.get("PatientID"));
-    assertNotNull(metadata.get("location"));
+    assertEquals("1.2.826.0.1.3680043.2.1125.2", metadata.get("StudyInstanceUID"));
   }
 
   @Test

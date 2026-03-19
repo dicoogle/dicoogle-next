@@ -176,7 +176,6 @@ public class DicomwebRetrieveService {
         metadata.put("SeriesInstanceUID", attrs.getString(Tag.SeriesInstanceUID));
         metadata.put("SOPInstanceUID", attrs.getString(Tag.SOPInstanceUID));
         metadata.put("SOPClassUID", attrs.getString(Tag.SOPClassUID));
-        metadata.put("location", location.toString());
         return metadata;
       }
     } catch (IOException ex) {

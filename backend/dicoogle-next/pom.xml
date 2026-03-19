@@ -98,12 +98,6 @@
             <artifactId>spring-boot-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.dcm4che</groupId>
-            <artifactId>dcm4che-core</artifactId>
-            <version>${dcm4che.version}</version>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>

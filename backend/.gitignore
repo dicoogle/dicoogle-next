@@ -199,5 +199,6 @@ README.html
 *.iml
 .idea
 .exercism
+data/*
 
 STORAGE_MVP_PLAN.md
