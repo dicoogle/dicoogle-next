@@ -3,7 +3,7 @@ package pt.ua.dicooglenext.dicooglenext.service;
 import java.util.Arrays;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import pt.ua.dicooglenext.dicooglenext.api.dto.SystemStatusResponse;
+import pt.ua.dicooglenext.dicooglenext.dto.SystemStatusResponse;
 
 @Service
 public class SystemStatusService {
