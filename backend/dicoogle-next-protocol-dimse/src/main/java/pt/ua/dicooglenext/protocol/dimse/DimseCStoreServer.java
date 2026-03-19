@@ -27,15 +27,21 @@ public class DimseCStoreServer implements SmartLifecycle {
 
   private final CStoreService cStoreService;
   private final DimseCStoreProperties properties;
+  private final String primaryStorageScheme;
 
   private volatile boolean running;
   private Device device;
   private ExecutorService executor;
   private ScheduledExecutorService scheduler;
 
-  public DimseCStoreServer(CStoreService cStoreService, DimseCStoreProperties properties) {
+  public DimseCStoreServer(
+      CStoreService cStoreService, DimseCStoreProperties properties, String primaryStorageScheme) {
     this.cStoreService = Objects.requireNonNull(cStoreService);
     this.properties = Objects.requireNonNull(properties);
+    this.primaryStorageScheme =
+        primaryStorageScheme == null || primaryStorageScheme.isBlank()
+            ? "file"
+            : primaryStorageScheme;
   }
 
   @Override
@@ -83,10 +89,15 @@ public class DimseCStoreServer implements SmartLifecycle {
               PDVInputStream data,
               Attributes rsp)
               throws IOException {
+            String targetScheme =
+                properties.getStorageScheme() == null || properties.getStorageScheme().isBlank()
+                    ? primaryStorageScheme
+                    : properties.getStorageScheme();
+
             CStoreResult result =
                 cStoreService.store(
                     new CStoreRequest(
-                        properties.getStorageScheme(),
+                        targetScheme,
                         data.readAllBytes(),
                         "application/dicom",
                         as.getCallingAET(),

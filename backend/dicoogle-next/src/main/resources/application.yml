@@ -50,3 +50,11 @@ app:
       enabled: false
       root-dir: ./data/storage
       scheme: file
+  plugins:
+    startup-validation:
+      require-writable-provider: false
+      writable-scheme: file
+    storage:
+      primary-scheme: file
+      enabled-schemes: []
+      disabled-schemes: []

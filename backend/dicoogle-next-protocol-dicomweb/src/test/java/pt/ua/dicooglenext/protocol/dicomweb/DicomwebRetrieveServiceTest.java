@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import pt.ua.dicooglenext.core.storage.StorageRouter;
 import pt.ua.dicooglenext.sdk.PluginMetadata;
+import pt.ua.dicooglenext.sdk.service.StorageRetrieveEventListener;
 import pt.ua.dicooglenext.sdk.storage.HierarchicalDicomStoragePlugin;
 import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
 import pt.ua.dicooglenext.sdk.storage.StoredObject;
@@ -34,7 +36,10 @@ class DicomwebRetrieveServiceTest {
     InMemoryHierarchicalStoragePlugin plugin = new InMemoryHierarchicalStoragePlugin(dicom);
     DicomwebRetrieveService service =
         new DicomwebRetrieveService(
-            List.of(plugin), new StorageRouter(List.<StoragePlugin>of(plugin)));
+            List.of(plugin),
+            new StorageRouter(List.<StoragePlugin>of(plugin)),
+            List.<StorageRetrieveEventListener>of(),
+            new SimpleMeterRegistry());
 
     byte[] retrieved =
         service.retrieveInstance(
@@ -57,7 +62,9 @@ class DicomwebRetrieveServiceTest {
     DicomwebRetrieveService service =
         new DicomwebRetrieveService(
             List.of(new EmptyHierarchicalStoragePlugin()),
-            new StorageRouter(List.<StoragePlugin>of()));
+            new StorageRouter(List.<StoragePlugin>of()),
+            List.<StorageRetrieveEventListener>of(),
+            new SimpleMeterRegistry());
 
     ResponseStatusException ex =
         assertThrows(

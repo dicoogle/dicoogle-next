@@ -1,5 +1,7 @@
 package pt.ua.dicooglenext.protocol.dimse;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
@@ -23,24 +25,39 @@ public class CStoreService {
 
   private final StorageRouter storageRouter;
   private final List<StorageIngestEventListener> listeners;
+  private final MeterRegistry meterRegistry;
 
   public CStoreService(StorageRouter storageRouter) {
-    this(storageRouter, List.of());
+    this(storageRouter, List.of(), null);
   }
 
   public CStoreService(StorageRouter storageRouter, List<StorageIngestEventListener> listeners) {
+    this(storageRouter, listeners, null);
+  }
+
+  public CStoreService(
+      StorageRouter storageRouter,
+      List<StorageIngestEventListener> listeners,
+      MeterRegistry meterRegistry) {
     this.storageRouter = Objects.requireNonNull(storageRouter);
     this.listeners = List.copyOf(Objects.requireNonNull(listeners));
+    this.meterRegistry = meterRegistry;
   }
 
   public CStoreResult store(CStoreRequest request) {
+    long startNs = System.nanoTime();
+
     String scheme =
         request.storageScheme() == null || request.storageScheme().isBlank()
             ? "file"
             : request.storageScheme();
 
+    increment("dicoogle.cstore.requests", scheme);
+
     if (request.payload() == null || request.payload().length == 0) {
-      return CStoreResult.cannotUnderstand("Received empty C-STORE payload");
+      CStoreResult result = CStoreResult.cannotUnderstand("Received empty C-STORE payload");
+      recordOutcome("failure", scheme, startNs);
+      return result;
     }
 
     CStoreIdentifiers identifiers = extractIdentifiers(request.payload());
@@ -48,6 +65,7 @@ public class CStoreService {
       CStoreResult result =
           CStoreResult.cannotUnderstand("Missing required DICOM identifiers for C-STORE");
       emitIngestFailure(request, null, result, scheme);
+      recordOutcome("failure", scheme, startNs);
       return result;
     }
 
@@ -66,6 +84,8 @@ public class CStoreService {
           scheme,
           stored.location());
       emitIngestSuccess(request, identifiers, stored, scheme);
+      increment("dicoogle.cstore.success", scheme);
+      recordOutcome("success", scheme, startNs);
       return result;
     } catch (NoWritableStoragePluginException | StoragePluginNotFoundException ex) {
       CStoreResult result = CStoreResult.noWritableProvider(scheme);
@@ -78,6 +98,8 @@ public class CStoreService {
           identifiers.sopInstanceUid(),
           scheme);
       emitIngestFailure(request, identifiers, result, scheme);
+      increment("dicoogle.cstore.failure", scheme);
+      recordOutcome("failure", scheme, startNs);
       return result;
     } catch (IOException | RuntimeException ex) {
       CStoreResult result =
@@ -92,6 +114,8 @@ public class CStoreService {
           scheme,
           ex.getMessage());
       emitIngestFailure(request, identifiers, result, scheme);
+      increment("dicoogle.cstore.failure", scheme);
+      recordOutcome("failure", scheme, startNs);
       return result;
     }
   }
@@ -159,5 +183,21 @@ public class CStoreService {
 
   private String nullSafe(String value) {
     return value == null ? "-" : value;
+  }
+
+  private void increment(String metric, String scheme) {
+    if (meterRegistry != null) {
+      meterRegistry.counter(metric, "scheme", scheme).increment();
+    }
+  }
+
+  private void recordOutcome(String outcome, String scheme, long startNs) {
+    if (meterRegistry != null) {
+      Timer.builder("dicoogle.cstore.latency")
+          .tag("scheme", scheme)
+          .tag("outcome", outcome)
+          .register(meterRegistry)
+          .record(System.nanoTime() - startNs, java.util.concurrent.TimeUnit.NANOSECONDS);
+    }
   }
 }
