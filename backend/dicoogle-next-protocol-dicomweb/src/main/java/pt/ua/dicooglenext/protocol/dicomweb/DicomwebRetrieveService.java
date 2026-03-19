@@ -1,5 +1,7 @@
 package pt.ua.dicooglenext.protocol.dicomweb;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -17,7 +19,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import pt.ua.dicooglenext.core.storage.StorageRouter;
+import pt.ua.dicooglenext.sdk.service.StorageRetrieveEventListener;
 import pt.ua.dicooglenext.sdk.storage.HierarchicalDicomStoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.StorageRetrieveFailureEvent;
+import pt.ua.dicooglenext.sdk.storage.StorageRetrieveSuccessEvent;
 
 @Service
 public class DicomwebRetrieveService {
@@ -26,26 +31,57 @@ public class DicomwebRetrieveService {
 
   private final List<HierarchicalDicomStoragePlugin> hierarchicalPlugins;
   private final StorageRouter storageRouter;
+  private final List<StorageRetrieveEventListener> retrieveEventListeners;
+  private final MeterRegistry meterRegistry;
 
   @Autowired
   public DicomwebRetrieveService(
-      List<HierarchicalDicomStoragePlugin> hierarchicalPlugins, StorageRouter storageRouter) {
+      List<HierarchicalDicomStoragePlugin> hierarchicalPlugins,
+      StorageRouter storageRouter,
+      List<StorageRetrieveEventListener> retrieveEventListeners,
+      MeterRegistry meterRegistry) {
     this.hierarchicalPlugins = List.copyOf(hierarchicalPlugins);
     this.storageRouter = storageRouter;
+    this.retrieveEventListeners = List.copyOf(retrieveEventListeners);
+    this.meterRegistry = meterRegistry;
   }
 
   public byte[] retrieveInstance(
       String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
+    long startNs = System.nanoTime();
+
     LOGGER.info(
         "WADO-RS retrieve instance request: studyUID={}, seriesUID={}, sopUID={}",
         studyInstanceUid,
         seriesInstanceUid,
         sopInstanceUid);
 
+    increment("dicoogle.wadors.requests", "instance");
+
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
     try (var stream = located.plugin().openForRead(located.location())) {
-      return stream.readAllBytes();
+      byte[] payload = stream.readAllBytes();
+      emitRetrieveSuccess(
+          studyInstanceUid,
+          seriesInstanceUid,
+          sopInstanceUid,
+          located.location().getScheme(),
+          located.location(),
+          payload.length);
+      increment("dicoogle.wadors.success", "instance");
+      meterRegistry.counter("dicoogle.wadors.bytes", "type", "instance").increment(payload.length);
+      recordLatency("instance", "success", startNs);
+      return payload;
     } catch (IOException ex) {
+      emitRetrieveFailure(
+          studyInstanceUid,
+          seriesInstanceUid,
+          sopInstanceUid,
+          located.location().getScheme(),
+          HttpStatus.INTERNAL_SERVER_ERROR.value(),
+          "Failed to read DICOM instance from storage provider");
+      increment("dicoogle.wadors.failure", "instance");
+      recordLatency("instance", "failure", startNs);
       throw new ResponseStatusException(
           HttpStatus.INTERNAL_SERVER_ERROR,
           "Failed to read DICOM instance from storage provider",
@@ -150,4 +186,47 @@ public class DicomwebRetrieveService {
   }
 
   private record LocatedInstance(HierarchicalDicomStoragePlugin plugin, URI location) {}
+
+  private void increment(String metric, String type) {
+    meterRegistry.counter(metric, "type", type).increment();
+  }
+
+  private void recordLatency(String type, String outcome, long startNs) {
+    Timer.builder("dicoogle.wadors.latency")
+        .tag("type", type)
+        .tag("outcome", outcome)
+        .register(meterRegistry)
+        .record(System.nanoTime() - startNs, java.util.concurrent.TimeUnit.NANOSECONDS);
+  }
+
+  private void emitRetrieveSuccess(
+      String studyInstanceUid,
+      String seriesInstanceUid,
+      String sopInstanceUid,
+      String storageScheme,
+      URI location,
+      long bytesServed) {
+    StorageRetrieveSuccessEvent event =
+        new StorageRetrieveSuccessEvent(
+            studyInstanceUid,
+            seriesInstanceUid,
+            sopInstanceUid,
+            storageScheme,
+            location,
+            bytesServed);
+    retrieveEventListeners.forEach(listener -> listener.onRetrieveSuccess(event));
+  }
+
+  private void emitRetrieveFailure(
+      String studyInstanceUid,
+      String seriesInstanceUid,
+      String sopInstanceUid,
+      String storageScheme,
+      int httpStatus,
+      String reason) {
+    StorageRetrieveFailureEvent event =
+        new StorageRetrieveFailureEvent(
+            studyInstanceUid, seriesInstanceUid, sopInstanceUid, storageScheme, httpStatus, reason);
+    retrieveEventListeners.forEach(listener -> listener.onRetrieveFailure(event));
+  }
 }
