@@ -2,18 +2,6 @@ spring:
   config:
     activate:
       on-profile: test
-  datasource:
-    url: jdbc:h2:mem:dicoogle_next_test;MODE=PostgreSQL;NON_KEYWORDS=KEY;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-  flyway:
-    enabled: true
-    locations: classpath:db/migration,classpath:db/testdata
 
 logging:
   level:
