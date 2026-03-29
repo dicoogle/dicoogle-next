@@ -6,6 +6,7 @@
     "dev": "node FileSystemManagerServer.js",
     "build": "tsc && vite build",
     "preview": "NODE_ENV=production node FileSystemManagerServer.js",
+    "build:fs": "npx esbuild FileSystemManagerServer.js --bundle --platform=node --format=cjs --outfile=fs-server-bundle.cjs && pkg fs-server-bundle.cjs --public --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --out-path ./dist/bin",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit"
   },
@@ -46,6 +47,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.11",
+    "pkg": "^5.8.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
     "typescript": "^5.5.3",

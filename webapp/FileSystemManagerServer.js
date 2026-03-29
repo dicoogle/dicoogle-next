@@ -22,26 +22,29 @@ app.use(express.json());
 // Supports both Linux/Unix paths and Windows drives
 const getDefaultAllowedRoots = () => {
   const platform = os.platform();
+  let allowedDrives;
 
   if (platform === 'win32') {
     // Windows: Allow all drive letters that exist
     allowedDrives = [
       "C"
     ]
-    const drives = [];
-    for (var drive in drives) { // 
-      if (fs.existsSync(drive)) {
-        drives.push(drive);
-        // Also add without trailing slash for compatibility
-        drives.push(String.fromCharCode(i) + ':');
+    let drives = []
+    for (const letter of allowedDrives) {
+      const driveWithSlash = `${letter}:\\`;
+      const driveWithoutSlash = `${letter}:`;
+
+      // Check if the drive actually exists on this machine
+      if (fs.existsSync(driveWithSlash)) {
+        drives.push(driveWithSlash);
+        drives.push(driveWithoutSlash);
       }
     }
     return drives;
   } else {
     // Linux/Unix/Mac: mount points
     return [
-      // '/home',
-      '/webapp/docs'
+      '/home',
     ];
   }
 };
@@ -76,6 +79,11 @@ function safeStatSync(filePath) {
     }
     return null;
   }
+}
+
+function formatClientPath(filePath) {
+  // Replace all backslashes with forward slashes
+  return filePath.replace(/\\/g, '/');
 }
 
 // Normalize path for cross-platform comparison
@@ -160,10 +168,10 @@ app.post('/api/filesystem', (req, res) => {
         }
 
         return {
-          id: fullPath,
+          id: formatClientPath(fullPath),
           name: entry,
           isDir: stats.isDirectory(),
-          path: fullPath,
+          path: formatClientPath(fullPath),
         };
       })
       .filter(entry => entry !== null) // Remove null entries
@@ -200,10 +208,10 @@ app.post('/api/filesystem', (req, res) => {
           for (const part of pathParts) {
             accumulatedPath += path.sep + part;
             folderChain.push({
-              id: accumulatedPath,
+              id: formatClientPath(accumulatedPath),
               name: part,
               isDir: true,
-              path: accumulatedPath,
+              path: formatClientPath(accumulatedPath),
             });
           }
         }

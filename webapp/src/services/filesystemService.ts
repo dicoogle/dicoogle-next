@@ -23,7 +23,9 @@ export interface FilesystemRootsResponse {
 }
 
 class FilesystemService {
-  private baseUrl = '/next/files/filesystem';
+  private baseUrl = import.meta.env.VITE_FILESYSTEM_API_BASE_URL || 'http://localhost:3333/api/filesystem';
+
+
 
   async getRoots(): Promise<string[]> {
     const response = await fetch(`${this.baseUrl}/roots`);
