@@ -18,6 +18,105 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
+const getDefaultConfigPath = () => {
+  if (process.pkg) {
+    return path.join(path.dirname(process.execPath), 'filesystem.config.json');
+  }
+  return path.join(process.cwd(), 'filesystem.config.json');
+};
+
+const parseRootsFromEnv = () => {
+  const raw = process.env.FILESYSTEM_ALLOWED_ROOTS;
+  if (!raw || !raw.trim()) {
+    return [];
+  }
+
+  const value = raw.trim();
+  if (value.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      console.warn('Failed to parse FILESYSTEM_ALLOWED_ROOTS as JSON array. Falling back to delimiter parsing.');
+    }
+  }
+
+  const separator = value.includes(';') ? ';' : ',';
+  return value
+    .split(separator)
+    .map(entry => entry.trim())
+    .filter(Boolean);
+};
+
+const readRootsFromConfigFile = () => {
+  const configPath = process.env.FILESYSTEM_CONFIG_PATH
+    ? path.resolve(process.cwd(), process.env.FILESYSTEM_CONFIG_PATH)
+    : getDefaultConfigPath();
+
+  if (!fs.existsSync(configPath)) {
+    return [];
+  }
+
+  try {
+    const raw = fs.readFileSync(configPath, 'utf8');
+    const parsed = JSON.parse(raw);
+
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+
+    if (Array.isArray(parsed.allowedRoots)) {
+      return parsed.allowedRoots;
+    }
+
+    console.warn(`Config file ${configPath} does not expose an array or "allowedRoots" array.`);
+  } catch (err) {
+    console.warn(`Failed to read filesystem config file ${configPath}: ${err.message}`);
+  }
+
+  return [];
+};
+
+const expandUserPath = inputPath => {
+  if (!inputPath || typeof inputPath !== 'string') {
+    return '';
+  }
+
+  if (inputPath === '~') {
+    return os.homedir();
+  }
+
+  if (inputPath.startsWith('~/') || inputPath.startsWith('~\\')) {
+    return path.join(os.homedir(), inputPath.slice(2));
+  }
+
+  return inputPath;
+};
+
+const sanitizeRoots = roots => {
+  const unique = new Set();
+
+  for (const root of roots) {
+    if (typeof root !== 'string') {
+      continue;
+    }
+
+    const expanded = expandUserPath(root.trim());
+    if (!expanded) {
+      continue;
+    }
+
+    const normalized = path.normalize(expanded);
+    if (fs.existsSync(normalized)) {
+      unique.add(normalized);
+    } else {
+      console.warn(`Skipping non-existent allowed root: ${root}`);
+    }
+  }
+
+  return Array.from(unique);
+};
+
 // Configure allowed root directories for filesystem access
 // Supports both Linux/Unix paths and Windows drives
 const getDefaultAllowedRoots = () => {
@@ -49,7 +148,14 @@ const getDefaultAllowedRoots = () => {
   }
 };
 
-const allowedRoots = getDefaultAllowedRoots();
+const configuredRoots = sanitizeRoots([
+  ...parseRootsFromEnv(),
+  ...readRootsFromConfigFile(),
+]);
+
+const allowedRoots = configuredRoots.length > 0
+  ? configuredRoots
+  : sanitizeRoots(getDefaultAllowedRoots());
 
 // Helper function to check if path is accessible
 function isAccessible(filePath) {
