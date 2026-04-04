@@ -3,12 +3,16 @@ package pt.ua.dicooglenext.protocol.dimse;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.UID;
+import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
+import org.dcm4che3.io.DicomOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pt.ua.dicooglenext.core.storage.NoWritableStoragePluginException;
@@ -69,10 +73,52 @@ public class CStoreService {
       return result;
     }
 
+    String affectedSopClassUid = request.affectedSopClassUid();
+    String transferSyntaxUid = request.transferSyntaxUid();
+    if (!isPresent(affectedSopClassUid)) {
+      affectedSopClassUid = identifiers.sopClassUid();
+    }
+    if (!isPresent(transferSyntaxUid)) {
+      transferSyntaxUid = UID.ImplicitVRLittleEndian;
+    }
+
+    if (!affectedSopClassUid.equals(identifiers.sopClassUid())) {
+      CStoreResult result =
+          CStoreResult.cannotUnderstand(
+              "Affected SOP Class UID does not match dataset SOP Class UID", identifiers);
+      emitIngestFailure(request, identifiers, result, scheme);
+      increment("dicoogle.cstore.failure", scheme);
+      recordOutcome("failure", scheme, startNs);
+      return result;
+    }
+
+    if (isPresent(request.affectedSopInstanceUid())
+        && !request.affectedSopInstanceUid().equals(identifiers.sopInstanceUid())) {
+      CStoreResult result =
+          CStoreResult.cannotUnderstand(
+              "Affected SOP Instance UID does not match dataset SOP Instance UID", identifiers);
+      emitIngestFailure(request, identifiers, result, scheme);
+      increment("dicoogle.cstore.failure", scheme);
+      recordOutcome("failure", scheme, startNs);
+      return result;
+    }
+
+    byte[] ps310Payload;
+    try {
+      ps310Payload = normalizeToPs310(request.payload(), affectedSopClassUid, transferSyntaxUid);
+    } catch (IOException ex) {
+      CStoreResult result =
+          CStoreResult.cannotUnderstand("Failed to create a PS3.10 DICOM file payload", identifiers);
+      emitIngestFailure(request, identifiers, result, scheme);
+      increment("dicoogle.cstore.failure", scheme);
+      recordOutcome("failure", scheme, startNs);
+      return result;
+    }
+
     try {
       var plugin = storageRouter.requireWritable(scheme);
       StoredObject stored =
-          plugin.store(new ByteArrayInputStream(request.payload()), request.contentType());
+          plugin.store(new ByteArrayInputStream(ps310Payload), request.contentType());
       CStoreResult result = CStoreResult.success(identifiers, stored.location());
       LOGGER.info(
           "C-STORE stored: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
@@ -141,6 +187,37 @@ public class CStoreService {
     } catch (IOException ex) {
       return null;
     }
+  }
+
+  private byte[] normalizeToPs310(byte[] payload, String sopClassUid, String transferSyntaxUid)
+      throws IOException {
+    try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(payload))) {
+      Attributes attrs = dis.readDataset();
+      String sopInstanceUid = attrs.getString(Tag.SOPInstanceUID);
+      if (!isPresent(sopInstanceUid)) {
+        throw new IOException("Dataset missing SOP Instance UID");
+      }
+
+      Attributes fmi = new Attributes();
+      fmi.setBytes(Tag.FileMetaInformationVersion, VR.OB, new byte[] {0, 1});
+      fmi.setString(Tag.MediaStorageSOPClassUID, VR.UI, sopClassUid);
+      fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, sopInstanceUid);
+      fmi.setString(Tag.TransferSyntaxUID, VR.UI, transferSyntaxUid);
+      fmi.setString(Tag.ImplementationClassUID, VR.UI, UIDUtilsHolder.IMPLEMENTATION_CLASS_UID);
+      fmi.setString(
+          Tag.ImplementationVersionName, VR.SH, UIDUtilsHolder.IMPLEMENTATION_VERSION_NAME);
+
+      ByteArrayOutputStream output = new ByteArrayOutputStream(payload.length + 512);
+      try (DicomOutputStream dos = new DicomOutputStream(output, transferSyntaxUid)) {
+        dos.writeDataset(fmi, attrs);
+      }
+      return output.toByteArray();
+    }
+  }
+
+  private static final class UIDUtilsHolder {
+    private static final String IMPLEMENTATION_CLASS_UID = "1.2.826.0.1.3680043.10.5432.1";
+    private static final String IMPLEMENTATION_VERSION_NAME = "DICOOGLE_NEXT";
   }
 
   private boolean isPresent(String value) {

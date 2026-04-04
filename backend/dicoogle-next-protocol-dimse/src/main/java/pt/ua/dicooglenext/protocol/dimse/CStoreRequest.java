@@ -5,4 +5,7 @@ public record CStoreRequest(
     byte[] payload,
     String contentType,
     String callingAet,
-    String calledAet) {}
+    String calledAet,
+    String affectedSopClassUid,
+    String affectedSopInstanceUid,
+    String transferSyntaxUid) {}

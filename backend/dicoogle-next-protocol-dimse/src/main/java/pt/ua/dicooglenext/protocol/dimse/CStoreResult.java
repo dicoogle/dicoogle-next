@@ -28,4 +28,20 @@ public record CStoreResult(int status, String detail, CStoreIdentifiers identifi
   public static CStoreResult cannotUnderstand(String detail, CStoreIdentifiers identifiers) {
     return new CStoreResult(CStoreDimseStatus.ERROR_CANNOT_UNDERSTAND, detail, identifiers, null);
   }
+
+  public static CStoreResult sopClassNotSupported(String sopClassUid) {
+    return new CStoreResult(
+        CStoreDimseStatus.SOP_CLASS_NOT_SUPPORTED,
+        "SOP Class '%s' is not supported".formatted(sopClassUid),
+        null,
+        null);
+  }
+
+  public static CStoreResult transferSyntaxNotSupported(String transferSyntaxUid) {
+    return new CStoreResult(
+        CStoreDimseStatus.TRANSFER_SYNTAX_NOT_SUPPORTED,
+        "Transfer Syntax '%s' is not supported".formatted(transferSyntaxUid),
+        null,
+        null);
+  }
 }

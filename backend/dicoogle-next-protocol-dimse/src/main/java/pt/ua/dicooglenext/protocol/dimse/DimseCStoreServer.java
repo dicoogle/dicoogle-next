@@ -68,14 +68,7 @@ public class DimseCStoreServer implements SmartLifecycle {
     device.addApplicationEntity(ae);
     ae.addConnection(connection);
 
-    ae.addTransferCapability(
-        new TransferCapability("cstore-scp", "*", TransferCapability.Role.SCP, "*"));
-    ae.addTransferCapability(
-        new TransferCapability(
-            "verification-scp",
-            UID.Verification,
-            TransferCapability.Role.SCP,
-            UID.ImplicitVRLittleEndian));
+    configureTransferCapabilities(ae, properties);
 
     DicomServiceRegistry services = new DicomServiceRegistry();
     services.addDicomService(new BasicCEchoSCP());
@@ -101,7 +94,10 @@ public class DimseCStoreServer implements SmartLifecycle {
                         data.readAllBytes(),
                         "application/dicom",
                         as.getCallingAET(),
-                        as.getCalledAET()));
+                        as.getCalledAET(),
+                        rq.getString(Tag.AffectedSOPClassUID),
+                        rq.getString(Tag.AffectedSOPInstanceUID),
+                        pc.getTransferSyntax()));
 
             rsp.setInt(Tag.Status, VR.US, result.status());
             if (result.status() != CStoreDimseStatus.SUCCESS) {
@@ -167,6 +163,37 @@ public class DimseCStoreServer implements SmartLifecycle {
     if (scheduler != null) {
       scheduler.shutdownNow();
       scheduler = null;
+    }
+  }
+
+  private void configureTransferCapabilities(ApplicationEntity ae, DimseCStoreProperties properties) {
+    int index = 0;
+    for (DimseCStoreProperties.AcceptedTransferCapability capability :
+        properties.getAcceptedTransferCapabilities()) {
+      if (capability.getSopClassUid() == null
+          || capability.getSopClassUid().isBlank()
+          || capability.getTransferSyntaxUids().isEmpty()) {
+        continue;
+      }
+
+      ae.addTransferCapability(
+          new TransferCapability(
+              "configured-scp-" + index++,
+              capability.getSopClassUid(),
+              TransferCapability.Role.SCP,
+              capability.getTransferSyntaxUids().toArray(String[]::new)));
+    }
+
+    boolean hasVerification =
+        properties.getAcceptedTransferCapabilities().stream()
+            .anyMatch(c -> UID.Verification.equals(c.getSopClassUid()));
+    if (!hasVerification) {
+      ae.addTransferCapability(
+          new TransferCapability(
+              "verification-scp",
+              UID.Verification,
+              TransferCapability.Role.SCP,
+              UID.ImplicitVRLittleEndian));
     }
   }
 }
