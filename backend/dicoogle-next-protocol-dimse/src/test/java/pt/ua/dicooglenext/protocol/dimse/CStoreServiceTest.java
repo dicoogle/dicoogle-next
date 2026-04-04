@@ -2,6 +2,7 @@ package pt.ua.dicooglenext.protocol.dimse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,6 +12,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
+import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
 import org.junit.jupiter.api.Test;
 import pt.ua.dicooglenext.core.storage.StorageRouter;
@@ -27,7 +29,14 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
-                "file", createValidDicom(), "application/dicom", "CALLING_AET", "CALLED_AET"));
+                "file",
+                createValidDicom(),
+                "application/dicom",
+                "CALLING_AET",
+                "CALLED_AET",
+                UID.SecondaryCaptureImageStorage,
+                "1.2.826.0.1.3680043.2.1125.1",
+                UID.ExplicitVRLittleEndian));
 
     assertEquals(CStoreDimseStatus.REFUSED_OUT_OF_RESOURCES, result.status());
   }
@@ -41,10 +50,20 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
-                "file", createValidDicom(), "application/dicom", "CALLING_AET", "CALLED_AET"));
+                "file",
+                createValidDicom(),
+                "application/dicom",
+                "CALLING_AET",
+                "CALLED_AET",
+                UID.SecondaryCaptureImageStorage,
+                "1.2.826.0.1.3680043.2.1125.1",
+                UID.ExplicitVRLittleEndian));
 
     assertEquals(CStoreDimseStatus.SUCCESS, result.status());
     assertEquals(1, writable.storedCount);
+    assertEquals(UID.SecondaryCaptureImageStorage, writable.mediaStorageSopClassUid);
+    assertEquals("1.2.826.0.1.3680043.2.1125.1", writable.mediaStorageSopInstanceUid);
+    assertEquals(UID.ExplicitVRLittleEndian, writable.transferSyntaxUid);
   }
 
   @Test
@@ -54,7 +73,14 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
-                "s3", createValidDicom(), "application/dicom", "CALLING_AET", "CALLED_AET"));
+                "s3",
+                createValidDicom(),
+                "application/dicom",
+                "CALLING_AET",
+                "CALLED_AET",
+                UID.SecondaryCaptureImageStorage,
+                "1.2.826.0.1.3680043.2.1125.1",
+                UID.ExplicitVRLittleEndian));
 
     assertEquals(CStoreDimseStatus.REFUSED_OUT_OF_RESOURCES, result.status());
   }
@@ -66,7 +92,14 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
-                "file", "not-dicom".getBytes(), "application/dicom", "CALLING_AET", "CALLED_AET"));
+                "file",
+                "not-dicom".getBytes(),
+                "application/dicom",
+                "CALLING_AET",
+                "CALLED_AET",
+                UID.SecondaryCaptureImageStorage,
+                "1.2.826.0.1.3680043.2.1125.1",
+                UID.ExplicitVRLittleEndian));
 
     assertEquals(CStoreDimseStatus.ERROR_CANNOT_UNDERSTAND, result.status());
   }
@@ -127,6 +160,9 @@ class CStoreServiceTest {
   private static final class WritableFilePlugin implements StoragePlugin {
 
     private int storedCount = 0;
+    private String mediaStorageSopClassUid;
+    private String mediaStorageSopInstanceUid;
+    private String transferSyntaxUid;
 
     @Override
     public PluginMetadata metadata() {
@@ -155,9 +191,21 @@ class CStoreServiceTest {
 
     @Override
     public StoredObject store(InputStream data, String contentType) throws IOException {
-      if (data.readAllBytes().length == 0) {
+      byte[] payload = data.readAllBytes();
+      if (payload.length == 0) {
         throw new IOException("empty");
       }
+
+      try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(payload))) {
+        Attributes fmi = dis.readFileMetaInformation();
+        if (fmi == null) {
+          throw new IOException("missing file meta information");
+        }
+        mediaStorageSopClassUid = fmi.getString(Tag.MediaStorageSOPClassUID);
+        mediaStorageSopInstanceUid = fmi.getString(Tag.MediaStorageSOPInstanceUID);
+        transferSyntaxUid = fmi.getString(Tag.TransferSyntaxUID);
+      }
+
       storedCount++;
       return new StoredObject(URI.create("file:/tmp/fake.dcm"), 10, contentType);
     }

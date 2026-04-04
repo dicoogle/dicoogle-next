@@ -201,4 +201,6 @@ README.html
 .exercism
 data/*
 
-STORAGE_MVP_PLAN.md
+*.md
+!README.md
+
