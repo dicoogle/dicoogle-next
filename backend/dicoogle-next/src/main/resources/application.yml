@@ -43,6 +43,46 @@ app:
       bind-address: 0.0.0.0
       port: 11112
       storage-scheme: file
+      accepted-transfer-capabilities:
+        - sop-class-uid: 1.2.840.10008.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.7
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1.2
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.6.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.4
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.4.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.2
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.2.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
   storage:
     file-ro:
       root-dir: ./data/storage

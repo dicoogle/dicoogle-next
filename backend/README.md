@@ -12,9 +12,20 @@ java -jar dicoogle-next/target/dicoogle-next-0.0.1-SNAPSHOT.jar
 Default profile is `dev`, which enables:
 
 - DIMSE C-STORE on port `11112`
+- DIMSE C-ECHO verification on port `11112`
 - Writable filesystem storage plugin (`file-rw`)
 - Read-only filesystem fallback (`file-ro`)
 - Startup validation requiring writable `file` scheme
+
+DIMSE status (current):
+
+- Implemented: C-ECHO, C-STORE
+- Not implemented yet: C-FIND, C-MOVE
+
+DIMSE C-STORE currently uses a strict curated list of accepted transfer capabilities (SOP class +
+transfer syntax combinations) under `app.dimse.cstore.accepted-transfer-capabilities`.
+Incoming C-STORE payloads are normalized and persisted as PS3.10 DICOM files (with preamble and
+file meta information).
 
 Default storage root:
 
