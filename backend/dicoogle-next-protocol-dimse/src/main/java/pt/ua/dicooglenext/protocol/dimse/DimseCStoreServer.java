@@ -2,6 +2,7 @@ package pt.ua.dicooglenext.protocol.dimse;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -195,5 +196,21 @@ public class DimseCStoreServer implements SmartLifecycle {
               TransferCapability.Role.SCP,
               UID.ImplicitVRLittleEndian));
     }
+  }
+
+  public synchronized void applyAcceptedTransferCapabilities(
+      List<DimseCStoreProperties.AcceptedTransferCapability> acceptedTransferCapabilities) {
+    properties.setAcceptedTransferCapabilities(acceptedTransferCapabilities);
+    if (!running) {
+      return;
+    }
+
+    stop();
+    start();
+  }
+
+  public synchronized List<DimseCStoreProperties.AcceptedTransferCapability>
+      acceptedTransferCapabilities() {
+    return List.copyOf(properties.getAcceptedTransferCapabilities());
   }
 }

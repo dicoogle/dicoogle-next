@@ -43,6 +43,17 @@ app:
       bind-address: 0.0.0.0
       port: 11112
       storage-scheme: file
+      config:
+        source: yaml
+        sync-interval-ms: 5000
+        jdbc:
+          auto-create-table: true
+          table-name: dimse_transfer_capability_config
+          config-key: dimse.cstore.acceptedTransferCapabilities
+          node-id: ${HOSTNAME:dicoogle-next-node}
+          url: ""
+          username: ""
+          password: ""
       accepted-transfer-capabilities:
         - sop-class-uid: 1.2.840.10008.1.1
           transfer-syntax-uids:
