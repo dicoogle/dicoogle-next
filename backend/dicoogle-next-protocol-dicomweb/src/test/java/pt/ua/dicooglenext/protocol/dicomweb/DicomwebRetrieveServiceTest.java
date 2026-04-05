@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -47,13 +46,16 @@ class DicomwebRetrieveServiceTest {
             "1.2.826.0.1.3680043.2.1125.1");
     assertEquals(dicom.length, retrieved.length);
 
-    Map<String, Object> metadata =
+    String metadata =
         service.instanceMetadata(
             "1.2.826.0.1.3680043.2.1125.2",
             "1.2.826.0.1.3680043.2.1125.3",
             "1.2.826.0.1.3680043.2.1125.1");
-    assertEquals("PATIENT-1", metadata.get("PatientID"));
-    assertEquals("1.2.826.0.1.3680043.2.1125.2", metadata.get("StudyInstanceUID"));
+    org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("\"00100020\""));
+    org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("\"vr\":\"LO\""));
+    org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("PATIENT-1"));
+    org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("\"0020000D\""));
+    org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("1.2.826.0.1.3680043.2.1125.2"));
   }
 
   @Test
