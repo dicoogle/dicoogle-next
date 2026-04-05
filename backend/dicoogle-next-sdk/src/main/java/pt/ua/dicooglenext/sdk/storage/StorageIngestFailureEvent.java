@@ -1,6 +1,7 @@
 package pt.ua.dicooglenext.sdk.storage;
 
 public record StorageIngestFailureEvent(
+    int associationSerialNo,
     String callingAet,
     String calledAet,
     String storageScheme,
