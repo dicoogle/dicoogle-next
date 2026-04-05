@@ -228,6 +228,7 @@ public class CStoreService {
       CStoreRequest request, CStoreIdentifiers identifiers, StoredObject stored, String scheme) {
     StorageIngestSuccessEvent event =
         new StorageIngestSuccessEvent(
+            request.associationSerialNo(),
             request.callingAet(),
             request.calledAet(),
             scheme,
@@ -245,6 +246,7 @@ public class CStoreService {
       CStoreRequest request, CStoreIdentifiers identifiers, CStoreResult result, String scheme) {
     StorageIngestFailureEvent event =
         new StorageIngestFailureEvent(
+            request.associationSerialNo(),
             request.callingAet(),
             request.calledAet(),
             scheme,

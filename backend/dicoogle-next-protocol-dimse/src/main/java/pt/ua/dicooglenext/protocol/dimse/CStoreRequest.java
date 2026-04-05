@@ -1,6 +1,7 @@
 package pt.ua.dicooglenext.protocol.dimse;
 
 public record CStoreRequest(
+    int associationSerialNo,
     String storageScheme,
     byte[] payload,
     String contentType,

@@ -7,6 +7,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import pt.ua.dicooglenext.core.storage.StorageRouter;
+import pt.ua.dicooglenext.sdk.query.DimseAssociationAccessPolicy;
+import pt.ua.dicooglenext.sdk.query.DimseAssociationEventListener;
 import pt.ua.dicooglenext.sdk.query.StorageIngestEventListener;
 
 @Configuration
@@ -26,8 +28,15 @@ public class DimseCStoreConfig {
   DimseCStoreServer dimseCStoreServer(
       CStoreService cStoreService,
       DimseCStoreProperties properties,
+      List<DimseAssociationEventListener> associationEventListeners,
+      List<DimseAssociationAccessPolicy> associationAccessPolicies,
       @org.springframework.beans.factory.annotation.Qualifier("primaryStorageScheme")
           String primaryStorageScheme) {
-    return new DimseCStoreServer(cStoreService, properties, primaryStorageScheme);
+    return new DimseCStoreServer(
+        cStoreService,
+        properties,
+        primaryStorageScheme,
+        associationEventListeners,
+        associationAccessPolicies);
   }
 }
