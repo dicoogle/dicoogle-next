@@ -43,9 +43,9 @@ Default API auth credentials:
 - `GET /api/system/plugins` - Protected list of loaded plugins.
 - `GET /api/actuator/health` - Public health endpoint.
 - `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/instances/{SOPUID}` - Retrieve DICOM instance (`application/dicom`).
-- `GET /api/dicom-web/studies/{StudyUID}/metadata` - Study metadata JSON.
-- `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/metadata` - Series metadata JSON.
-- `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/instances/{SOPUID}/metadata` - Instance metadata JSON.
+- `GET /api/dicom-web/studies/{StudyUID}/metadata` - Study metadata in DICOM JSON (`application/dicom+json`).
+- `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/metadata` - Series metadata in DICOM JSON (`application/dicom+json`).
+- `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/instances/{SOPUID}/metadata` - Instance metadata in DICOM JSON (`application/dicom+json`).
 
 ## Manual Testing
 
