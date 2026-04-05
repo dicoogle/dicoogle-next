@@ -3,15 +3,18 @@ package pt.ua.dicooglenext.protocol.dicomweb;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.io.ByteArrayInputStream;
+import java.io.StringWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
+import jakarta.json.Json;
+import jakarta.json.stream.JsonGenerator;
 import org.dcm4che3.data.Attributes;
-import org.dcm4che3.data.Tag;
 import org.dcm4che3.io.DicomInputStream;
+import org.dcm4che3.json.JSONWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -89,14 +92,18 @@ public class DicomwebRetrieveService {
     }
   }
 
-  public List<Map<String, Object>> studyMetadata(String studyInstanceUid) {
+  public String studyMetadata(String studyInstanceUid) {
     LOGGER.info("WADO-RS study metadata request: studyUID={}", studyInstanceUid);
 
-    List<Map<String, Object>> metadata = new ArrayList<>();
+    List<Attributes> metadata = new ArrayList<>();
+    Collection<String> seen = new LinkedHashSet<>();
 
     for (HierarchicalDicomStoragePlugin plugin : hierarchicalPlugins) {
       try {
         for (URI location : plugin.listStudyInstances(studyInstanceUid)) {
+          if (!seen.add(location.toString())) {
+            continue;
+          }
           metadata.add(readMetadata(location, plugin));
         }
       } catch (IOException ex) {
@@ -105,21 +112,24 @@ public class DicomwebRetrieveService {
       }
     }
 
-    return metadata;
+    return toDicomJson(metadata);
   }
 
-  public List<Map<String, Object>> seriesMetadata(
-      String studyInstanceUid, String seriesInstanceUid) {
+  public String seriesMetadata(String studyInstanceUid, String seriesInstanceUid) {
     LOGGER.info(
         "WADO-RS series metadata request: studyUID={}, seriesUID={}",
         studyInstanceUid,
         seriesInstanceUid);
 
-    List<Map<String, Object>> metadata = new ArrayList<>();
+    List<Attributes> metadata = new ArrayList<>();
+    Collection<String> seen = new LinkedHashSet<>();
 
     for (HierarchicalDicomStoragePlugin plugin : hierarchicalPlugins) {
       try {
         for (URI location : plugin.listSeriesInstances(studyInstanceUid, seriesInstanceUid)) {
+          if (!seen.add(location.toString())) {
+            continue;
+          }
           metadata.add(readMetadata(location, plugin));
         }
       } catch (IOException ex) {
@@ -128,11 +138,10 @@ public class DicomwebRetrieveService {
       }
     }
 
-    return metadata;
+    return toDicomJson(metadata);
   }
 
-  public Map<String, Object> instanceMetadata(
-      String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
+  public String instanceMetadata(String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
     LOGGER.info(
         "WADO-RS instance metadata request: studyUID={}, seriesUID={}, sopUID={}",
         studyInstanceUid,
@@ -140,7 +149,7 @@ public class DicomwebRetrieveService {
         sopInstanceUid);
 
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
-    return readMetadata(located.location(), located.plugin());
+    return toDicomJson(readMetadata(located.location(), located.plugin()));
   }
 
   private LocatedInstance locate(
@@ -164,24 +173,38 @@ public class DicomwebRetrieveService {
         HttpStatus.NOT_FOUND, "DICOM instance not found for study/series/SOP identifiers");
   }
 
-  private Map<String, Object> readMetadata(URI location, HierarchicalDicomStoragePlugin plugin) {
+  private Attributes readMetadata(URI location, HierarchicalDicomStoragePlugin plugin) {
     try (var stream = plugin.openForRead(location)) {
       byte[] bytes = stream.readAllBytes();
       try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(bytes))) {
-        Attributes attrs = dis.readDataset();
-
-        Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("PatientID", attrs.getString(Tag.PatientID));
-        metadata.put("StudyInstanceUID", attrs.getString(Tag.StudyInstanceUID));
-        metadata.put("SeriesInstanceUID", attrs.getString(Tag.SeriesInstanceUID));
-        metadata.put("SOPInstanceUID", attrs.getString(Tag.SOPInstanceUID));
-        metadata.put("SOPClassUID", attrs.getString(Tag.SOPClassUID));
-        return metadata;
+        return dis.readDataset();
       }
     } catch (IOException ex) {
       throw new ResponseStatusException(
           HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
     }
+  }
+
+  private String toDicomJson(Attributes attributes) {
+    StringWriter output = new StringWriter();
+    try (JsonGenerator generator = Json.createGenerator(output)) {
+      JSONWriter writer = new JSONWriter(generator);
+      writer.write(attributes);
+    }
+    return output.toString();
+  }
+
+  private String toDicomJson(List<Attributes> attributesList) {
+    StringWriter output = new StringWriter();
+    try (JsonGenerator generator = Json.createGenerator(output)) {
+      generator.writeStartArray();
+      JSONWriter writer = new JSONWriter(generator);
+      for (Attributes attributes : attributesList) {
+        writer.write(attributes);
+      }
+      generator.writeEnd();
+    }
+    return output.toString();
   }
 
   private record LocatedInstance(HierarchicalDicomStoragePlugin plugin, URI location) {}

@@ -64,11 +64,13 @@ class DicomwebControllerTest {
             get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/series/1.2.826.0.1.3680043.2.1125.3/instances/1.2.826.0.1.3680043.2.1125.1/metadata")
                 .with(httpBasic("developer", "developer")))
         .andExpect(status().isOk())
-        .andExpect(content().contentType("application/json"))
-        .andExpect(jsonPath("$.PatientID").value("PATIENT-1"))
-        .andExpect(jsonPath("$.StudyInstanceUID").value("1.2.826.0.1.3680043.2.1125.2"))
-        .andExpect(jsonPath("$.SeriesInstanceUID").value("1.2.826.0.1.3680043.2.1125.3"))
-        .andExpect(jsonPath("$.SOPInstanceUID").value("1.2.826.0.1.3680043.2.1125.1"));
+        .andExpect(content().contentType("application/dicom+json"))
+        .andExpect(jsonPath("$.00100020.vr").value("LO"))
+        .andExpect(jsonPath("$.00100020.Value[0]").value("PATIENT-1"))
+        .andExpect(jsonPath("$.0020000D.vr").value("UI"))
+        .andExpect(jsonPath("$.0020000D.Value[0]").value("1.2.826.0.1.3680043.2.1125.2"))
+        .andExpect(jsonPath("$.0020000E.Value[0]").value("1.2.826.0.1.3680043.2.1125.3"))
+        .andExpect(jsonPath("$.00080018.Value[0]").value("1.2.826.0.1.3680043.2.1125.1"));
   }
 
   @Test
