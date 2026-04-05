@@ -30,6 +30,7 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
+                101,
                 "file",
                 createValidDicom(),
                 "application/dicom",
@@ -51,6 +52,7 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
+                102,
                 "file",
                 createValidDicom(),
                 "application/dicom",
@@ -74,6 +76,7 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
+                103,
                 "s3",
                 createValidDicom(),
                 "application/dicom",
@@ -93,6 +96,7 @@ class CStoreServiceTest {
     CStoreResult result =
         service.store(
             new CStoreRequest(
+                104,
                 "file",
                 "not-dicom".getBytes(),
                 "application/dicom",
