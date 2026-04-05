@@ -17,8 +17,9 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.junit.jupiter.api.Test;
 import pt.ua.dicooglenext.core.storage.StorageRouter;
 import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
 import pt.ua.dicooglenext.sdk.storage.StoredObject;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
 class CStoreServiceTest {
 
@@ -129,7 +130,7 @@ class CStoreServiceTest {
     }
   }
 
-  private static final class ReadOnlyFilePlugin implements StoragePlugin {
+  private static final class ReadOnlyFilePlugin implements ReadableStoragePlugin {
 
     @Override
     public PluginMetadata metadata() {
@@ -142,22 +143,12 @@ class CStoreServiceTest {
     }
 
     @Override
-    public boolean canRead() {
-      return true;
-    }
-
-    @Override
-    public boolean canWrite() {
-      return false;
-    }
-
-    @Override
     public InputStream openForRead(URI location) {
       throw new UnsupportedOperationException();
     }
   }
 
-  private static final class WritableFilePlugin implements StoragePlugin {
+  private static final class WritableFilePlugin implements ReadableStoragePlugin, WritableStoragePlugin {
 
     private int storedCount = 0;
     private String mediaStorageSopClassUid;
@@ -172,16 +163,6 @@ class CStoreServiceTest {
     @Override
     public String scheme() {
       return "file";
-    }
-
-    @Override
-    public boolean canRead() {
-      return true;
-    }
-
-    @Override
-    public boolean canWrite() {
-      return true;
     }
 
     @Override

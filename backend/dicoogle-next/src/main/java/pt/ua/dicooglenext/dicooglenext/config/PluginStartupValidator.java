@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
 public class PluginStartupValidator implements ApplicationRunner {
 
@@ -36,7 +37,9 @@ public class PluginStartupValidator implements ApplicationRunner {
     boolean hasWritable =
         storagePlugins.stream()
             .anyMatch(
-                plugin -> plugin.canWrite() && plugin.scheme().equalsIgnoreCase(requiredScheme));
+                plugin ->
+                    plugin instanceof WritableStoragePlugin
+                        && plugin.scheme().equalsIgnoreCase(requiredScheme));
 
     if (runtimeProperties.getStartupValidation().isRequireWritableProvider() && !hasWritable) {
       throw new IllegalStateException(

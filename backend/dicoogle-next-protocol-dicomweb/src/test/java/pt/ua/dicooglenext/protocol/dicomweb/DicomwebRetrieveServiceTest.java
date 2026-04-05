@@ -21,10 +21,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import pt.ua.dicooglenext.core.storage.StorageRouter;
 import pt.ua.dicooglenext.sdk.PluginMetadata;
+import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
 import pt.ua.dicooglenext.sdk.service.StorageRetrieveEventListener;
-import pt.ua.dicooglenext.sdk.storage.HierarchicalDicomStoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
 import pt.ua.dicooglenext.sdk.storage.StoredObject;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
 class DicomwebRetrieveServiceTest {
 
@@ -35,7 +37,8 @@ class DicomwebRetrieveServiceTest {
     DicomwebRetrieveService service =
         new DicomwebRetrieveService(
             List.of(plugin),
-            new StorageRouter(List.<StoragePlugin>of(plugin)),
+            List.of(plugin),
+            new StorageRouter(List.of(plugin)),
             List.<StorageRetrieveEventListener>of(),
             new SimpleMeterRegistry());
 
@@ -62,8 +65,9 @@ class DicomwebRetrieveServiceTest {
   void returnsNotFoundWhenNoStoragePluginCanLocateInstance() {
     DicomwebRetrieveService service =
         new DicomwebRetrieveService(
+            List.<QueryIndexStorageLocator>of(),
             List.of(new EmptyHierarchicalStoragePlugin()),
-            new StorageRouter(List.<StoragePlugin>of()),
+            new StorageRouter(List.of()),
             List.<StorageRetrieveEventListener>of(),
             new SimpleMeterRegistry());
 
@@ -73,6 +77,25 @@ class DicomwebRetrieveServiceTest {
             () -> service.retrieveInstance("missing-study", "missing-series", "missing-instance"));
 
     assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+  }
+
+  @Test
+  void metadataEndpointsRequireQueryLocator() {
+    byte[] dicom = createValidDicom();
+    InMemoryHierarchicalStoragePlugin fallback = new InMemoryHierarchicalStoragePlugin(dicom);
+    DicomwebRetrieveService service =
+        new DicomwebRetrieveService(
+            List.<QueryIndexStorageLocator>of(),
+            List.of(fallback),
+            new StorageRouter(List.of(fallback)),
+            List.<StorageRetrieveEventListener>of(),
+            new SimpleMeterRegistry());
+
+    ResponseStatusException ex =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> service.studyMetadata("1.2.826.0.1.3680043.2.1125.2"));
+    assertEquals(HttpStatus.NOT_IMPLEMENTED, ex.getStatusCode());
   }
 
   private byte[] createValidDicom() {
@@ -101,7 +124,11 @@ class DicomwebRetrieveServiceTest {
   }
 
   private static final class InMemoryHierarchicalStoragePlugin
-      implements HierarchicalDicomStoragePlugin {
+      implements
+          ReadableStoragePlugin,
+          WritableStoragePlugin,
+          DicomInstanceLocator,
+          QueryIndexStorageLocator {
 
     private static final URI LOCATION =
         URI.create(
@@ -121,16 +148,6 @@ class DicomwebRetrieveServiceTest {
     @Override
     public String scheme() {
       return "file";
-    }
-
-    @Override
-    public boolean canRead() {
-      return true;
-    }
-
-    @Override
-    public boolean canWrite() {
-      return true;
     }
 
     @Override
@@ -161,7 +178,7 @@ class DicomwebRetrieveServiceTest {
   }
 
   private static final class EmptyHierarchicalStoragePlugin
-      implements HierarchicalDicomStoragePlugin {
+      implements ReadableStoragePlugin, DicomInstanceLocator {
 
     @Override
     public PluginMetadata metadata() {
@@ -171,16 +188,6 @@ class DicomwebRetrieveServiceTest {
     @Override
     public String scheme() {
       return "file";
-    }
-
-    @Override
-    public boolean canRead() {
-      return true;
-    }
-
-    @Override
-    public boolean canWrite() {
-      return false;
     }
 
     @Override

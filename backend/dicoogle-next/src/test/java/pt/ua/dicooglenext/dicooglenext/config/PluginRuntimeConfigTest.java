@@ -8,7 +8,8 @@ import java.net.URI;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
 class PluginRuntimeConfigTest {
 
@@ -45,7 +46,7 @@ class PluginRuntimeConfigTest {
     assertEquals("s3", config.primaryStorageScheme(properties));
   }
 
-  private static final class SimpleStoragePlugin implements StoragePlugin {
+  private static final class SimpleStoragePlugin implements ReadableStoragePlugin, WritableStoragePlugin {
 
     private final String scheme;
 
@@ -64,17 +65,12 @@ class PluginRuntimeConfigTest {
     }
 
     @Override
-    public boolean canRead() {
-      return true;
-    }
-
-    @Override
-    public boolean canWrite() {
-      return true;
-    }
-
-    @Override
     public InputStream openForRead(URI location) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public pt.ua.dicooglenext.sdk.storage.StoredObject store(InputStream data, String contentType) {
       throw new UnsupportedOperationException();
     }
   }

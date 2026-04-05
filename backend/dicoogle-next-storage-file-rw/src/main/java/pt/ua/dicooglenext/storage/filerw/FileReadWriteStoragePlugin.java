@@ -16,10 +16,18 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.io.DicomInputStream;
 import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.HierarchicalDicomStoragePlugin;
+import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
+import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
 import pt.ua.dicooglenext.sdk.storage.StoredObject;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
-public class FileReadWriteStoragePlugin implements HierarchicalDicomStoragePlugin {
+public class FileReadWriteStoragePlugin
+    implements
+        ReadableStoragePlugin,
+        WritableStoragePlugin,
+        DicomInstanceLocator,
+        QueryIndexStorageLocator {
 
   private static final String UNKNOWN = "UNKNOWN";
   private static final Pattern SAFE_SEGMENT_PATTERN = Pattern.compile("[^A-Za-z0-9._-]");
@@ -42,16 +50,6 @@ public class FileReadWriteStoragePlugin implements HierarchicalDicomStoragePlugi
   @Override
   public String scheme() {
     return scheme;
-  }
-
-  @Override
-  public boolean canRead() {
-    return true;
-  }
-
-  @Override
-  public boolean canWrite() {
-    return true;
   }
 
   @Override
