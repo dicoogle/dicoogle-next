@@ -2,7 +2,9 @@ package pt.ua.dicooglenext.core.storage;
 
 import java.util.Collection;
 import java.util.List;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
 import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
 public class StorageRouter {
 
@@ -12,19 +14,23 @@ public class StorageRouter {
     this.plugins = List.copyOf(plugins);
   }
 
-  public StoragePlugin requireReadable(String scheme) {
+  public ReadableStoragePlugin requireReadable(String scheme) {
     return plugins.stream()
-        .filter(plugin -> plugin.canRead() && plugin.scheme().equalsIgnoreCase(scheme))
+        .filter(ReadableStoragePlugin.class::isInstance)
+        .map(ReadableStoragePlugin.class::cast)
+        .filter(plugin -> plugin.scheme().equalsIgnoreCase(scheme))
         .findFirst()
         .orElseThrow(() -> new StoragePluginNotFoundException(scheme));
   }
 
-  public StoragePlugin requireWritable(String scheme) {
+  public WritableStoragePlugin requireWritable(String scheme) {
     boolean hasReadable =
         plugins.stream().anyMatch(plugin -> plugin.scheme().equalsIgnoreCase(scheme));
 
     return plugins.stream()
-        .filter(plugin -> plugin.canWrite() && plugin.scheme().equalsIgnoreCase(scheme))
+        .filter(WritableStoragePlugin.class::isInstance)
+        .map(WritableStoragePlugin.class::cast)
+        .filter(plugin -> plugin.scheme().equalsIgnoreCase(scheme))
         .findFirst()
         .orElseThrow(
             () ->

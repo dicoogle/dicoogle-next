@@ -5,10 +5,10 @@ import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
-public interface HierarchicalDicomStoragePlugin extends StoragePlugin {
+public interface DicomInstanceLocator {
 
-  Optional<URI> locateInstance(
-      String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) throws IOException;
+  Optional<URI> locateInstance(String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid)
+      throws IOException;
 
   List<URI> listStudyInstances(String studyInstanceUid) throws IOException;
 

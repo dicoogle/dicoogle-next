@@ -22,8 +22,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import pt.ua.dicooglenext.core.storage.StorageRouter;
+import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
 import pt.ua.dicooglenext.sdk.service.StorageRetrieveEventListener;
-import pt.ua.dicooglenext.sdk.storage.HierarchicalDicomStoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
 import pt.ua.dicooglenext.sdk.storage.StorageRetrieveFailureEvent;
 import pt.ua.dicooglenext.sdk.storage.StorageRetrieveSuccessEvent;
 
@@ -32,18 +33,21 @@ public class DicomwebRetrieveService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomwebRetrieveService.class);
 
-  private final List<HierarchicalDicomStoragePlugin> hierarchicalPlugins;
+  private final List<QueryIndexStorageLocator> queryLocators;
+  private final List<DicomInstanceLocator> fallbackLocators;
   private final StorageRouter storageRouter;
   private final List<StorageRetrieveEventListener> retrieveEventListeners;
   private final MeterRegistry meterRegistry;
 
   @Autowired
   public DicomwebRetrieveService(
-      List<HierarchicalDicomStoragePlugin> hierarchicalPlugins,
+      List<QueryIndexStorageLocator> queryLocators,
+      List<DicomInstanceLocator> fallbackLocators,
       StorageRouter storageRouter,
       List<StorageRetrieveEventListener> retrieveEventListeners,
       MeterRegistry meterRegistry) {
-    this.hierarchicalPlugins = List.copyOf(hierarchicalPlugins);
+    this.queryLocators = List.copyOf(queryLocators);
+    this.fallbackLocators = List.copyOf(fallbackLocators);
     this.storageRouter = storageRouter;
     this.retrieveEventListeners = List.copyOf(retrieveEventListeners);
     this.meterRegistry = meterRegistry;
@@ -62,7 +66,7 @@ public class DicomwebRetrieveService {
     increment("dicoogle.wadors.requests", "instance");
 
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
-    try (var stream = located.plugin().openForRead(located.location())) {
+    try (var stream = storageRouter.requireReadable(located.location().getScheme()).openForRead(located.location())) {
       byte[] payload = stream.readAllBytes();
       emitRetrieveSuccess(
           studyInstanceUid,
@@ -95,16 +99,22 @@ public class DicomwebRetrieveService {
   public String studyMetadata(String studyInstanceUid) {
     LOGGER.info("WADO-RS study metadata request: studyUID={}", studyInstanceUid);
 
+    if (queryLocators.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED,
+          "No query index locator is configured for study metadata requests");
+    }
+
     List<Attributes> metadata = new ArrayList<>();
     Collection<String> seen = new LinkedHashSet<>();
 
-    for (HierarchicalDicomStoragePlugin plugin : hierarchicalPlugins) {
+    for (QueryIndexStorageLocator plugin : queryLocators) {
       try {
         for (URI location : plugin.listStudyInstances(studyInstanceUid)) {
           if (!seen.add(location.toString())) {
             continue;
           }
-          metadata.add(readMetadata(location, plugin));
+          metadata.add(readMetadata(location));
         }
       } catch (IOException ex) {
         throw new ResponseStatusException(
@@ -121,16 +131,22 @@ public class DicomwebRetrieveService {
         studyInstanceUid,
         seriesInstanceUid);
 
+    if (queryLocators.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED,
+          "No query index locator is configured for series metadata requests");
+    }
+
     List<Attributes> metadata = new ArrayList<>();
     Collection<String> seen = new LinkedHashSet<>();
 
-    for (HierarchicalDicomStoragePlugin plugin : hierarchicalPlugins) {
+    for (QueryIndexStorageLocator plugin : queryLocators) {
       try {
         for (URI location : plugin.listSeriesInstances(studyInstanceUid, seriesInstanceUid)) {
           if (!seen.add(location.toString())) {
             continue;
           }
-          metadata.add(readMetadata(location, plugin));
+          metadata.add(readMetadata(location));
         }
       } catch (IOException ex) {
         throw new ResponseStatusException(
@@ -149,17 +165,17 @@ public class DicomwebRetrieveService {
         sopInstanceUid);
 
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
-    return toDicomJson(readMetadata(located.location(), located.plugin()));
+    return toDicomJson(readMetadata(located.location()));
   }
 
   private LocatedInstance locate(
       String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
-    for (HierarchicalDicomStoragePlugin plugin : hierarchicalPlugins) {
+    for (QueryIndexStorageLocator plugin : queryLocators) {
       try {
         var location = plugin.locateInstance(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
         if (location.isPresent()) {
           storageRouter.requireReadable(location.get().getScheme());
-          return new LocatedInstance(plugin, location.get());
+          return new LocatedInstance(location.get());
         }
       } catch (IOException ex) {
         throw new ResponseStatusException(
@@ -169,12 +185,27 @@ public class DicomwebRetrieveService {
       }
     }
 
+    for (DicomInstanceLocator plugin : fallbackLocators) {
+      try {
+        var location = plugin.locateInstance(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
+        if (location.isPresent()) {
+          storageRouter.requireReadable(location.get().getScheme());
+          return new LocatedInstance(location.get());
+        }
+      } catch (IOException ex) {
+        throw new ResponseStatusException(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "Failed to resolve DICOM instance in fallback storage locator",
+            ex);
+      }
+    }
+
     throw new ResponseStatusException(
         HttpStatus.NOT_FOUND, "DICOM instance not found for study/series/SOP identifiers");
   }
 
-  private Attributes readMetadata(URI location, HierarchicalDicomStoragePlugin plugin) {
-    try (var stream = plugin.openForRead(location)) {
+  private Attributes readMetadata(URI location) {
+    try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location)) {
       byte[] bytes = stream.readAllBytes();
       try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(bytes))) {
         return dis.readDataset();
@@ -207,7 +238,7 @@ public class DicomwebRetrieveService {
     return output.toString();
   }
 
-  private record LocatedInstance(HierarchicalDicomStoragePlugin plugin, URI location) {}
+  private record LocatedInstance(URI location) {}
 
   private void increment(String metric, String type) {
     meterRegistry.counter(metric, "type", type).increment();
