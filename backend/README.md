@@ -27,6 +27,24 @@ transfer syntax combinations) under `app.dimse.cstore.accepted-transfer-capabili
 Incoming C-STORE payloads are normalized and persisted as PS3.10 DICOM files (with preamble and
 file meta information).
 
+You can change transfer capabilities at runtime via API:
+
+- `GET /api/system/config/dimse/transfer-capabilities`
+- `PUT /api/system/config/dimse/transfer-capabilities/{SOPClassUID}`
+- `DELETE /api/system/config/dimse/transfer-capabilities/{SOPClassUID}`
+- `POST /api/system/config/dimse/transfer-capabilities/replace`
+
+Config source options:
+
+- `app.dimse.cstore.config.source=yaml` (single-node runtime updates)
+- `app.dimse.cstore.config.source=jdbc` (shared multi-node config via DB-backed versioned store)
+
+For JDBC mode, configure:
+
+- `app.dimse.cstore.config.jdbc.url`
+- `app.dimse.cstore.config.jdbc.username`
+- `app.dimse.cstore.config.jdbc.password`
+
 Default storage root:
 
 - `./data/storage`

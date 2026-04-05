@@ -1,3 +1,9 @@
 package pt.ua.dicooglenext.dicooglenext.dto;
 
-public record SystemStatusResponse(String name, String environment, String status) {}
+public record SystemStatusResponse(
+    String name,
+    String environment,
+    String status,
+    String dimseTransferConfigSource,
+    long dimseTransferConfigVersion,
+    String dimseTransferConfigAppliedAt) {}

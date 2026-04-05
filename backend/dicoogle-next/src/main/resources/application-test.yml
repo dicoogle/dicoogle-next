@@ -15,6 +15,9 @@ springdoc:
     enabled: false
 
 app:
+  dimse:
+    cstore:
+      enabled: false
   security:
     docs-enabled: false
     basic-auth:
