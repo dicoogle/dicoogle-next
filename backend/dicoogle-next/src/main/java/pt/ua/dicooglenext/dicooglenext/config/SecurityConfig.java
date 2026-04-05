@@ -37,6 +37,17 @@ public class SecurityConfig {
                   requests
                       .requestMatchers(HttpMethod.GET, "/system/ping")
                       .permitAll()
+                      .requestMatchers(HttpMethod.GET, "/system/config/dimse/transfer-capabilities")
+                      .authenticated()
+                      .requestMatchers(
+                          HttpMethod.PUT, "/system/config/dimse/transfer-capabilities/**")
+                      .authenticated()
+                      .requestMatchers(
+                          HttpMethod.DELETE, "/system/config/dimse/transfer-capabilities/**")
+                      .authenticated()
+                      .requestMatchers(
+                          HttpMethod.POST, "/system/config/dimse/transfer-capabilities/replace")
+                      .authenticated()
                       .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/info")
                       .permitAll();
                   if (properties.isDocsEnabled()) {

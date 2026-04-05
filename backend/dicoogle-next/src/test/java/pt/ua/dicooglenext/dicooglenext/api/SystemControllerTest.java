@@ -26,7 +26,8 @@ class SystemControllerTest {
     mockMvc
         .perform(get("/system/ping"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status").value("ok"));
+        .andExpect(jsonPath("$.status").value("ok"))
+        .andExpect(jsonPath("$.dimseTransferConfigSource").exists());
   }
 
   @Test
@@ -39,7 +40,8 @@ class SystemControllerTest {
     mockMvc
         .perform(get("/system/status").with(httpBasic("developer", "developer")))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.name").value("dicoogle-next"));
+        .andExpect(jsonPath("$.name").value("dicoogle-next"))
+        .andExpect(jsonPath("$.dimseTransferConfigSource").exists());
   }
 
   @Test

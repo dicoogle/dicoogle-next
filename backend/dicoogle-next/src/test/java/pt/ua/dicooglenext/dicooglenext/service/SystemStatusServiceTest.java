@@ -3,6 +3,7 @@ package pt.ua.dicooglenext.dicooglenext.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.support.StaticListableBeanFactory;
 import org.springframework.mock.env.MockEnvironment;
 
 class SystemStatusServiceTest {
@@ -12,7 +13,10 @@ class SystemStatusServiceTest {
     MockEnvironment environment = new MockEnvironment();
     environment.setActiveProfiles("test");
 
-    SystemStatusService service = new SystemStatusService(environment);
+    StaticListableBeanFactory factory = new StaticListableBeanFactory();
+
+    SystemStatusService service =
+        new SystemStatusService(environment, factory.getBeanProvider(DimseTransferCapabilityService.class));
 
     assertThat(service.currentStatus().environment()).isEqualTo("test");
     assertThat(service.currentStatus().status()).isEqualTo("ok");
