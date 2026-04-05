@@ -9,7 +9,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.DefaultApplicationArguments;
 import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
 class PluginStartupValidatorTest {
 
@@ -34,12 +35,12 @@ class PluginStartupValidatorTest {
     properties.getStartupValidation().setWritableScheme("file");
 
     PluginStartupValidator validator =
-        new PluginStartupValidator(List.of(new WritableStoragePlugin()), properties);
+        new PluginStartupValidator(List.of(new WritableTestStoragePlugin()), properties);
 
     assertDoesNotThrow(() -> validator.run(new DefaultApplicationArguments(new String[0])));
   }
 
-  private static class ReadOnlyStoragePlugin implements StoragePlugin {
+  private static class ReadOnlyStoragePlugin implements ReadableStoragePlugin {
 
     @Override
     public PluginMetadata metadata() {
@@ -52,26 +53,17 @@ class PluginStartupValidatorTest {
     }
 
     @Override
-    public boolean canRead() {
-      return true;
-    }
-
-    @Override
-    public boolean canWrite() {
-      return false;
-    }
-
-    @Override
     public InputStream openForRead(URI location) {
       throw new UnsupportedOperationException();
     }
   }
 
-  private static final class WritableStoragePlugin extends ReadOnlyStoragePlugin {
+  private static final class WritableTestStoragePlugin
+      extends ReadOnlyStoragePlugin implements WritableStoragePlugin {
 
     @Override
-    public boolean canWrite() {
-      return true;
+    public pt.ua.dicooglenext.sdk.storage.StoredObject store(InputStream data, String contentType) {
+      throw new UnsupportedOperationException();
     }
   }
 }

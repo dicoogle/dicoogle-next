@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
 import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
 
 public class PluginRuntimeHealthIndicator implements HealthIndicator {
 
@@ -20,14 +22,16 @@ public class PluginRuntimeHealthIndicator implements HealthIndicator {
 
   @Override
   public Health health() {
-    long readableCount = storagePlugins.stream().filter(StoragePlugin::canRead).count();
-    long writableCount = storagePlugins.stream().filter(StoragePlugin::canWrite).count();
+    long readableCount = storagePlugins.stream().filter(ReadableStoragePlugin.class::isInstance).count();
+    long writableCount = storagePlugins.stream().filter(WritableStoragePlugin.class::isInstance).count();
 
     String requiredScheme = runtimeProperties.getStartupValidation().getWritableScheme();
     boolean hasWritableForRequiredScheme =
         storagePlugins.stream()
             .anyMatch(
-                plugin -> plugin.canWrite() && plugin.scheme().equalsIgnoreCase(requiredScheme));
+                plugin ->
+                    plugin instanceof WritableStoragePlugin
+                        && plugin.scheme().equalsIgnoreCase(requiredScheme));
 
     Map<String, Object> details = new LinkedHashMap<>();
     details.put("storagePlugins.total", storagePlugins.size());

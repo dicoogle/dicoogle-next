@@ -9,9 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.HierarchicalDicomStoragePlugin;
+import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
+import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
+import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
 
-public class FileReadOnlyStoragePlugin implements HierarchicalDicomStoragePlugin {
+public class FileReadOnlyStoragePlugin
+    implements ReadableStoragePlugin, DicomInstanceLocator, QueryIndexStorageLocator {
 
   private static final PluginMetadata METADATA =
       new PluginMetadata("storage-file-ro", "Filesystem Read-Only Storage", "0.1.0", "storage");
@@ -33,16 +36,6 @@ public class FileReadOnlyStoragePlugin implements HierarchicalDicomStoragePlugin
   @Override
   public String scheme() {
     return "file";
-  }
-
-  @Override
-  public boolean canRead() {
-    return true;
-  }
-
-  @Override
-  public boolean canWrite() {
-    return false;
   }
 
   @Override
