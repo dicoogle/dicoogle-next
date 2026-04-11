@@ -26,6 +26,7 @@
         <module>dicoogle-next-protocol-dicomweb</module>
         <module>dicoogle-next-storage-file-ro</module>
         <module>dicoogle-next-storage-file-rw</module>
+        <module>dicoogle-next-query-file</module>
     </modules>
 
     <properties>

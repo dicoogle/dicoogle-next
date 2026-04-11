@@ -20,6 +20,8 @@ springdoc:
 
 app:
   dimse:
+    cfind:
+      enabled: true
     cstore:
       enabled: true
   storage:

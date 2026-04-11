@@ -10,19 +10,19 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>dicoogle-next-protocol-dimse</artifactId>
-    <name>dicoogle-next-protocol-dimse</name>
-    <description>DIMSE protocol adapter for Dicoogle Next</description>
+    <artifactId>dicoogle-next-query-file</artifactId>
+    <name>dicoogle-next-query-file</name>
+    <description>Filesystem query/index plugin for Dicoogle Next</description>
 
     <dependencies>
         <dependency>
             <groupId>org.dicoogle</groupId>
-            <artifactId>dicoogle-next-core</artifactId>
+            <artifactId>dicoogle-next-sdk</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.dicoogle</groupId>
-            <artifactId>dicoogle-next-sdk</artifactId>
+            <artifactId>dicoogle-next-storage-file-rw</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -31,17 +31,8 @@
             <version>${dcm4che.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.dcm4che</groupId>
-            <artifactId>dcm4che-net</artifactId>
-            <version>${dcm4che.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-context</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
