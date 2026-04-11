@@ -1,10 +1,10 @@
-package pt.ua.dicooglenext.core.plugins;
+package org.dicoogle.core.plugins;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import pt.ua.dicooglenext.sdk.DicooglePlugin;
+import org.dicoogle.sdk.DicooglePlugin;
 
 public class PluginRegistry {
 

@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dimse;
+package org.dicoogle.protocol.dimse;
 
 import java.util.ArrayList;
 import java.util.List;

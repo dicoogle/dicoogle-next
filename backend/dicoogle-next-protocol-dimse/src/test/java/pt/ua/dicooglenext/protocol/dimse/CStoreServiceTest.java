@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dimse;
+package org.dicoogle.protocol.dimse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -15,11 +15,11 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
 import org.junit.jupiter.api.Test;
-import pt.ua.dicooglenext.core.storage.StorageRouter;
-import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.StoredObject;
-import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
+import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.sdk.PluginMetadata;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.storage.StoredObject;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 class CStoreServiceTest {
 

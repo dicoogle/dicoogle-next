@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dicomweb;
+package org.dicoogle.protocol.dicomweb;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

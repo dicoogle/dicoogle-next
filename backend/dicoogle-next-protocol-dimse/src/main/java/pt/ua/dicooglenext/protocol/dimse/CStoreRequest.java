@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dimse;
+package org.dicoogle.protocol.dimse;
 
 public record CStoreRequest(
     int associationSerialNo,

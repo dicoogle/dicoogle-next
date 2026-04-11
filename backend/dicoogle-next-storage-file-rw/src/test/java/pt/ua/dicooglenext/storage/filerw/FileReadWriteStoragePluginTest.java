@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.storage.filerw;
+package org.dicoogle.storage.filerw;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

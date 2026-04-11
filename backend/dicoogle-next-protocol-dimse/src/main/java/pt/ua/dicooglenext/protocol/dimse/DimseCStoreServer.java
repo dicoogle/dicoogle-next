@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dimse;
+package org.dicoogle.protocol.dimse;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -26,12 +26,12 @@ import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.springframework.context.SmartLifecycle;
-import pt.ua.dicooglenext.sdk.query.DimseAssociationAccessPolicy;
-import pt.ua.dicooglenext.sdk.query.DimseAssociationEventListener;
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationAcceptedEvent;
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationClosedEvent;
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationFailedEvent;
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationRejectedEvent;
+import org.dicoogle.sdk.query.DimseAssociationAccessPolicy;
+import org.dicoogle.sdk.query.DimseAssociationEventListener;
+import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationClosedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationFailedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationRejectedEvent;
 
 public class DimseCStoreServer implements SmartLifecycle {
 

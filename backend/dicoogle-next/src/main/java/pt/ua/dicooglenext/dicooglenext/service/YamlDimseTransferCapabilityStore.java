@@ -1,10 +1,10 @@
-package pt.ua.dicooglenext.dicooglenext.service;
+package org.dicoogle.app.service;
 
 import java.time.Instant;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-import pt.ua.dicooglenext.protocol.dimse.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.DimseCStoreProperties;
 
 @Component
 @ConditionalOnProperty(

@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext;
+package org.dicoogle.app;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;

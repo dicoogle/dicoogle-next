@@ -1,10 +1,10 @@
-package pt.ua.dicooglenext.dicooglenext.service;
+package org.dicoogle.app.service;
 
 import java.util.Arrays;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
-import pt.ua.dicooglenext.dicooglenext.dto.SystemStatusResponse;
+import org.dicoogle.app.dto.SystemStatusResponse;
 
 @Service
 public class SystemStatusService {

@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.service;
+package org.dicoogle.app.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,8 +11,8 @@ import java.time.Instant;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-import pt.ua.dicooglenext.dicooglenext.config.DimseTransferCapabilityConfigProperties;
-import pt.ua.dicooglenext.protocol.dimse.DimseCStoreProperties;
+import org.dicoogle.app.config.DimseTransferCapabilityConfigProperties;
+import org.dicoogle.protocol.dimse.DimseCStoreProperties;
 
 @Component
 @ConditionalOnProperty(prefix = "app.dimse.cstore.config", name = "source", havingValue = "jdbc")

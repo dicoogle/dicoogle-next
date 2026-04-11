@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dicomweb;
+package org.dicoogle.protocol.dicomweb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -19,14 +19,14 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-import pt.ua.dicooglenext.core.storage.StorageRouter;
-import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
-import pt.ua.dicooglenext.sdk.service.StorageRetrieveEventListener;
-import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
-import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.StoredObject;
-import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
+import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.sdk.PluginMetadata;
+import org.dicoogle.sdk.query.QueryIndexStorageLocator;
+import org.dicoogle.sdk.service.StorageRetrieveEventListener;
+import org.dicoogle.sdk.storage.DicomInstanceLocator;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.storage.StoredObject;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 class DicomwebRetrieveServiceTest {
 

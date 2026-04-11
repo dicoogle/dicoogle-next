@@ -1,6 +1,6 @@
-package pt.ua.dicooglenext.sdk.storage;
+package org.dicoogle.sdk.storage;
 
-import pt.ua.dicooglenext.sdk.DicooglePlugin;
+import org.dicoogle.sdk.DicooglePlugin;
 
 public interface StoragePlugin extends DicooglePlugin {
 

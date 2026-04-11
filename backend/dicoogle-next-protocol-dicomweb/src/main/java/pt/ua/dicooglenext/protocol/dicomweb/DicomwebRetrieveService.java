@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dicomweb;
+package org.dicoogle.protocol.dicomweb;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -21,12 +21,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import pt.ua.dicooglenext.core.storage.StorageRouter;
-import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
-import pt.ua.dicooglenext.sdk.service.StorageRetrieveEventListener;
-import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
-import pt.ua.dicooglenext.sdk.storage.StorageRetrieveFailureEvent;
-import pt.ua.dicooglenext.sdk.storage.StorageRetrieveSuccessEvent;
+import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.sdk.query.QueryIndexStorageLocator;
+import org.dicoogle.sdk.service.StorageRetrieveEventListener;
+import org.dicoogle.sdk.storage.DicomInstanceLocator;
+import org.dicoogle.sdk.storage.StorageRetrieveFailureEvent;
+import org.dicoogle.sdk.storage.StorageRetrieveSuccessEvent;
 
 @Service
 public class DicomwebRetrieveService {

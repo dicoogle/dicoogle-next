@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;

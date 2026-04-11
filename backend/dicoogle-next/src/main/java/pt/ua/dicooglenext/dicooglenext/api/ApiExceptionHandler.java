@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.api;
+package org.dicoogle.app.api;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
