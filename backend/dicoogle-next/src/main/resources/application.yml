@@ -38,7 +38,7 @@ app:
     allowed-origins: []
   dimse:
     cfind:
-      enabled: true
+      max-results: 1000
       supported-query-levels:
         - STUDY
         - SERIES

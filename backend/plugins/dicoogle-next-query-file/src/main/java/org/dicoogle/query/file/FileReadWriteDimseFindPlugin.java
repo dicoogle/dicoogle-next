@@ -36,24 +36,26 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
 
   @Override
   public List<Attributes> find(FindRequest request) throws IOException {
-    List<java.net.URI> uris =
-        switch (request.level()) {
-          case STUDY ->
-              storagePlugin.listStudyInstances(
-                  request.keys().getString(Tag.StudyInstanceUID, "__MISSING_STUDY_UID__"));
-          case SERIES ->
-              storagePlugin.listSeriesInstances(
-                  request.keys().getString(Tag.StudyInstanceUID, "__MISSING_STUDY_UID__"),
-                  request.keys().getString(Tag.SeriesInstanceUID, "__MISSING_SERIES_UID__"));
-          case IMAGE ->
-              storagePlugin
-                  .locateInstance(
-                      request.keys().getString(Tag.StudyInstanceUID, "__MISSING_STUDY_UID__"),
-                      request.keys().getString(Tag.SeriesInstanceUID, "__MISSING_SERIES_UID__"),
-                      request.keys().getString(Tag.SOPInstanceUID, "__MISSING_INSTANCE_UID__"))
-                  .map(List::of)
-                  .orElse(List.of());
-        };
+    String studyUid = request.keys().getString(Tag.StudyInstanceUID, null);
+    String seriesUid = request.keys().getString(Tag.SeriesInstanceUID, null);
+    String sopUid = request.keys().getString(Tag.SOPInstanceUID, null);
+
+    List<java.net.URI> uris;
+    if (request.level() == QueryRetrieveLevel.IMAGE
+        && hasText(studyUid)
+        && hasText(seriesUid)
+        && hasText(sopUid)) {
+      uris =
+          storagePlugin.locateInstance(studyUid, seriesUid, sopUid).map(List::of).orElse(List.of());
+    } else if (request.level() == QueryRetrieveLevel.SERIES
+        && hasText(studyUid)
+        && hasText(seriesUid)) {
+      uris = storagePlugin.listSeriesInstances(studyUid, seriesUid);
+    } else if (request.level() == QueryRetrieveLevel.STUDY && hasText(studyUid)) {
+      uris = storagePlugin.listStudyInstances(studyUid);
+    } else {
+      uris = storagePlugin.listAllInstances();
+    }
 
     Set<String> seen = new LinkedHashSet<>();
     List<Attributes> out = new ArrayList<>();
@@ -70,6 +72,9 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
         continue;
       }
       if (!matchesKeywordFilters(attrs, filters)) {
+        continue;
+      }
+      if (!matchesDicomKeys(attrs, request.keys())) {
         continue;
       }
       out.add(filterByLevel(attrs, request.level()));
@@ -132,19 +137,75 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
     };
   }
 
+  private boolean matchesDicomKeys(Attributes attrs, Attributes keys) {
+    return matchesExactUi(attrs, Tag.StudyInstanceUID, keys)
+        && matchesExactUi(attrs, Tag.SeriesInstanceUID, keys)
+        && matchesExactUi(attrs, Tag.SOPInstanceUID, keys)
+        && matchesExactIgnoreCase(attrs, Tag.PatientID, keys)
+        && matchesExactIgnoreCase(attrs, Tag.Modality, keys)
+        && matchesContainsIgnoreCase(attrs, Tag.PatientName, keys)
+        && matchesContainsIgnoreCase(attrs, Tag.StudyDescription, keys)
+        && matchesContainsIgnoreCase(attrs, Tag.SeriesDescription, keys);
+  }
+
+  private boolean matchesExactUi(Attributes attrs, int tag, Attributes keys) {
+    String expected = keys.getString(tag, null);
+    if (!hasText(expected)) {
+      return true;
+    }
+    String actual = attrs.getString(tag, "");
+    return actual.equals(expected);
+  }
+
+  private boolean matchesExactIgnoreCase(Attributes attrs, int tag, Attributes keys) {
+    String expected = keys.getString(tag, null);
+    if (!hasText(expected)) {
+      return true;
+    }
+    String actual = attrs.getString(tag, "");
+    return actual.equalsIgnoreCase(expected);
+  }
+
+  private boolean matchesContainsIgnoreCase(Attributes attrs, int tag, Attributes keys) {
+    String expected = keys.getString(tag, null);
+    if (!hasText(expected)) {
+      return true;
+    }
+    String actual = attrs.getString(tag, "");
+    return actual.toLowerCase(Locale.ROOT).contains(expected.toLowerCase(Locale.ROOT));
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
+
   private Attributes filterByLevel(Attributes src, QueryRetrieveLevel level) {
     Attributes out = new Attributes();
-    out.setString(Tag.QueryRetrieveLevel, VR.CS, level.name());
-    out.setString(Tag.StudyInstanceUID, VR.UI, src.getString(Tag.StudyInstanceUID, ""));
-    out.setString(Tag.SeriesInstanceUID, VR.UI, src.getString(Tag.SeriesInstanceUID, ""));
-    out.setString(Tag.SOPInstanceUID, VR.UI, src.getString(Tag.SOPInstanceUID, ""));
-    out.setString(Tag.SOPClassUID, VR.UI, src.getString(Tag.SOPClassUID, ""));
-    out.setString(Tag.PatientID, VR.LO, src.getString(Tag.PatientID, ""));
-    out.setString(Tag.PatientName, VR.PN, src.getString(Tag.PatientName, ""));
-    out.setString(Tag.StudyDescription, VR.LO, src.getString(Tag.StudyDescription, ""));
-    out.setString(Tag.SeriesDescription, VR.LO, src.getString(Tag.SeriesDescription, ""));
-    out.setString(Tag.Modality, VR.CS, src.getString(Tag.Modality, ""));
-    out.setString(Tag.AccessionNumber, VR.SH, src.getString(Tag.AccessionNumber, ""));
+    copyIfPresent(src, out, Tag.QueryRetrieveLevel, VR.CS, level.name());
+    copyIfPresent(src, out, Tag.StudyInstanceUID, VR.UI, null);
+    copyIfPresent(src, out, Tag.SeriesInstanceUID, VR.UI, null);
+    copyIfPresent(src, out, Tag.SOPInstanceUID, VR.UI, null);
+    copyIfPresent(src, out, Tag.SOPClassUID, VR.UI, null);
+    copyIfPresent(src, out, Tag.PatientID, VR.LO, null);
+    copyIfPresent(src, out, Tag.PatientName, VR.PN, null);
+    copyIfPresent(src, out, Tag.PatientSex, VR.CS, null);
+    copyIfPresent(src, out, Tag.PatientBirthDate, VR.DA, null);
+    copyIfPresent(src, out, Tag.StudyDate, VR.DA, null);
+    copyIfPresent(src, out, Tag.StudyTime, VR.TM, null);
+    copyIfPresent(src, out, Tag.AccessionNumber, VR.SH, null);
+    copyIfPresent(src, out, Tag.StudyID, VR.SH, null);
+    copyIfPresent(src, out, Tag.StudyDescription, VR.LO, null);
+    copyIfPresent(src, out, Tag.Modality, VR.CS, null);
+    copyIfPresent(src, out, Tag.ModalitiesInStudy, VR.CS, null);
+    copyIfPresent(src, out, Tag.InstitutionName, VR.LO, null);
+    copyIfPresent(src, out, Tag.SeriesDescription, VR.LO, null);
+    copyIfPresent(src, out, Tag.SeriesDate, VR.DA, null);
+    copyIfPresent(src, out, Tag.SeriesTime, VR.TM, null);
+    copyIfPresent(src, out, Tag.SeriesNumber, VR.IS, null);
+    copyIfPresent(src, out, Tag.OperatorsName, VR.PN, null);
+    copyIfPresent(src, out, Tag.RequestingPhysician, VR.PN, null);
+    copyIfPresent(src, out, Tag.ProtocolName, VR.LO, null);
+    copyIfPresent(src, out, Tag.BodyPartThickness, VR.DS, null);
 
     if (level == QueryRetrieveLevel.STUDY) {
       Attributes studyOnly = new Attributes();
@@ -160,6 +221,17 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
       return seriesOnly;
     }
     return out;
+  }
+
+  private void copyIfPresent(Attributes src, Attributes dst, int tag, VR vr, String defaultValue) {
+    String value = src.getString(tag, null);
+    if (value != null && !value.isBlank()) {
+      dst.setString(tag, vr, value);
+      return;
+    }
+    if (defaultValue != null) {
+      dst.setString(tag, vr, defaultValue);
+    }
   }
 
   public static String extractFreeText(String raw) {

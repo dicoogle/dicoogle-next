@@ -34,8 +34,27 @@ You can change transfer capabilities at runtime via API:
 - `DELETE /api/system/config/dimse/transfer-capabilities/{SOPClassUID}`
 - `POST /api/system/config/dimse/transfer-capabilities/replace`
 
-C-FIND supports Study Root with query levels `STUDY`, `SERIES`, and `IMAGE`. Query plugins receive
-both structured query keys and a free-text field extracted from query attributes.
+C-FIND (Study Root) is always enabled when DIMSE server is enabled (`app.dimse.cstore.enabled=true`).
+Supported query levels are `STUDY`, `SERIES`, and `IMAGE`.
+
+Query behavior:
+
+- Standard C-FIND keys are matched (`StudyInstanceUID`, `SeriesInstanceUID`, `SOPInstanceUID`,
+  `PatientID`, `PatientName`, `Modality`, `StudyDescription`, `SeriesDescription`).
+- Old Dicoogle-like free-text and `keyword:value` filters are accepted on the same endpoint.
+- Mixed queries are supported (for example: free text + strict DICOM keys together).
+- Broad queries without UIDs are supported by scanning indexed instances and filtering in-memory.
+- Response size is capped by `app.dimse.cfind.max-results` (default `1000`).
+
+`keyword:value` filters currently supported:
+
+- `patientid`
+- `patientname`
+- `studyinstanceuid`
+- `seriesinstanceuid`
+- `sopinstanceuid`
+- `accessionnumber`
+- `modality`
 
 Config source options:
 
@@ -127,3 +146,19 @@ curl -i -u developer:developer \
 ```
 
 Expected: `404` with `application/problem+json`.
+
+### 8) C-FIND examples (findscu)
+
+Standard Study Root by UID:
+
+```bash
+findscu -v -S -k QueryRetrieveLevel=STUDY -k StudyInstanceUID=<StudyUID> \
+  -aet TESTSCU -aec DICOOGLE localhost 11112
+```
+
+Mixed free-text + keyword filter on same request (old Dicoogle style):
+
+```bash
+findscu -v -S -k QueryRetrieveLevel=STUDY -k "PatientName=brain modality:MR" \
+  -aet TESTSCU -aec DICOOGLE localhost 11112
+```
