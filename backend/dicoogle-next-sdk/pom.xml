@@ -13,4 +13,12 @@
     <artifactId>dicoogle-next-sdk</artifactId>
     <name>dicoogle-next-sdk</name>
     <description>Plugin contracts for Dicoogle Next</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-core</artifactId>
+            <version>${dcm4che.version}</version>
+        </dependency>
+    </dependencies>
 </project>

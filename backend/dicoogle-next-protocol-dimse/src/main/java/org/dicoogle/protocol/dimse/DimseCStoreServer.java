@@ -35,8 +35,12 @@ import org.springframework.context.SmartLifecycle;
 
 public class DimseCStoreServer implements SmartLifecycle {
 
+  private static final String STUDY_ROOT_FIND_UID = "1.2.840.10008.5.1.4.1.2.2.1";
+
   private final CStoreService cStoreService;
+  private final CFindService cFindService;
   private final DimseCStoreProperties properties;
+  private final DimseCFindProperties cfindProperties;
   private final String primaryStorageScheme;
   private final List<DimseAssociationEventListener> associationEventListeners;
   private final List<DimseAssociationAccessPolicy> associationAccessPolicies;
@@ -47,18 +51,33 @@ public class DimseCStoreServer implements SmartLifecycle {
   private ScheduledExecutorService scheduler;
 
   public DimseCStoreServer(
-      CStoreService cStoreService, DimseCStoreProperties properties, String primaryStorageScheme) {
-    this(cStoreService, properties, primaryStorageScheme, List.of(), List.of());
+      CStoreService cStoreService,
+      CFindService cFindService,
+      DimseCStoreProperties properties,
+      DimseCFindProperties cfindProperties,
+      String primaryStorageScheme) {
+    this(
+        cStoreService,
+        cFindService,
+        properties,
+        cfindProperties,
+        primaryStorageScheme,
+        List.of(),
+        List.of());
   }
 
   public DimseCStoreServer(
       CStoreService cStoreService,
+      CFindService cFindService,
       DimseCStoreProperties properties,
+      DimseCFindProperties cfindProperties,
       String primaryStorageScheme,
       List<DimseAssociationEventListener> associationEventListeners,
       List<DimseAssociationAccessPolicy> associationAccessPolicies) {
     this.cStoreService = Objects.requireNonNull(cStoreService);
+    this.cFindService = Objects.requireNonNull(cFindService);
     this.properties = Objects.requireNonNull(properties);
+    this.cfindProperties = Objects.requireNonNull(cfindProperties);
     this.primaryStorageScheme =
         primaryStorageScheme == null || primaryStorageScheme.isBlank()
             ? "file"
@@ -96,6 +115,9 @@ public class DimseCStoreServer implements SmartLifecycle {
 
     DicomServiceRegistry services = new DicomServiceRegistry();
     services.addDicomService(new BasicCEchoSCP());
+    if (cfindProperties.isEnabled()) {
+      services.addDicomService(new DimseCFindSCP(cFindService));
+    }
     services.addDicomService(
         new BasicCStoreSCP("*") {
           @Override
@@ -220,6 +242,16 @@ public class DimseCStoreServer implements SmartLifecycle {
               UID.Verification,
               TransferCapability.Role.SCP,
               UID.ImplicitVRLittleEndian));
+    }
+
+    if (cfindProperties.isEnabled()) {
+      ae.addTransferCapability(
+          new TransferCapability(
+              "cfind-study-root-scp",
+              STUDY_ROOT_FIND_UID,
+              TransferCapability.Role.SCP,
+              UID.ImplicitVRLittleEndian,
+              UID.ExplicitVRLittleEndian));
     }
   }
 

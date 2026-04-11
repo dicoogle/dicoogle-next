@@ -37,6 +37,12 @@ app:
     docs-enabled: false
     allowed-origins: []
   dimse:
+    cfind:
+      enabled: true
+      supported-query-levels:
+        - STUDY
+        - SERIES
+        - IMAGE
     cstore:
       enabled: false
       ae-title: DICOOGLE
