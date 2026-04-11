@@ -1,5 +1,6 @@
 package org.dicoogle.query.file;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,7 +22,8 @@ class FileReadWriteDimseFindPluginTest {
     Path root = Files.createTempDirectory("query-file-test");
     FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(root, "file");
     storage.store(
-        new java.io.ByteArrayInputStream(createDicom("P1", "FELIX", "MR")), "application/dicom");
+        new java.io.ByteArrayInputStream(createDicom("P1", "FELIX", "MR", "A1", "20240101")),
+        "application/dicom");
 
     FileReadWriteDimseFindPlugin plugin = new FileReadWriteDimseFindPlugin(storage);
 
@@ -51,7 +53,72 @@ class FileReadWriteDimseFindPluginTest {
     assertTrue(FileReadWriteDimseFindPlugin.extractFreeText(raw).contains("brain"));
   }
 
-  private byte[] createDicom(String patientId, String patientName, String modality)
+  @Test
+  void supportsWildcardAndMultiValueMatching() throws Exception {
+    Path root = Files.createTempDirectory("query-file-test-wildcards");
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(root, "file");
+    storage.store(
+        new java.io.ByteArrayInputStream(
+            createDicom("P1", "FELIX^ALMEIDA", "MR", "A100", "20240115")),
+        "application/dicom");
+    storage.store(
+        new java.io.ByteArrayInputStream(createDicom("P2", "JOAO", "CT", "A200", "20250310")),
+        "application/dicom");
+
+    FileReadWriteDimseFindPlugin plugin = new FileReadWriteDimseFindPlugin(storage);
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.PatientName, VR.PN, "F*");
+    keys.setString(Tag.Modality, VR.CS, "MR\\US");
+
+    var request =
+        new DimseFindServicePlugin.FindRequest(
+            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
+            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+            "CALLING",
+            "CALLED",
+            2,
+            keys,
+            null,
+            java.util.Map.of());
+
+    assertEquals(1, plugin.find(request).size());
+  }
+
+  @Test
+  void supportsDateRangeMatching() throws Exception {
+    Path root = Files.createTempDirectory("query-file-test-dates");
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(root, "file");
+    storage.store(
+        new java.io.ByteArrayInputStream(createDicom("P1", "ANA", "MR", "A1", "20240115")),
+        "application/dicom");
+    storage.store(
+        new java.io.ByteArrayInputStream(createDicom("P2", "BEA", "MR", "A2", "20250310")),
+        "application/dicom");
+
+    FileReadWriteDimseFindPlugin plugin = new FileReadWriteDimseFindPlugin(storage);
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyDate, VR.DA, "20240101-20241231");
+
+    var request =
+        new DimseFindServicePlugin.FindRequest(
+            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
+            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+            "CALLING",
+            "CALLED",
+            3,
+            keys,
+            null,
+            java.util.Map.of());
+
+    assertEquals(1, plugin.find(request).size());
+  }
+
+  private byte[] createDicom(
+      String patientId, String patientName, String modality, String accession, String studyDate)
       throws Exception {
     Attributes fmi = new Attributes();
     fmi.setString(Tag.TransferSyntaxUID, VR.UI, UID.ExplicitVRLittleEndian);
@@ -67,6 +134,8 @@ class FileReadWriteDimseFindPluginTest {
     attrs.setString(Tag.PatientID, VR.LO, patientId);
     attrs.setString(Tag.PatientName, VR.PN, patientName);
     attrs.setString(Tag.Modality, VR.CS, modality);
+    attrs.setString(Tag.AccessionNumber, VR.SH, accession);
+    attrs.setString(Tag.StudyDate, VR.DA, studyDate);
 
     java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
     try (DicomOutputStream dos = new DicomOutputStream(out, UID.ExplicitVRLittleEndian)) {
