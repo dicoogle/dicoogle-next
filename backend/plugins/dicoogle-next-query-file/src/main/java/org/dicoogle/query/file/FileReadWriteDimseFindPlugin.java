@@ -138,41 +138,116 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
   }
 
   private boolean matchesDicomKeys(Attributes attrs, Attributes keys) {
-    return matchesExactUi(attrs, Tag.StudyInstanceUID, keys)
-        && matchesExactUi(attrs, Tag.SeriesInstanceUID, keys)
-        && matchesExactUi(attrs, Tag.SOPInstanceUID, keys)
-        && matchesExactIgnoreCase(attrs, Tag.PatientID, keys)
-        && matchesExactIgnoreCase(attrs, Tag.Modality, keys)
-        && matchesContainsIgnoreCase(attrs, Tag.PatientName, keys)
-        && matchesContainsIgnoreCase(attrs, Tag.StudyDescription, keys)
-        && matchesContainsIgnoreCase(attrs, Tag.SeriesDescription, keys);
+    return matchesUid(attrs, Tag.StudyInstanceUID, keys)
+        && matchesUid(attrs, Tag.SeriesInstanceUID, keys)
+        && matchesUid(attrs, Tag.SOPInstanceUID, keys)
+        && matchesString(attrs, Tag.PatientID, keys)
+        && matchesString(attrs, Tag.Modality, keys)
+        && matchesString(attrs, Tag.PatientName, keys)
+        && matchesString(attrs, Tag.StudyDescription, keys)
+        && matchesString(attrs, Tag.SeriesDescription, keys)
+        && matchesString(attrs, Tag.AccessionNumber, keys)
+        && matchesDate(attrs, Tag.PatientBirthDate, keys)
+        && matchesDate(attrs, Tag.StudyDate, keys)
+        && matchesDate(attrs, Tag.SeriesDate, keys);
   }
 
-  private boolean matchesExactUi(Attributes attrs, int tag, Attributes keys) {
+  private boolean matchesUid(Attributes attrs, int tag, Attributes keys) {
     String expected = keys.getString(tag, null);
     if (!hasText(expected)) {
       return true;
     }
     String actual = attrs.getString(tag, "");
-    return actual.equals(expected);
+    for (String candidate : splitMultiValue(expected)) {
+      if (actual.equals(candidate)) {
+        return true;
+      }
+    }
+    return false;
   }
 
-  private boolean matchesExactIgnoreCase(Attributes attrs, int tag, Attributes keys) {
+  private boolean matchesString(Attributes attrs, int tag, Attributes keys) {
     String expected = keys.getString(tag, null);
     if (!hasText(expected)) {
       return true;
     }
     String actual = attrs.getString(tag, "");
+    for (String candidate : splitMultiValue(expected)) {
+      if (matchesStringValue(actual, candidate)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean matchesDate(Attributes attrs, int tag, Attributes keys) {
+    String expected = keys.getString(tag, null);
+    if (!hasText(expected)) {
+      return true;
+    }
+    String actual = attrs.getString(tag, "");
+    for (String candidate : splitMultiValue(expected)) {
+      if (matchesDateValue(actual, candidate)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private List<String> splitMultiValue(String expected) {
+    String[] values = expected.split("\\\\");
+    List<String> out = new ArrayList<>(values.length);
+    for (String value : values) {
+      if (hasText(value)) {
+        out.add(value.trim());
+      }
+    }
+    return out;
+  }
+
+  private boolean matchesStringValue(String actual, String expected) {
+    if (expected.indexOf('*') >= 0 || expected.indexOf('?') >= 0) {
+      String regex = wildcardToRegex(expected);
+      return Pattern.compile(regex, Pattern.CASE_INSENSITIVE | Pattern.DOTALL)
+          .matcher(actual)
+          .matches();
+    }
     return actual.equalsIgnoreCase(expected);
   }
 
-  private boolean matchesContainsIgnoreCase(Attributes attrs, int tag, Attributes keys) {
-    String expected = keys.getString(tag, null);
-    if (!hasText(expected)) {
-      return true;
+  private String wildcardToRegex(String wildcard) {
+    StringBuilder regex = new StringBuilder("^");
+    for (char c : wildcard.toCharArray()) {
+      if (c == '*') {
+        regex.append(".*");
+      } else if (c == '?') {
+        regex.append('.');
+      } else if ("\\.^$|()[]{}+".indexOf(c) >= 0) {
+        regex.append('\\').append(c);
+      } else {
+        regex.append(c);
+      }
     }
-    String actual = attrs.getString(tag, "");
-    return actual.toLowerCase(Locale.ROOT).contains(expected.toLowerCase(Locale.ROOT));
+    regex.append('$');
+    return regex.toString();
+  }
+
+  private boolean matchesDateValue(String actual, String expected) {
+    int dash = expected.indexOf('-');
+    if (dash < 0) {
+      return actual.equals(expected);
+    }
+
+    String start = expected.substring(0, dash).trim();
+    String end = expected.substring(dash + 1).trim();
+
+    if (hasText(start) && actual.compareTo(start) < 0) {
+      return false;
+    }
+    if (hasText(end) && actual.compareTo(end) > 0) {
+      return false;
+    }
+    return true;
   }
 
   private boolean hasText(String value) {
