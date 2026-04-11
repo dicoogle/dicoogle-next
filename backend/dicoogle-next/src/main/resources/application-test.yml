@@ -16,6 +16,8 @@ springdoc:
 
 app:
   dimse:
+    cfind:
+      enabled: true
     cstore:
       enabled: false
   security:
