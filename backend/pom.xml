@@ -24,9 +24,9 @@
         <module>dicoogle-next-core</module>
         <module>dicoogle-next-protocol-dimse</module>
         <module>dicoogle-next-protocol-dicomweb</module>
-        <module>dicoogle-next-storage-file-ro</module>
-        <module>dicoogle-next-storage-file-rw</module>
-        <module>dicoogle-next-query-file</module>
+        <module>plugins/dicoogle-next-storage-file-ro</module>
+        <module>plugins/dicoogle-next-storage-file-rw</module>
+        <module>plugins/dicoogle-next-query-file</module>
     </modules>
 
     <properties>
@@ -100,10 +100,10 @@
                 </configuration>
                 <executions>
                     <execution>
-                        <id>spotless-check</id>
+                        <id>spotless-apply</id>
                         <phase>validate</phase>
                         <goals>
-                            <goal>check</goal>
+                            <goal>apply</goal>
                         </goals>
                     </execution>
                 </executions>

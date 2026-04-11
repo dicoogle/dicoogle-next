@@ -1,5 +1,7 @@
 package org.dicoogle.protocol.dimse;
 
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -7,27 +9,42 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
+import org.dicoogle.sdk.query.DimseFindAccessPolicy;
 import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CFindService {
 
   private static final String STUDY_ROOT_MODEL_UID = "1.2.840.10008.5.1.4.1.2.2.1";
   private static final Pattern KEYWORD_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+:[^\\s]+");
+  private static final Logger LOGGER = LoggerFactory.getLogger(CFindService.class);
 
   private final List<DimseFindServicePlugin> plugins;
+  private final List<DimseFindAccessPolicy> accessPolicies;
   private final Set<String> supportedLevels;
+  private final int maxResults;
+  private final MeterRegistry meterRegistry;
 
-  public CFindService(List<DimseFindServicePlugin> plugins, DimseCFindProperties properties) {
+  public CFindService(
+      List<DimseFindServicePlugin> plugins,
+      List<DimseFindAccessPolicy> accessPolicies,
+      DimseCFindProperties properties,
+      MeterRegistry meterRegistry) {
     this.plugins = List.copyOf(plugins);
+    this.accessPolicies = List.copyOf(accessPolicies);
     this.supportedLevels =
         properties.getSupportedQueryLevels().stream()
             .map(level -> level.toUpperCase(Locale.ROOT))
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    this.maxResults = properties.getMaxResults();
+    this.meterRegistry = meterRegistry;
   }
 
   public List<Attributes> find(
@@ -37,19 +54,25 @@ public class CFindService {
       String calledAet,
       int associationSerialNo)
       throws DicomServiceException {
+    long startNs = System.nanoTime();
+    increment("dicoogle.cfind.requests", null);
+
     if (!STUDY_ROOT_MODEL_UID.equals(affectedSopClassUid)) {
+      increment("dicoogle.cfind.failure", "unsupported-sop-class");
       throw new DicomServiceException(
           Status.SOPclassNotSupported, "Only Study Root C-FIND is supported");
     }
 
     String queryLevel = keys.getString(Tag.QueryRetrieveLevel);
     if (queryLevel == null || queryLevel.isBlank()) {
+      increment("dicoogle.cfind.failure", "missing-query-level");
       throw new DicomServiceException(
           Status.IdentifierDoesNotMatchSOPClass, "Missing QueryRetrieveLevel");
     }
 
     String normalizedLevel = queryLevel.trim().toUpperCase(Locale.ROOT);
     if (!supportedLevels.contains(normalizedLevel)) {
+      increment("dicoogle.cfind.failure", "unsupported-query-level");
       throw new DicomServiceException(
           Status.UnableToProcess, "Unsupported QueryRetrieveLevel: " + normalizedLevel);
     }
@@ -58,16 +81,27 @@ public class CFindService {
     try {
       level = DimseFindServicePlugin.QueryRetrieveLevel.valueOf(normalizedLevel);
     } catch (IllegalArgumentException ex) {
+      increment("dicoogle.cfind.failure", "invalid-query-level");
       throw new DicomServiceException(Status.UnableToProcess, "Invalid QueryRetrieveLevel");
     }
 
     if (plugins.isEmpty()) {
+      increment("dicoogle.cfind.failure", "no-query-plugin");
       throw new DicomServiceException(
           Status.UnableToProcess, "No DIMSE query plugin is configured");
     }
 
-    String freeText = extractFreeText(keys);
-    Map<String, String> keywordFilters = extractKeywordFilters(keys);
+    String rawPatientName = keys.getString(Tag.PatientName, null);
+    String freeText = extractFreeText(rawPatientName);
+    Map<String, String> keywordFilters = extractKeywordFilters(rawPatientName);
+
+    Attributes normalizedKeys = new Attributes(keys);
+    if (freeText == null || freeText.isBlank()) {
+      normalizedKeys.setNull(Tag.PatientName, org.dcm4che3.data.VR.PN);
+    } else {
+      normalizedKeys.setString(Tag.PatientName, org.dcm4che3.data.VR.PN, freeText);
+    }
+
     DimseFindServicePlugin.FindRequest request =
         new DimseFindServicePlugin.FindRequest(
             DimseFindServicePlugin.InformationModel.STUDY_ROOT,
@@ -75,26 +109,66 @@ public class CFindService {
             callingAet,
             calledAet,
             associationSerialNo,
-            keys,
+            normalizedKeys,
             freeText,
             keywordFilters);
+
+    for (DimseFindAccessPolicy policy : accessPolicies) {
+      DimseFindAccessPolicy.Decision decision = policy.evaluate(request);
+      if (!decision.allowed()) {
+        increment("dicoogle.cfind.failure", "policy-denied");
+        throw new DicomServiceException(Status.UnableToProcess, decision.reason());
+      }
+    }
+
+    LOGGER.info(
+        "C-FIND request association={} aet={} level={} keys={} freeText={} keywordFilters={}",
+        associationSerialNo,
+        callingAet,
+        normalizedLevel,
+        requestedKeyTags(normalizedKeys),
+        freeText,
+        keywordFilters.keySet());
 
     for (DimseFindServicePlugin plugin : plugins) {
       try {
         List<Attributes> matches = plugin.find(request);
         if (matches != null) {
-          return matches;
+          List<Attributes> limited =
+              matches.size() <= maxResults ? matches : matches.subList(0, maxResults);
+          increment("dicoogle.cfind.success", null);
+          meterRegistry
+              .counter("dicoogle.cfind.matches", "level", normalizedLevel)
+              .increment(limited.size());
+          recordLatency("success", normalizedLevel, startNs);
+          return limited;
         }
       } catch (IOException ex) {
+        increment("dicoogle.cfind.failure", "plugin-io");
+        recordLatency("failure", normalizedLevel, startNs);
         throw new DicomServiceException(Status.UnableToProcess, ex.getMessage());
       }
     }
 
+    increment("dicoogle.cfind.success", null);
+    recordLatency("success", normalizedLevel, startNs);
     return List.of();
   }
 
-  private String extractFreeText(Attributes keys) {
-    String direct = keys.getString(Tag.PatientName);
+  private String requestedKeyTags(Attributes keys) {
+    StringBuilder out = new StringBuilder();
+    for (int tag : keys.tags()) {
+      String value = keys.getString(tag, null);
+      boolean hasValue = value != null && !value.isBlank();
+      if (!out.isEmpty()) {
+        out.append(',');
+      }
+      out.append(String.format("%08X%s", tag, hasValue ? "=*" : ""));
+    }
+    return out.toString();
+  }
+
+  private String extractFreeText(String direct) {
     if (direct == null || direct.isBlank()) {
       return null;
     }
@@ -111,8 +185,7 @@ public class CFindService {
     return out.isEmpty() ? null : out.toString();
   }
 
-  private Map<String, String> extractKeywordFilters(Attributes keys) {
-    String raw = keys.getString(Tag.PatientName);
+  private Map<String, String> extractKeywordFilters(String raw) {
     if (raw == null || raw.isBlank()) {
       return Map.of();
     }
@@ -127,5 +200,21 @@ public class CFindService {
       }
     }
     return out;
+  }
+
+  private void increment(String meterName, String reason) {
+    if (reason == null) {
+      meterRegistry.counter(meterName).increment();
+    } else {
+      meterRegistry.counter(meterName, "reason", reason).increment();
+    }
+  }
+
+  private void recordLatency(String outcome, String level, long startNs) {
+    Timer.builder("dicoogle.cfind.latency")
+        .tag("outcome", outcome)
+        .tag("level", level)
+        .register(meterRegistry)
+        .record(System.nanoTime() - startNs, TimeUnit.NANOSECONDS);
   }
 }

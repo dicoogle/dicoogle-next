@@ -10,8 +10,12 @@ import org.dcm4che3.net.service.BasicCFindSCP;
 import org.dcm4che3.net.service.BasicQueryTask;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.QueryTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class DimseCFindSCP extends BasicCFindSCP {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DimseCFindSCP.class);
 
   private final CFindService cFindService;
 
@@ -24,6 +28,12 @@ class DimseCFindSCP extends BasicCFindSCP {
   protected QueryTask calculateMatches(
       Association as, PresentationContext pc, Attributes rq, Attributes keys)
       throws DicomServiceException {
+    LOGGER.info(
+        "C-FIND request association={} callingAET={} calledAET={}",
+        as.getSerialNo(),
+        as.getCallingAET(),
+        as.getCalledAET());
+
     List<Attributes> matches =
         cFindService.find(
             rq.getString(org.dcm4che3.data.Tag.AffectedSOPClassUID),
