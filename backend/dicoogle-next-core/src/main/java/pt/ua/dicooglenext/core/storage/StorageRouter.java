@@ -1,10 +1,10 @@
-package pt.ua.dicooglenext.core.storage;
+package org.dicoogle.core.storage;
 
 import java.util.Collection;
 import java.util.List;
-import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.storage.StoragePlugin;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 public class StorageRouter {
 

@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -8,9 +8,9 @@ import java.net.URI;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.DefaultApplicationArguments;
-import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
+import org.dicoogle.sdk.PluginMetadata;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 class PluginStartupValidatorTest {
 
@@ -62,7 +62,7 @@ class PluginStartupValidatorTest {
       extends ReadOnlyStoragePlugin implements WritableStoragePlugin {
 
     @Override
-    public pt.ua.dicooglenext.sdk.storage.StoredObject store(InputStream data, String contentType) {
+    public org.dicoogle.sdk.storage.StoredObject store(InputStream data, String contentType) {
       throw new UnsupportedOperationException();
     }
   }

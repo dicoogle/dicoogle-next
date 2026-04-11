@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.storage.filerw;
+package org.dicoogle.storage.filerw;
 
 import java.nio.file.Path;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

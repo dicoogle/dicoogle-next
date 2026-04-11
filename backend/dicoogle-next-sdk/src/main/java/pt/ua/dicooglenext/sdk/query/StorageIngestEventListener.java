@@ -1,7 +1,7 @@
-package pt.ua.dicooglenext.sdk.query;
+package org.dicoogle.sdk.query;
 
-import pt.ua.dicooglenext.sdk.storage.StorageIngestFailureEvent;
-import pt.ua.dicooglenext.sdk.storage.StorageIngestSuccessEvent;
+import org.dicoogle.sdk.storage.StorageIngestFailureEvent;
+import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
 
 public interface StorageIngestEventListener extends QueryIndexPlugin {
 

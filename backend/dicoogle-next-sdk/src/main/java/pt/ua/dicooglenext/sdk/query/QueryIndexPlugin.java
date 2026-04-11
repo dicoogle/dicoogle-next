@@ -1,5 +1,5 @@
-package pt.ua.dicooglenext.sdk.query;
+package org.dicoogle.sdk.query;
 
-import pt.ua.dicooglenext.sdk.DicooglePlugin;
+import org.dicoogle.sdk.DicooglePlugin;
 
 public interface QueryIndexPlugin extends DicooglePlugin {}

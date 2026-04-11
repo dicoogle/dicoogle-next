@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dimse;
+package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -15,13 +15,13 @@ import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pt.ua.dicooglenext.core.storage.NoWritableStoragePluginException;
-import pt.ua.dicooglenext.core.storage.StoragePluginNotFoundException;
-import pt.ua.dicooglenext.core.storage.StorageRouter;
-import pt.ua.dicooglenext.sdk.query.StorageIngestEventListener;
-import pt.ua.dicooglenext.sdk.storage.StorageIngestFailureEvent;
-import pt.ua.dicooglenext.sdk.storage.StorageIngestSuccessEvent;
-import pt.ua.dicooglenext.sdk.storage.StoredObject;
+import org.dicoogle.core.storage.NoWritableStoragePluginException;
+import org.dicoogle.core.storage.StoragePluginNotFoundException;
+import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.sdk.query.StorageIngestEventListener;
+import org.dicoogle.sdk.storage.StorageIngestFailureEvent;
+import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
+import org.dicoogle.sdk.storage.StoredObject;
 
 public class CStoreService {
 

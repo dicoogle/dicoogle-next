@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.sdk.storage;
+package org.dicoogle.sdk.storage;
 
 public record StorageRetrieveFailureEvent(
     String studyInstanceUid,

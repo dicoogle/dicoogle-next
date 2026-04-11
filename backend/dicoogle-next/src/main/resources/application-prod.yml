@@ -16,7 +16,7 @@ spring:
 logging:
   level:
     root: INFO
-    pt.ua.dicooglenext: INFO
+    org.dicoogle: INFO
 
 springdoc:
   api-docs:

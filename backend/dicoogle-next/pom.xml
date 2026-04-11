@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>pt.ua.dicooglenext</groupId>
+        <groupId>org.dicoogle</groupId>
         <artifactId>dicoogle-next-backend-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -47,27 +47,27 @@
             <version>${springdoc.version}</version>
         </dependency>
         <dependency>
-            <groupId>pt.ua.dicooglenext</groupId>
+            <groupId>org.dicoogle</groupId>
             <artifactId>dicoogle-next-core</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>pt.ua.dicooglenext</groupId>
+            <groupId>org.dicoogle</groupId>
             <artifactId>dicoogle-next-storage-file-ro</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>pt.ua.dicooglenext</groupId>
+            <groupId>org.dicoogle</groupId>
             <artifactId>dicoogle-next-storage-file-rw</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>pt.ua.dicooglenext</groupId>
+            <groupId>org.dicoogle</groupId>
             <artifactId>dicoogle-next-protocol-dimse</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>pt.ua.dicooglenext</groupId>
+            <groupId>org.dicoogle</groupId>
             <artifactId>dicoogle-next-protocol-dicomweb</artifactId>
             <version>${project.version}</version>
         </dependency>

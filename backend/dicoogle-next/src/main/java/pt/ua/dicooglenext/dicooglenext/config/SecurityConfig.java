@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import java.util.List;
 import org.springframework.context.annotation.Bean;

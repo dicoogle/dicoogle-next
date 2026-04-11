@@ -1,9 +1,9 @@
-package pt.ua.dicooglenext.sdk.query;
+package org.dicoogle.sdk.query;
 
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationAcceptedEvent;
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationClosedEvent;
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationFailedEvent;
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationRejectedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationClosedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationFailedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationRejectedEvent;
 
 public interface DimseAssociationEventListener extends QueryIndexPlugin {
 

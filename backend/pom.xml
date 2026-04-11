@@ -10,7 +10,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
-    <groupId>pt.ua.dicooglenext</groupId>
+    <groupId>org.dicoogle</groupId>
     <artifactId>dicoogle-next-backend-parent</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>

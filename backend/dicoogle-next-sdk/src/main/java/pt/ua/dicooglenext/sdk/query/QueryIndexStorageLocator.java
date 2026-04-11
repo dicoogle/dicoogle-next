@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.sdk.query;
+package org.dicoogle.sdk.query;
 
 import java.io.IOException;
 import java.net.URI;

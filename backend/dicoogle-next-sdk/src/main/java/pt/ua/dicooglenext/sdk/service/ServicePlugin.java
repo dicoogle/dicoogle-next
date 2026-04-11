@@ -1,5 +1,5 @@
-package pt.ua.dicooglenext.sdk.service;
+package org.dicoogle.sdk.service;
 
-import pt.ua.dicooglenext.sdk.DicooglePlugin;
+import org.dicoogle.sdk.DicooglePlugin;
 
 public interface ServicePlugin extends DicooglePlugin {}

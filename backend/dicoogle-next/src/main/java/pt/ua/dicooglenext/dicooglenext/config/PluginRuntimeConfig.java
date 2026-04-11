@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -8,10 +8,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import pt.ua.dicooglenext.core.plugins.PluginRegistry;
-import pt.ua.dicooglenext.core.storage.StorageRouter;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
-import pt.ua.dicooglenext.storage.filero.FileReadOnlyStoragePlugin;
+import org.dicoogle.core.plugins.PluginRegistry;
+import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.sdk.storage.StoragePlugin;
+import org.dicoogle.storage.filero.FileReadOnlyStoragePlugin;
 
 @Configuration
 @EnableConfigurationProperties(PluginRuntimeProperties.class)

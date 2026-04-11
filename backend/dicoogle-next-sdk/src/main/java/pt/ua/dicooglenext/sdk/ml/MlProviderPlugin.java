@@ -1,5 +1,5 @@
-package pt.ua.dicooglenext.sdk.ml;
+package org.dicoogle.sdk.ml;
 
-import pt.ua.dicooglenext.sdk.DicooglePlugin;
+import org.dicoogle.sdk.DicooglePlugin;
 
 public interface MlProviderPlugin extends DicooglePlugin {}
