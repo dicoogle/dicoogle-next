@@ -5,6 +5,7 @@ import java.util.List;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.DimseAssociationAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
+import org.dicoogle.sdk.query.DimseFindAccessPolicy;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -26,8 +27,10 @@ public class DimseCStoreConfig {
   @Bean
   CFindService cFindService(
       List<org.dicoogle.sdk.query.DimseFindServicePlugin> queryPlugins,
-      DimseCFindProperties properties) {
-    return new CFindService(queryPlugins, properties);
+      List<DimseFindAccessPolicy> cfindAccessPolicies,
+      DimseCFindProperties properties,
+      MeterRegistry meterRegistry) {
+    return new CFindService(queryPlugins, cfindAccessPolicies, properties, meterRegistry);
   }
 
   @Bean
@@ -36,7 +39,6 @@ public class DimseCStoreConfig {
       CStoreService cStoreService,
       CFindService cFindService,
       DimseCStoreProperties properties,
-      DimseCFindProperties cfindProperties,
       List<DimseAssociationEventListener> associationEventListeners,
       List<DimseAssociationAccessPolicy> associationAccessPolicies,
       @org.springframework.beans.factory.annotation.Qualifier("primaryStorageScheme")
@@ -45,7 +47,6 @@ public class DimseCStoreConfig {
         cStoreService,
         cFindService,
         properties,
-        cfindProperties,
         primaryStorageScheme,
         associationEventListeners,
         associationAccessPolicies);

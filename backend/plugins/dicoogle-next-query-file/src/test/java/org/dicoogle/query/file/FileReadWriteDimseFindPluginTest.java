@@ -27,8 +27,8 @@ class FileReadWriteDimseFindPluginTest {
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
-    keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
-    keys.setString(Tag.PatientName, VR.PN, "felix modality:MR");
+    keys.setString(Tag.PatientName, VR.PN, "felix");
+    keys.setString(Tag.Modality, VR.CS, "MR");
 
     var request =
         new DimseFindServicePlugin.FindRequest(
