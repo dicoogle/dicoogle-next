@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.storage.filerw;
+package org.dicoogle.storage.filerw;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

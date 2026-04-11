@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.dto;
+package org.dicoogle.app.dto;
 
 import java.util.List;
 

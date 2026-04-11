@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.storage.filero;
+package org.dicoogle.storage.filero;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -8,10 +8,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
-import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
-import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.PluginMetadata;
+import org.dicoogle.sdk.query.QueryIndexStorageLocator;
+import org.dicoogle.sdk.storage.DicomInstanceLocator;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 
 public class FileReadOnlyStoragePlugin
     implements ReadableStoragePlugin, DicomInstanceLocator, QueryIndexStorageLocator {

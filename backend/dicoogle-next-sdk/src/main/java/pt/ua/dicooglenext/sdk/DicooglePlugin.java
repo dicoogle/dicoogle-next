@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.sdk;
+package org.dicoogle.sdk;
 
 public interface DicooglePlugin {
 

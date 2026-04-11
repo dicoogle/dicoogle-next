@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.service;
+package org.dicoogle.app.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

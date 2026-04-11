@@ -1,7 +1,7 @@
-package pt.ua.dicooglenext.sdk.service;
+package org.dicoogle.sdk.service;
 
-import pt.ua.dicooglenext.sdk.storage.StorageRetrieveFailureEvent;
-import pt.ua.dicooglenext.sdk.storage.StorageRetrieveSuccessEvent;
+import org.dicoogle.sdk.storage.StorageRetrieveFailureEvent;
+import org.dicoogle.sdk.storage.StorageRetrieveSuccessEvent;
 
 public interface StorageRetrieveEventListener extends ServicePlugin {
 

@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.protocol.dimse;
+package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
@@ -6,10 +6,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import pt.ua.dicooglenext.core.storage.StorageRouter;
-import pt.ua.dicooglenext.sdk.query.DimseAssociationAccessPolicy;
-import pt.ua.dicooglenext.sdk.query.DimseAssociationEventListener;
-import pt.ua.dicooglenext.sdk.query.StorageIngestEventListener;
+import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.sdk.query.DimseAssociationAccessPolicy;
+import org.dicoogle.sdk.query.DimseAssociationEventListener;
+import org.dicoogle.sdk.query.StorageIngestEventListener;
 
 @Configuration
 @EnableConfigurationProperties(DimseCStoreProperties.class)

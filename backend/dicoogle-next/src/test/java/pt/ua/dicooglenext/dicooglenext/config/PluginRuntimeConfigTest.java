@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -7,9 +7,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
+import org.dicoogle.sdk.PluginMetadata;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 class PluginRuntimeConfigTest {
 
@@ -70,7 +70,7 @@ class PluginRuntimeConfigTest {
     }
 
     @Override
-    public pt.ua.dicooglenext.sdk.storage.StoredObject store(InputStream data, String contentType) {
+    public org.dicoogle.sdk.storage.StoredObject store(InputStream data, String contentType) {
       throw new UnsupportedOperationException();
     }
   }

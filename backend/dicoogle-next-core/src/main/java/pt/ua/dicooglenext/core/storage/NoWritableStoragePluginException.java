@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.core.storage;
+package org.dicoogle.core.storage;
 
 public class NoWritableStoragePluginException extends RuntimeException {
 

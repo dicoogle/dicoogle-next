@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.api;
+package org.dicoogle.app.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import pt.ua.dicooglenext.dicooglenext.dto.DimseTransferCapabilityDtos.TransferCapabilityListResponse;
-import pt.ua.dicooglenext.dicooglenext.dto.DimseTransferCapabilityDtos.TransferCapabilityReplaceRequest;
-import pt.ua.dicooglenext.dicooglenext.dto.DimseTransferCapabilityDtos.TransferCapabilityUpsertRequest;
-import pt.ua.dicooglenext.dicooglenext.service.DimseTransferCapabilityService;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityListResponse;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityReplaceRequest;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityUpsertRequest;
+import org.dicoogle.app.service.DimseTransferCapabilityService;
 
 @RestController
 @RequestMapping("/system/config/dimse/transfer-capabilities")

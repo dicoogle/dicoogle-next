@@ -11,7 +11,7 @@ management:
 logging:
   level:
     root: INFO
-    pt.ua.dicooglenext: DEBUG
+    org.dicoogle: DEBUG
     org.springframework.security: INFO
 
 springdoc:

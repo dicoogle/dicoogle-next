@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.service;
+package org.dicoogle.app.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -12,11 +12,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import pt.ua.dicooglenext.dicooglenext.config.DimseTransferCapabilityConfigProperties;
-import pt.ua.dicooglenext.dicooglenext.dto.DimseTransferCapabilityDtos.TransferCapabilityItem;
-import pt.ua.dicooglenext.dicooglenext.dto.DimseTransferCapabilityDtos.TransferCapabilityListResponse;
-import pt.ua.dicooglenext.protocol.dimse.DimseCStoreProperties;
-import pt.ua.dicooglenext.protocol.dimse.DimseCStoreServer;
+import org.dicoogle.app.config.DimseTransferCapabilityConfigProperties;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityItem;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityListResponse;
+import org.dicoogle.protocol.dimse.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.DimseCStoreServer;
 
 @Service
 public class DimseTransferCapabilityService {

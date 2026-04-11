@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.api;
+package org.dicoogle.app.api;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;

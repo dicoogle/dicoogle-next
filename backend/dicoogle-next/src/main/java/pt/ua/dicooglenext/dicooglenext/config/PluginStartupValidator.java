@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import java.util.List;
 import java.util.Map;
@@ -7,8 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
+import org.dicoogle.sdk.storage.StoragePlugin;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 public class PluginStartupValidator implements ApplicationRunner {
 

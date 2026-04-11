@@ -1,6 +1,6 @@
-package pt.ua.dicooglenext.sdk.query;
+package org.dicoogle.sdk.query;
 
-import pt.ua.dicooglenext.sdk.storage.DimseAssociationAcceptedEvent;
+import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
 
 public interface DimseAssociationAccessPolicy extends QueryIndexPlugin {
 

@@ -1,4 +1,4 @@
-package pt.ua.dicooglenext.storage.filerw;
+package org.dicoogle.storage.filerw;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -15,12 +15,12 @@ import java.util.regex.Pattern;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.io.DicomInputStream;
-import pt.ua.dicooglenext.sdk.PluginMetadata;
-import pt.ua.dicooglenext.sdk.query.QueryIndexStorageLocator;
-import pt.ua.dicooglenext.sdk.storage.DicomInstanceLocator;
-import pt.ua.dicooglenext.sdk.storage.ReadableStoragePlugin;
-import pt.ua.dicooglenext.sdk.storage.StoredObject;
-import pt.ua.dicooglenext.sdk.storage.WritableStoragePlugin;
+import org.dicoogle.sdk.PluginMetadata;
+import org.dicoogle.sdk.query.QueryIndexStorageLocator;
+import org.dicoogle.sdk.storage.DicomInstanceLocator;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.storage.StoredObject;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 public class FileReadWriteStoragePlugin
     implements

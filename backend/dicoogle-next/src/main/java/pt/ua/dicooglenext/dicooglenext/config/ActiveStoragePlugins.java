@@ -1,7 +1,7 @@
-package pt.ua.dicooglenext.dicooglenext.config;
+package org.dicoogle.app.config;
 
 import java.util.List;
-import pt.ua.dicooglenext.sdk.storage.StoragePlugin;
+import org.dicoogle.sdk.storage.StoragePlugin;
 
 public record ActiveStoragePlugins(List<StoragePlugin> plugins) {
 
