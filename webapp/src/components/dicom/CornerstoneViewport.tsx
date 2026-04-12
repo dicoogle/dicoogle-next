@@ -4,27 +4,25 @@ import { Enums as csEnums } from "@cornerstonejs/core";
 import * as cornerstoneTools from "@cornerstonejs/tools";
 import { initializeCornerstone } from "@/utils/cornerstoneInit";
 import { Button } from "@/components/ui/Button";
-import { dicoogleService } from "@/services/dicoogleService";
+import { MetadataPanel } from "@/features/search/components/MetadataPanel";
+import { useMetadata } from "@/features/search/hooks/useMetadata";
 import {
   ZoomIn,
-  Move,
-  Maximize2,
+  Hand,
   RotateCw,
-  Settings,
+  SunMoon,
   X,
   Loader2,
-  Square,
-  Pen,
+  RectangleHorizontal,
+  Pencil,
   Info,
-  Circle,
+  CircleDot,
+  Minimize2,
+  Maximize2,
+  Undo2,
 } from "lucide-react";
 
-interface DicomViewerProps {
-  imageUrls: string[];
-  initialIndex?: number;
-  onClose?: () => void;
-  title?: string;
-}
+import { DicomViewerProps } from "@/types";
 
 const RENDERING_ENGINE_ID = "dicoogleViewerEngine";
 const VIEWPORT_ID = "dicoogleViewport";
@@ -37,11 +35,11 @@ export function DicomViewer({
   imageUrls,
   initialIndex = 0,
   onClose,
-  title,
 }: DicomViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Tools
   const [activeTool, setActiveTool] = useState<string>(
@@ -52,8 +50,21 @@ export function DicomViewer({
   const [showMetadata, setShowMetadata] = useState(false);
   const [currentImageId, setCurrentImageId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [metadata, setMetadata] = useState<any>(null);
-  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+  const [tagSearchQuery, setTagSearchQuery] = useState("");
+
+  // Extract SOP UID from current image ID
+  const currentSopUID = useMemo(() => {
+    if (!currentImageId) return null;
+    const match = currentImageId.match(/uid=([^&]*)/);
+    return match && match[1] ? match[1] : null;
+  }, [currentImageId]);
+
+  // Use shared metadata hook
+  const {
+    metadata,
+    loading: isMetadataLoading,
+    error: metadataError,
+  } = useMetadata(currentSopUID, showMetadata);
 
   // Progress State
   const [loadedCount, setLoadedCount] = useState(0);
@@ -252,7 +263,50 @@ export function DicomViewer({
     };
   }, []);
 
-  // 4. Prefetch Images & Progressive Stack Update
+  // 4. Keyboard Navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input field
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        return;
+      }
+
+      const renderingEngine =
+        cornerstone.getRenderingEngine(RENDERING_ENGINE_ID);
+      const viewport = renderingEngine?.getViewport(
+        VIEWPORT_ID,
+      ) as cornerstone.StackViewport;
+
+      if (!viewport) return;
+
+      const maxIndex = Math.max(0, loadedCountRef.current - 1);
+      let newIndex = currentIndex;
+
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        newIndex = Math.min(currentIndex + 1, maxIndex);
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        newIndex = Math.max(currentIndex - 1, 0);
+      } else if (e.key === "Escape" && onClose) {
+        e.preventDefault();
+        onClose();
+        return;
+      } else {
+        return; // Not a key we handle
+      }
+
+      if (newIndex !== currentIndex) {
+        viewport.setImageIdIndex(newIndex);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentIndex, onClose]);
+
+  // 5. Prefetch Images & Progressive Stack Update
   useEffect(() => {
     if (isLoading || imageIds.length === 0) return;
 
@@ -287,7 +341,7 @@ export function DicomViewer({
     };
   }, [imageIds, isLoading]);
 
-  // 5. Dynamic Stack Update (Blocking Logic)
+  // 6. Dynamic Stack Update (Blocking Logic)
   useEffect(() => {
     const updateStack = async () => {
       const renderingEngine =
@@ -315,28 +369,32 @@ export function DicomViewer({
     updateStack();
   }, [loadedCount, imageIds]);
 
-  // --- Metadata Fetching ---
+  // Fullscreen handling
   useEffect(() => {
-    if (!showMetadata || !currentImageId) return;
-
-    const fetchMetadata = async () => {
-      setIsMetadataLoading(true);
-      try {
-        const match = currentImageId.match(/uid=([^&]*)/);
-        if (match && match[1]) {
-          const uid = match[1];
-          const data = await dicoogleService.getDICOMMetadata(uid);
-          setMetadata(data.results?.fields || data.results);
-        }
-      } catch (e) {
-        console.error("Failed to fetch metadata", e);
-      } finally {
-        setIsMetadataLoading(false);
-      }
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
     };
 
-    fetchMetadata();
-  }, [currentImageId, showMetadata]);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = async () => {
+    const container = document.querySelector(".fixed.inset-0.bg-black");
+    if (!container) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await container.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.error("Fullscreen error:", err);
+    }
+  };
 
   // --- Tool Switching ---
   const setTool = (toolName: string) => {
@@ -476,200 +534,194 @@ export function DicomViewer({
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col font-sans">
-      {/* Header */}
-      <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-3 flex items-center justify-between relative select-none">
-        <div className="flex items-center gap-4">
-          <div className="bg-blue-600 px-2 py-1 rounded text-xs font-bold text-white">
-            CS3D
-          </div>
-          <div>
-            <h2 className="text-white font-semibold text-sm">
-              {title || "Advanced Workstation"}
-            </h2>
-            {imageIds.length > 1 && (
-              <p className="text-neutral-400 text-xs flex items-center gap-2">
-                <span>
-                  Image:{" "}
-                  <span className="text-white font-mono">
-                    {currentIndex + 1}
-                  </span>{" "}
-                  / {imageIds.length}
-                </span>
-                {loadedCount < imageIds.length && (
-                  <span className="text-blue-400 ml-2">
-                    {/* Safe Percentage Calculation */}
-                    (Downloading:{" "}
-                    {imageIds.length > 0
-                      ? Math.round((loadedCount / imageIds.length) * 100)
-                      : 0}
-                    %)
-                  </span>
-                )}
-              </p>
-            )}
-          </div>
-        </div>
-        {onClose && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="text-neutral-400 hover:text-white hover:bg-neutral-800"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        )}
+      {/* PROGRESS BAR - Minimal Modern Design */}
+      {imageIds.length > 1 && (
+        <div
+          ref={progressBarRef}
+          className="absolute bottom-0 left-0 h-1 bg-neutral-900/40 w-full cursor-pointer hover:h-1.5 transition-all duration-200 group"
+          onMouseDown={handleMouseDown}
+        >
+          {/* Background track */}
+          <div className="absolute inset-0 bg-neutral-800/60" />
 
-        {/* PROGRESS & POSITION BAR */}
-        {imageIds.length > 1 && (
+          {/* Download progress */}
           <div
-            ref={progressBarRef}
-            className="absolute bottom-0 left-0 h-1.5 bg-neutral-800 w-full cursor-pointer hover:h-2.5 transition-all group"
-            onMouseDown={handleMouseDown}
-          >
-            {/* 1. Blue Bar: Download Progress */}
-            <div
-              className="absolute top-0 left-0 h-full bg-blue-900/60 transition-all duration-300 ease-out pointer-events-none"
-              style={{ width: `${(loadedCount / imageIds.length) * 100}%` }}
-            />
+            className="absolute inset-y-0 left-0 bg-blue-500/30 transition-all duration-300"
+            style={{ width: `${(loadedCount / imageIds.length) * 100}%` }}
+          />
 
-            {/* 2. White Indicator: Current Scroll Position */}
-            <div
-              className="absolute top-0 h-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] z-10 transition-all duration-75 pointer-events-none"
-              style={{
-                // SAFE MATH: Prevent division by zero if length is 1 or less
-                left: `${imageIds.length > 1 ? (currentIndex / (imageIds.length < 1 ? -1 : imageIds.length)) * 100 : 0}%`,
-                width: `max(20px, ${imageIds.length > 0 ? 100 / imageIds.length : 100}%)`,
-              }}
-            />
-          </div>
-        )}
-      </div>
+          {/* Current position indicator */}
+          <div
+            className="absolute inset-y-0 bg-blue-500 transition-all duration-75"
+            style={{
+              left: `${imageIds.length > 1 ? (currentIndex / imageIds.length) * 100 : 0}%`,
+              width: `${imageIds.length > 0 ? Math.max(0.2, 100 / imageIds.length) : 100}%`,
+            }}
+          />
+        </div>
+      )}
 
       {/* Toolbar */}
-      <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2 flex items-center gap-2 justify-center overflow-x-auto">
-        <Button
-          variant={
-            activeTool === cornerstoneTools.WindowLevelTool.toolName
-              ? "default"
-              : "outline"
-          }
-          size="sm"
-          onClick={() => setTool(cornerstoneTools.WindowLevelTool.toolName)}
-          className={getBtnClass(cornerstoneTools.WindowLevelTool.toolName)}
-        >
-          <Settings className="w-4 h-4 mr-2" />
-          Levels
-        </Button>
-        <Button
-          variant={
-            activeTool === cornerstoneTools.PanTool.toolName
-              ? "default"
-              : "outline"
-          }
-          size="sm"
-          onClick={() => setTool(cornerstoneTools.PanTool.toolName)}
-          className={getBtnClass(cornerstoneTools.PanTool.toolName)}
-        >
-          <Move className="w-4 h-4 mr-2" />
-          Pan
-        </Button>
-        <Button
-          variant={
-            activeTool === cornerstoneTools.ZoomTool.toolName
-              ? "default"
-              : "outline"
-          }
-          size="sm"
-          onClick={() => setTool(cornerstoneTools.ZoomTool.toolName)}
-          className={getBtnClass(cornerstoneTools.ZoomTool.toolName)}
-        >
-          <ZoomIn className="w-4 h-4 mr-2" />
-          Zoom
-        </Button>
+      <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2 flex items-center gap-3">
+        {/* Dicoogle Logo - Left */}
+        <img
+          src={`${import.meta.env.BASE_URL}logo.png`}
+          alt="Dicoogle"
+          className="h-8"
+        />
 
-        <div className="w-px h-6 bg-neutral-700 mx-2" />
+        {/* Tool Buttons - Center */}
+        <div className="flex-1 flex items-center gap-2 justify-center overflow-x-auto">
+          <Button
+            variant={
+              activeTool === cornerstoneTools.WindowLevelTool.toolName
+                ? "default"
+                : "outline"
+            }
+            size="sm"
+            onClick={() => setTool(cornerstoneTools.WindowLevelTool.toolName)}
+            className={getBtnClass(cornerstoneTools.WindowLevelTool.toolName)}
+          >
+            <SunMoon className="w-4 h-4 mr-2" />
+            Contrast
+          </Button>
+          <Button
+            variant={
+              activeTool === cornerstoneTools.PanTool.toolName
+                ? "default"
+                : "outline"
+            }
+            size="sm"
+            onClick={() => setTool(cornerstoneTools.PanTool.toolName)}
+            className={getBtnClass(cornerstoneTools.PanTool.toolName)}
+          >
+            <Hand className="w-4 h-4 mr-2" />
+            Pan
+          </Button>
+          <Button
+            variant={
+              activeTool === cornerstoneTools.ZoomTool.toolName
+                ? "default"
+                : "outline"
+            }
+            size="sm"
+            onClick={() => setTool(cornerstoneTools.ZoomTool.toolName)}
+            className={getBtnClass(cornerstoneTools.ZoomTool.toolName)}
+          >
+            <ZoomIn className="w-4 h-4 mr-2" />
+            Zoom
+          </Button>
 
-        <Button
-          variant={
-            activeTool === cornerstoneTools.RectangleROITool.toolName
-              ? "default"
-              : "outline"
-          }
-          size="sm"
-          onClick={() => setTool(cornerstoneTools.RectangleROITool.toolName)}
-          className={getBtnClass(cornerstoneTools.RectangleROITool.toolName)}
-        >
-          <Square className="w-4 h-4 mr-2" />
-          Rect ROI
-        </Button>
-        <Button
-          variant={
-            activeTool === cornerstoneTools.EllipticalROITool.toolName
-              ? "default"
-              : "outline"
-          }
-          size="sm"
-          onClick={() => setTool(cornerstoneTools.EllipticalROITool.toolName)}
-          className={getBtnClass(cornerstoneTools.EllipticalROITool.toolName)}
-        >
-          <Circle className="w-4 h-4 mr-2" />
-          Circle
-        </Button>
-        <Button
-          variant={
-            activeTool === cornerstoneTools.PlanarFreehandROITool.toolName
-              ? "default"
-              : "outline"
-          }
-          size="sm"
-          onClick={() =>
-            setTool(cornerstoneTools.PlanarFreehandROITool.toolName)
-          }
-          className={getBtnClass(
-            cornerstoneTools.PlanarFreehandROITool.toolName,
+          <div className="w-px h-6 bg-neutral-700 mx-2" />
+
+          <Button
+            variant={
+              activeTool === cornerstoneTools.RectangleROITool.toolName
+                ? "default"
+                : "outline"
+            }
+            size="sm"
+            onClick={() => setTool(cornerstoneTools.RectangleROITool.toolName)}
+            className={getBtnClass(cornerstoneTools.RectangleROITool.toolName)}
+          >
+            <RectangleHorizontal className="w-4 h-4 mr-2" />
+            Rectangle
+          </Button>
+          <Button
+            variant={
+              activeTool === cornerstoneTools.EllipticalROITool.toolName
+                ? "default"
+                : "outline"
+            }
+            size="sm"
+            onClick={() => setTool(cornerstoneTools.EllipticalROITool.toolName)}
+            className={getBtnClass(cornerstoneTools.EllipticalROITool.toolName)}
+          >
+            <CircleDot className="w-4 h-4 mr-2" />
+            Ellipse
+          </Button>
+          <Button
+            variant={
+              activeTool === cornerstoneTools.PlanarFreehandROITool.toolName
+                ? "default"
+                : "outline"
+            }
+            size="sm"
+            onClick={() =>
+              setTool(cornerstoneTools.PlanarFreehandROITool.toolName)
+            }
+            className={getBtnClass(
+              cornerstoneTools.PlanarFreehandROITool.toolName,
+            )}
+          >
+            <Pencil className="w-4 h-4 mr-2" />
+            Freehand
+          </Button>
+
+          <div className="w-px h-6 bg-neutral-700 mx-2" />
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={rotateImage}
+            className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+          >
+            <RotateCw className="w-4 h-4 mr-2" />
+            Rotate
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetView}
+            className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+          >
+            <Undo2 className="w-4 h-4 mr-2" />
+            Reset
+          </Button>
+
+          <div className="w-px h-6 bg-neutral-700 mx-2" />
+
+          <Button
+            variant={showMetadata ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowMetadata(!showMetadata)}
+            className={
+              showMetadata
+                ? "bg-blue-600 text-white border-none"
+                : "text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+            }
+          >
+            <Info className="w-4 h-4 mr-2" />
+            Tags
+          </Button>
+        </div>
+
+        {/* Right Side Buttons */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleFullscreen}
+            className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
+          >
+            {isFullscreen ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+          </Button>
+
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="text-neutral-400 hover:text-white hover:bg-neutral-800"
+            >
+              <X className="w-5 h-5" />
+            </Button>
           )}
-        >
-          <Pen className="w-4 h-4 mr-2" />
-          Freehand
-        </Button>
-
-        <div className="w-px h-6 bg-neutral-700 mx-2" />
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={rotateImage}
-          className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
-        >
-          <RotateCw className="w-4 h-4 mr-2" />
-          Rotate
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetView}
-          className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
-        >
-          <Maximize2 className="w-4 h-4 mr-2" />
-          Reset
-        </Button>
-
-        <div className="w-px h-6 bg-neutral-700 mx-2" />
-
-        <Button
-          variant={showMetadata ? "default" : "outline"}
-          size="sm"
-          onClick={() => setShowMetadata(!showMetadata)}
-          className={
-            showMetadata
-              ? "bg-blue-600 text-white border-none"
-              : "text-neutral-300 border-neutral-700 hover:bg-neutral-800"
-          }
-        >
-          <Info className="w-4 h-4 mr-2" />
-          Tags
-        </Button>
+        </div>
       </div>
 
       {/* Viewport Area */}
@@ -710,56 +762,31 @@ export function DicomViewer({
           />
         </div>
 
-        {/* Metadata Sidebar */}
+        {/* Shared Metadata Panel */}
         {showMetadata && (
-          <div className="w-80 bg-neutral-900 border-l border-neutral-800 overflow-y-auto z-10 transition-all duration-300">
-            <div className="p-4">
-              <h3 className="text-white font-semibold mb-4 flex items-center justify-between">
-                <span>DICOM Tags</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowMetadata(false)}
-                  className="h-6 w-6 p-0 hover:bg-neutral-800 text-neutral-400"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </h3>
-
-              {isMetadataLoading ? (
-                <div className="flex flex-col items-center justify-center py-10 text-neutral-500">
-                  <Loader2 className="w-6 h-6 animate-spin mb-2" />
-                  <span className="text-xs">Reading Tags...</span>
-                </div>
-              ) : metadata ? (
-                <div className="space-y-2 font-mono text-[10px] text-neutral-300">
-                  {Object.entries(metadata).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="border-b border-neutral-800 pb-1 break-words"
-                    >
-                      <span className="text-neutral-500 block mb-0.5">
-                        {key}
-                      </span>
-                      <span className="select-text">{String(value)}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-neutral-500 text-sm text-center py-4">
-                  No metadata available
-                </p>
-              )}
-            </div>
-          </div>
+          <MetadataPanel
+            metadata={metadata}
+            loading={isMetadataLoading}
+            error={metadataError}
+            searchQuery={tagSearchQuery}
+            onSearchChange={setTagSearchQuery}
+          />
         )}
       </div>
 
-      {/* Footer Instructions */}
-      <div className="bg-neutral-900 border-t border-neutral-800 px-4 py-1.5 text-neutral-500 text-[10px] flex justify-between">
-        <span>Left Click: {activeTool}</span>
-        <span>Wheel: Stack Scroll</span>
-        <span>Right Click: Zoom (always active)</span>
+      {/* Footer with image counter */}
+      <div className="bg-neutral-900 border-t border-neutral-800 px-4 py-1.5 text-neutral-500 text-[10px] flex items-center justify-between">
+        {imageIds.length > 1 && (
+          <span className="text-neutral-400 font-medium">
+            Image {currentIndex + 1} / {imageIds.length}
+          </span>
+        )}
+
+        <div className="flex gap-4">
+          <span>Left Click: {activeTool}</span>
+          <span>Wheel/Arrows: Stack Scroll</span>
+          <span>Right Click: Zoom</span>
+        </div>
       </div>
     </div>
   );

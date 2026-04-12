@@ -17,25 +17,29 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useState, useEffect, Suspense, useMemo } from "react";
-import { useEnabledPlugins, usePluginContext } from "@/plugin-system";
+import {
+  useQueryFilterExtensions,
+  usePluginContext,
+} from "@/plugin-system";
 import { Button } from "@/components/ui/Button";
 
 export function SearchPage() {
-  const { studies, loading, error, selectedStudy, query, search } =
-    useSearchStore();
+  const {
+    studies,
+    loading,
+    error,
+    selectedStudy,
+    query,
+    search,
+    clearResults,
+  } = useSearchStore();
   const [showFilters, setShowFilters] = useState(false);
   const [filterValues, setFilterValues] = useState<Record<string, any>>({});
-  const plugins = useEnabledPlugins();
   const context = usePluginContext();
-
-  const filterExtensions = useMemo(
-    () =>
-      plugins.flatMap((plugin) =>
-        plugin.getQueryFilterExtensions
-          ? plugin.getQueryFilterExtensions()
-          : [],
-      ),
-    [plugins],
+  const filterExtensions = useQueryFilterExtensions();
+  const sortedFilterExtensions = useMemo(
+    () => [...filterExtensions].sort((a, b) => (a.order || 999) - (b.order || 999)),
+    [filterExtensions],
   );
 
   // Initialize filter values with defaults
@@ -46,6 +50,13 @@ export function SearchPage() {
     });
     setFilterValues(initialValues);
   }, [filterExtensions]);
+
+  // Cleanup: Clear search results when leaving the page
+  useEffect(() => {
+    return () => {
+      clearResults();
+    };
+  }, [clearResults]);
 
   // Count active filters
   const activeFilterCount = filterExtensions.filter((ext) => {
@@ -70,7 +81,11 @@ export function SearchPage() {
       // Apply this filter
       const filter = filterExtensions.find((f) => f.id === filterId);
       if (filter && filter.applyFilter) {
-        const filterQuery = filter.applyFilter(value);
+        const filterQuery = filter.applyFilter(value, {
+          context,
+          currentQuery: query,
+          pluginId: filter.pluginId,
+        });
         if (filterQuery) {
           filterParts.push(filterQuery);
         }
@@ -81,7 +96,11 @@ export function SearchPage() {
         if (id !== filterId) {
           const otherFilter = filterExtensions.find((f) => f.id === id);
           if (otherFilter && otherFilter.applyFilter) {
-            const filterQuery = otherFilter.applyFilter(val);
+            const filterQuery = otherFilter.applyFilter(val, {
+              context,
+              currentQuery: query,
+              pluginId: otherFilter.pluginId,
+            });
             if (filterQuery) {
               filterParts.push(filterQuery);
             }
@@ -162,9 +181,7 @@ export function SearchPage() {
             {showFilters && (
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filterExtensions
-                    .sort((a, b) => (a.order || 999) - (b.order || 999))
-                    .map((ext) => {
+                  {sortedFilterExtensions.map((ext) => {
                       const FilterComponent = ext.component;
                       return (
                         <div

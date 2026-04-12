@@ -1,10 +1,14 @@
+/// <reference types="vite/client" />
+
 declare module "virtual:dicoogle-plugins" {
-  // You can refine these types later; start loose to silence the error
   export function registerAllPlugins(): void;
 
   export const discoveredPlugins: Array<{
     id: string;
     name: string;
+    directory: string;
+    entry: string;
+    defaultEnabled: boolean;
   }>;
 
   const _default: {

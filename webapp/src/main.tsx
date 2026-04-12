@@ -3,10 +3,11 @@ import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { registerAllPlugins } from "virtual:dicoogle-plugins";
-import { initializeAllPlugins } from "@/plugin-system";
+import { initializeAllPlugins, invalidatePluginExtensionCache } from "@/plugin-system";
 
 // Register all discovered plugins
 registerAllPlugins();
+invalidatePluginExtensionCache();
 
 // Initialize all enabled plugins
 initializeAllPlugins().catch((error) => {

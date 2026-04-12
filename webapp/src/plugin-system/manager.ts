@@ -5,130 +5,54 @@
 
 import { pluginRegistry } from "./registry";
 import { PluginContext } from "./types";
-import DicoogleClient from "dicoogle-client";
+import { createPluginContext, emitPluginStateChanged } from "./context";
 
 /**
  * Maps to track initialized plugins for cleanup
  */
 const initializedPlugins = new Set<string>();
 
-/**
- * Get the Dicoogle client instance
- * This creates a client that shares the same base URL and token as the main app
- */
-function getDicoogleClient() {
-  const getBaseUrl = (): string => {
-    const envUrl = import.meta.env.VITE_API_BASE_URL;
+function resolvePluginInitializationOrder(pluginIds: string[]): string[] {
+  const idSet = new Set(pluginIds);
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const ordered: string[] = [];
 
-    if (envUrl && envUrl.startsWith("/")) {
-      const { protocol, hostname, port } = window.location;
-      return `${protocol}//${hostname}${port ? ":" + port : ""}${envUrl}`;
+  const visit = (pluginId: string, path: string[]) => {
+    if (visited.has(pluginId)) {
+      return;
     }
 
-    if (
-      envUrl &&
-      (envUrl.startsWith("http://") || envUrl.startsWith("https://"))
-    ) {
-      return envUrl;
+    if (visiting.has(pluginId)) {
+      throw new Error(
+        `Circular plugin dependency detected: ${[...path, pluginId].join(" -> ")}`,
+      );
     }
 
-    return "http://localhost:8080";
+    visiting.add(pluginId);
+
+    const metadata = pluginRegistry.getPluginMetadata(pluginId);
+    const dependencies = metadata?.dependencies || [];
+
+    for (const depId of dependencies) {
+      if (!idSet.has(depId)) {
+        throw new Error(
+          `Plugin "${pluginId}" depends on "${depId}", but it is missing or disabled`,
+        );
+      }
+      visit(depId, [...path, pluginId]);
+    }
+
+    visiting.delete(pluginId);
+    visited.add(pluginId);
+    ordered.push(pluginId);
   };
 
-  const DICOOGLE_URL = getBaseUrl();
-  const client = DicoogleClient(DICOOGLE_URL);
-
-  // Use the same token as the main app
-  const token = localStorage.getItem("dicoogle_token");
-  if (token) {
-    client.setToken(token);
+  for (const pluginId of pluginIds) {
+    visit(pluginId, []);
   }
 
-  return client;
-}
-
-/**
- * Create a plugin context for initialization
- */
-export function createPluginContext(pluginId?: string): PluginContext {
-  const effectivePluginId = pluginId || "unknown";
-
-  return {
-    appVersion: import.meta.env.VITE_APP_VERSION || "1.0.0",
-    logger: {
-      log: (message: string, data?: any) =>
-        console.log(`[Plugin:${effectivePluginId}] ${message}`, data),
-      warn: (message: string, data?: any) =>
-        console.warn(`[Plugin:${effectivePluginId}] ${message}`, data),
-      error: (message: string, error?: any) =>
-        console.error(`[Plugin:${effectivePluginId}] ${message}`, error),
-      info: (message: string, data?: any) =>
-        console.info(`[Plugin:${effectivePluginId}] ${message}`, data),
-    },
-    storage: {
-      get: (key: string) => {
-        try {
-          // Scope storage to plugin ID
-          const item = localStorage.getItem(
-            `plugin_${effectivePluginId}_${key}`,
-          );
-          return item ? JSON.parse(item) : null;
-        } catch {
-          return null;
-        }
-      },
-      set: (key: string, value: any) => {
-        try {
-          // Scope storage to plugin ID
-          localStorage.setItem(
-            `plugin_${effectivePluginId}_${key}`,
-            JSON.stringify(value),
-          );
-        } catch (error) {
-          console.warn(`Failed to set plugin storage: ${key}`, error);
-        }
-      },
-      remove: (key: string) => {
-        try {
-          // Scope storage to plugin ID
-          localStorage.removeItem(`plugin_${effectivePluginId}_${key}`);
-        } catch (error) {
-          console.warn(`Failed to remove plugin storage: ${key}`, error);
-        }
-      },
-    },
-    eventBus: createEventBus(),
-    dicoogle: getDicoogleClient(),
-  };
-}
-
-/**
- * Simple event bus implementation
- */
-function createEventBus() {
-  type EventCallback = (data: any) => void;
-  const listeners: Map<string, Set<EventCallback>> = new Map();
-
-  return {
-    on: (event: string, callback: (data: any) => void) => {
-      if (!listeners.has(event)) {
-        listeners.set(event, new Set());
-      }
-      listeners.get(event)!.add(callback);
-    },
-    off: (event: string, callback: (data: any) => void) => {
-      listeners.get(event)?.delete(callback);
-    },
-    emit: (event: string, data: any) => {
-      listeners.get(event)?.forEach((callback) => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`Error in event listener for "${event}":`, error);
-        }
-      });
-    },
-  };
+  return ordered;
 }
 
 /**
@@ -205,13 +129,7 @@ export async function enablePlugin(
 ): Promise<void> {
   pluginRegistry.setPluginEnabled(pluginId, true);
   await initializePlugin(pluginId, context);
-
-  // Emit event to notify components to reload
-  window.dispatchEvent(
-    new CustomEvent("plugin-state-changed", {
-      detail: { pluginId, enabled: true },
-    }),
-  );
+  emitPluginStateChanged(pluginId, true);
 }
 
 /**
@@ -221,13 +139,7 @@ export async function enablePlugin(
 export async function disablePlugin(pluginId: string): Promise<void> {
   await destroyPlugin(pluginId);
   pluginRegistry.setPluginEnabled(pluginId, false);
-
-  // Emit event to notify components to reload
-  window.dispatchEvent(
-    new CustomEvent("plugin-state-changed", {
-      detail: { pluginId, enabled: false },
-    }),
-  );
+  emitPluginStateChanged(pluginId, false);
 }
 
 /**
@@ -236,20 +148,31 @@ export async function disablePlugin(pluginId: string): Promise<void> {
 export async function initializeAllPlugins(
   context?: PluginContext,
 ): Promise<void> {
-  const enabledPlugins = pluginRegistry.getEnabledPlugins();
+  const enabledPluginIds = pluginRegistry
+    .getEnabledPlugins()
+    .map((plugin) => plugin.metadata?.id || "unknown")
+    .filter((pluginId) => pluginId !== "unknown");
+
+  let orderedPluginIds: string[] = [];
+  try {
+    orderedPluginIds = resolvePluginInitializationOrder(enabledPluginIds);
+  } catch (error) {
+    console.error("Failed to resolve plugin initialization order:", error);
+    orderedPluginIds = enabledPluginIds;
+  }
 
   console.log(
-    `\n🔌 Initializing ${enabledPlugins.length} enabled plugin(s)...`,
+    `\n🔌 Initializing ${orderedPluginIds.length} enabled plugin(s)...`,
   );
 
-  for (const plugin of enabledPlugins) {
+  for (const pluginId of orderedPluginIds) {
     try {
-      const pluginId = plugin.metadata?.id || "unknown";
       const ctx = context || createPluginContext(pluginId);
       await initializePlugin(pluginId, ctx);
     } catch (error) {
+      const metadata = pluginRegistry.getPluginMetadata(pluginId);
       console.error(
-        `Failed to initialize plugin ${plugin.metadata?.name}:`,
+        `Failed to initialize plugin ${metadata?.name || pluginId}:`,
         error,
       );
       // Continue initializing other plugins

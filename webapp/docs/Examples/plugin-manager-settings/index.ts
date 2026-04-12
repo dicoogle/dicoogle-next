@@ -4,7 +4,7 @@
  */
 
 import { WebUIPlugin, SettingsExtension, PluginContext } from "@/plugin-system";
-import { lazy } from "react";
+import { createElement, lazy } from "react";
 import { Plug } from "lucide-react";
 
 const PluginManagerSettings = lazy(() => import("./PluginManagerSettings"));
@@ -27,7 +27,7 @@ const pluginManagerSettingsPlugin: WebUIPlugin = {
     {
       id: "plugin-manager-tab",
       label: "Plugins",
-      icon: Plug.toString(),
+      icon: createElement(Plug, { className: "w-4 h-4" }),
       component: PluginManagerSettings,
       order: 100,
     },

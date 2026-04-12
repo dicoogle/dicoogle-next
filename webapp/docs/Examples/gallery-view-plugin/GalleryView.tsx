@@ -1,200 +1,288 @@
-/**
- * Gallery View Component - Alternative Result Renderer
- */
-
 import { ResultRendererProps } from "@/plugin-system";
-import { useState } from "react";
-import { ZoomIn, Info } from "lucide-react";
 import { SearchResult } from "@/types";
+import { useMemo, useState } from "react";
+import {
+  Calendar,
+  Eye,
+  FileScan,
+  Layers,
+  User,
+} from "lucide-react";
 
-export default function GalleryView({
+type TriageRow = {
+  key: string;
+  patientName: string;
+  modality: string;
+  studyDate: string;
+  studyUID: string;
+  seriesUID: string;
+  instanceUID: string;
+  description: string;
+  previewUrl: string | null;
+};
+
+export default function StudyTriageWorkspace({
   results,
   loading,
   context,
   onResultSelect,
 }: ResultRendererProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [gridColumns, setGridColumns] = useState(4);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+
+  const rows = useMemo(() => toTriageRows(results, context), [results, context]);
+
+  const sortedRows = useMemo(
+    () =>
+      [...rows].sort((a, b) =>
+        normalizeDate(b.studyDate).localeCompare(normalizeDate(a.studyDate)),
+      ),
+    [rows],
+  );
+
+  const selectedRow =
+    sortedRows.find((row) => row.key === selectedKey) || sortedRows[0] || null;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading images...</p>
-        </div>
+        <div className="text-center text-muted-foreground">Loading triage workspace...</div>
       </div>
     );
   }
 
-  if (!results || results.length === 0) {
+  if (rows.length === 0) {
     return (
-      <div className="text-center p-12">
-        <Info className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-700">
-          No Results Found
-        </h3>
-        <p className="text-gray-500 mt-2">Try adjusting your search criteria</p>
+      <div className="rounded-xl border border-dashed border-border p-10 text-center">
+        <Layers className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+        <h3 className="text-lg font-semibold">No studies available</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Run a search to review studies in this workspace.
+        </p>
       </div>
     );
   }
-
-  const gridClass =
-    {
-      2: "grid-cols-2",
-      3: "grid-cols-3",
-      4: "grid-cols-4",
-      5: "grid-cols-5",
-      6: "grid-cols-6",
-    }[gridColumns] || "grid-cols-4";
 
   return (
-    <div className="p-6">
-      {/* Controls */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">
-            Gallery View ({results.length} results)
-          </h2>
-        </div>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <span>Grid Columns:</span>
-            <select
-              value={gridColumns}
-              onChange={(e) => setGridColumns(Number(e.target.value))}
-              className="border border-gray-300 rounded px-2 py-1"
-            >
-              <option value={2}>2</option>
-              <option value={3}>3</option>
-              <option value={4}>4</option>
-              <option value={5}>5</option>
-              <option value={6}>6</option>
-            </select>
-          </label>
+    <div className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">Study Workbench</h2>
+            <p className="text-sm text-muted-foreground">
+              Left side keeps a paginated study list, right side gives quick preview.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="rounded-md bg-muted px-2 py-1">
+              {sortedRows.length} studies on this page
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Gallery Grid */}
-      <div className={`grid ${gridClass} gap-4`}>
-        {results.map((result: SearchResult, index: number) => {
-          // Get SOP Instance UID - try multiple field names
-          const sopInstanceUID =
-            result.fields?.SOPInstanceUID ||
-            result.fields?.sopInstanceUID ||
-            result.uri;
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.35fr_1fr]">
+        <div className="rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-4 py-3 text-sm font-medium">
+            Study List
+          </div>
+          <div className="max-h-[34rem] overflow-auto">
+            <div className="grid grid-cols-[2fr_100px_90px_2fr] gap-2 border-b border-border bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <div>Patient</div>
+              <div>Date</div>
+              <div>Modality</div>
+              <div>Description</div>
+            </div>
+            {sortedRows.map((row) => {
+              const isActive = selectedRow?.key === row.key;
+              return (
+                <button
+                  key={row.key}
+                  className={`grid w-full grid-cols-[2fr_100px_90px_2fr] gap-2 border-b border-border px-4 py-3 text-left text-sm transition-colors ${
+                    isActive
+                      ? "bg-primary/10"
+                      : "hover:bg-muted/60"
+                  }`}
+                  onClick={() => setSelectedKey(row.key)}
+                >
+                  <div className="truncate font-medium">{row.patientName}</div>
+                  <div className="truncate text-muted-foreground">
+                    {formatStudyDate(row.studyDate)}
+                  </div>
+                  <div>
+                    <span className="rounded bg-muted px-2 py-0.5 text-xs">
+                      {row.modality}
+                    </span>
+                  </div>
+                  <div className="truncate text-muted-foreground">
+                    {row.description || "No description"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-          // Only generate thumbnail URL if we have a valid UID
-          const thumbnailUrl =
-            sopInstanceUID && context.dicoogle
-              ? context.dicoogle.getThumbnailUrl(sopInstanceUID)
-              : null;
+        {selectedRow && (
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold">Selected Study</h3>
+              <span className="rounded bg-muted px-2 py-1 text-xs">{selectedRow.modality}</span>
+            </div>
 
-          const patientName = result.fields?.PatientName || "Unknown";
-          const modality = result.fields?.Modality || "N/A";
-          const studyDate = result.fields?.StudyDate || "";
-          const formattedDate = formatStudyDate(studyDate);
-
-          return (
-            <div
-              key={result.uri || index}
-              className="group relative bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105"
-              onClick={() => onResultSelect?.(result)}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-            >
-              {/* Image */}
-              <div className="aspect-square bg-gray-100 relative overflow-hidden">
-                {thumbnailUrl ? (
+            <div className="overflow-hidden rounded-lg border border-border bg-muted/30">
+              <div className="aspect-[4/3] w-full bg-muted">
+                {selectedRow.previewUrl ? (
                   <img
-                    src={thumbnailUrl}
-                    alt={patientName}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="sans-serif" font-size="20" text-anchor="middle" x="100" y="110"%3ENo Image%3C/text%3E%3C/svg%3E';
-                    }}
+                    src={selectedRow.previewUrl}
+                    alt={selectedRow.patientName}
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <div className="text-center">
-                      <Info className="w-12 h-12 mx-auto mb-2" />
-                      <p className="text-sm">No Preview</p>
-                    </div>
+                  <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                    No preview available
                   </div>
                 )}
-
-                {/* Hover Overlay */}
-                {hoveredIndex === index && thumbnailUrl && (
-                  <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center transition-opacity">
-                    <ZoomIn className="w-12 h-12 text-white" />
-                  </div>
-                )}
-
-                {/* Modality Badge */}
-                <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded">
-                  {modality}
-                </div>
-              </div>
-
-              {/* Info */}
-              <div className="p-3">
-                <h3
-                  className="font-semibold text-gray-900 truncate"
-                  title={patientName}
-                >
-                  {patientName}
-                </h3>
-                <p className="text-sm text-gray-500 mt-1">{formattedDate}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span
-                    className="text-xs text-gray-400 truncate"
-                    title={result.uri}
-                  >
-                    {result.fields?.SeriesNumber
-                      ? `Series ${result.fields.SeriesNumber}`
-                      : "No series"}
-                  </span>
-                  {result.fields?.InstanceNumber && (
-                    <span className="text-xs text-gray-400">
-                      #{result.fields.InstanceNumber}
-                    </span>
-                  )}
-                </div>
               </div>
             </div>
-          );
-        })}
-      </div>
 
-      {/* Stats Footer */}
-      <div className="mt-6 text-center text-sm text-gray-500">
-        Displaying {results.length} image{results.length !== 1 ? "s" : ""}
+            <div className="mt-4 space-y-2 text-sm">
+              <div className="inline-flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span>{selectedRow.patientName}</span>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span>{formatStudyDate(selectedRow.studyDate)}</span>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <Layers className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate">Series: {shortenUid(selectedRow.seriesUID)}</span>
+              </div>
+              <div className="inline-flex items-center gap-2">
+                <FileScan className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate">Study: {shortenUid(selectedRow.studyUID)}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                className="col-span-2 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground hover:opacity-90"
+                onClick={() => {
+                  onResultSelect?.(toSearchResult(selectedRow));
+                  context.ui?.showToast("Opened selected study", "success");
+                }}
+              >
+                <Eye className="h-4 w-4" />
+                Open Study
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-/**
- * Format DICOM study date (YYYYMMDD) to readable format
- */
+function toTriageRows(
+  results: SearchResult[],
+  context: ResultRendererProps["context"],
+): TriageRow[] {
+  const byStudy = new Map<string, SearchResult>();
+
+  for (const result of results) {
+    const studyUID = getStudyUID(result);
+    if (!studyUID || byStudy.has(studyUID)) {
+      continue;
+    }
+    byStudy.set(studyUID, result);
+  }
+
+  return Array.from(byStudy.values()).map((result) => {
+    const studyUID = getStudyUID(result) || "unknown-study";
+    const seriesUID =
+      toStringField(result.fields.SeriesInstanceUID) ||
+      toStringField(result.fields.seriesInstanceUID) ||
+      "unknown-series";
+    const instanceUID =
+      toStringField(result.fields.SOPInstanceUID) ||
+      toStringField(result.fields.sopInstanceUID) ||
+      result.uri;
+    const previewUrl =
+      instanceUID && context.dicoogle
+        ? context.dicoogle.getThumbnailUrl(instanceUID)
+        : null;
+
+    return {
+      key: studyUID,
+      patientName: toStringField(result.fields.PatientName) || "Unknown Patient",
+      modality: toStringField(result.fields.Modality) || "N/A",
+      studyDate: toStringField(result.fields.StudyDate) || "",
+      studyUID,
+      seriesUID,
+      instanceUID,
+      description:
+        toStringField(result.fields.StudyDescription) ||
+        toStringField(result.fields.SeriesDescription) ||
+        "",
+      previewUrl,
+    };
+  });
+}
+
+function toSearchResult(row: TriageRow): SearchResult {
+  return {
+    uri: row.instanceUID,
+    fields: {
+      StudyInstanceUID: row.studyUID,
+      SeriesInstanceUID: row.seriesUID,
+      SOPInstanceUID: row.instanceUID,
+      PatientName: row.patientName,
+      Modality: row.modality,
+      StudyDate: row.studyDate,
+      StudyDescription: row.description,
+    },
+  };
+}
+
+function getStudyUID(result: SearchResult): string {
+  return (
+    toStringField(result.fields.StudyInstanceUID) ||
+    toStringField(result.fields.studyInstanceUID) ||
+    result.uri
+  );
+}
+
+function toStringField(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return String(value);
+  }
+  return "";
+}
+
 function formatStudyDate(dateStr: string): string {
-  if (!dateStr || dateStr.length !== 8) {
-    return "Unknown Date";
+  if (!dateStr || dateStr.length < 8) {
+    return "Unknown date";
   }
 
   const year = dateStr.substring(0, 4);
   const month = dateStr.substring(4, 6);
   const day = dateStr.substring(6, 8);
+  return `${year}-${month}-${day}`;
+}
 
-  const date = new Date(`${year}-${month}-${day}`);
-  if (isNaN(date.getTime())) {
-    return "Invalid Date";
+function normalizeDate(dateStr: string): string {
+  if (!dateStr) {
+    return "00000000";
   }
+  return dateStr.slice(0, 8).padEnd(8, "0");
+}
 
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+function shortenUid(uid: string): string {
+  if (uid.length <= 18) {
+    return uid;
+  }
+  return `${uid.slice(0, 8)}...${uid.slice(-8)}`;
 }

@@ -1,6 +1,6 @@
 /**
- * Gallery View Plugin - Result Renderer Type
- * Alternative gallery view for search results
+ * Study Workbench Plugin - Result Renderer Type
+ * Hybrid list + preview workflow for search results
  */
 
 import {
@@ -8,32 +8,32 @@ import {
   ResultRendererExtension,
   PluginContext,
 } from "@/plugin-system";
-import { lazy } from "react";
+import { createElement, lazy } from "react";
+import { LayoutPanelTop } from "lucide-react";
 
-const GalleryView = lazy(() => import("./GalleryView"));
+const StudyWorkbenchView = lazy(() => import("./GalleryView"));
 
-const galleryViewPlugin: WebUIPlugin = {
+const studyWorkbenchPlugin: WebUIPlugin = {
   init: async (context: PluginContext) => {
-    context.logger.info("Gallery View Plugin initialized");
+    context.logger.info("Study Workbench initialized");
 
-    // Load user preferences
-    const prefs = context.storage.get("gallery-preferences") || {
-      gridColumns: 4,
-      showLabels: true,
-      imageSize: "medium",
+    const prefs = context.storage.get("workbench-preferences") || {
+      pinnedModality: "ALL",
+      hideUnknownPatient: false,
+      orderBy: "studyDate-desc",
     };
 
-    context.storage.set("gallery-preferences", prefs);
+    context.storage.set("workbench-preferences", prefs);
   },
 
   getResultRendererExtensions: (): ResultRendererExtension[] => [
     {
-      id: "gallery-renderer",
-      name: "Gallery",
-      icon: "na",
-      component: GalleryView,
+      id: "study-workbench-renderer",
+      name: "Workbench",
+      icon: createElement(LayoutPanelTop, { className: "w-4 h-4" }),
+      component: StudyWorkbenchView,
     },
   ],
 };
 
-export default galleryViewPlugin;
+export default studyWorkbenchPlugin;
