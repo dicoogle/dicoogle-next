@@ -1,9 +1,0 @@
-{
-  "id": "study-workbench",
-  "entry": "index.ts",
-  "name": "Study Workbench",
-  "version": "1.0.0",
-  "description": "Hybrid list + preview workspace for study review",
-  "author": "Dicoogle Team",
-  "type": "result-renderer"
-}

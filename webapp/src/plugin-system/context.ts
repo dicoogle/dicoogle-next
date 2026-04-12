@@ -21,7 +21,7 @@ function getBaseUrl(): string {
     return envUrl;
   }
 
-  return "http://localhost:8080";
+  return window.location.origin;
 }
 
 function getSharedDicoogleClient() {

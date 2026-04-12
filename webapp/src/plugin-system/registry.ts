@@ -87,6 +87,7 @@ class PluginRegistry implements IPluginRegistry {
       type: configMetadata?.type || plugin.metadata?.type,
       apiVersion: configMetadata?.apiVersion || plugin.metadata?.apiVersion,
       dependencies: configMetadata?.dependencies || plugin.metadata?.dependencies || [],
+      license: configMetadata?.license || plugin.metadata?.license,
     };
 
     const pluginId = metadata.id;

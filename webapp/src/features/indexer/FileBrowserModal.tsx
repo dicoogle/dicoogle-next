@@ -44,6 +44,7 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
     files,
     folderChain,
     currentPath,
+    viewVersion,
     loading,
     error,
     loadDirectory,
@@ -130,6 +131,7 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
           ) : (
             <div className="h-full">
               <FileBrowser
+                key={viewVersion}
                 files={files}
                 folderChain={folderChain}
                 onFileAction={handleFileAction}

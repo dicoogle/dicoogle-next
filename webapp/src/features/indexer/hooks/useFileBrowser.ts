@@ -5,6 +5,7 @@ export const useFileBrowser = () => {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [folderChain, setFolderChain] = useState<FolderChainItem[]>([]);
   const [currentPath, setCurrentPath] = useState<string>('');
+  const [viewVersion, setViewVersion] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +26,7 @@ export const useFileBrowser = () => {
       setFiles(data.files);
       setFolderChain(data.folderChain);
       setCurrentPath(data.currentPath);
+      setViewVersion((prev) => prev + 1);
 
       // Update history
       if (addToHistory) {
@@ -86,6 +88,7 @@ export const useFileBrowser = () => {
     files,
     folderChain,
     currentPath,
+    viewVersion,
     loading,
     error,
     loadDirectory,

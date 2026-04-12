@@ -38,7 +38,7 @@ const getBaseUrl = (): string => {
   }
 
   // Default fallback
-  return "http://localhost:8080";
+  return location.origin;
 };
 
 const DICOOGLE_URL = getBaseUrl();
