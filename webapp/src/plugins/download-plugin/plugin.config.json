@@ -1,9 +1,0 @@
-{
-  "id": "download-dicom",
-  "entry": "index.tsx",
-  "name": "Download DICOM",
-  "version": "1.0.0",
-  "description": "Download DICOM studies as ZIP files",
-  "author": "Dicoogle Team",
-  "type": "result-options"
-}
