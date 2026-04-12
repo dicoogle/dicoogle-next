@@ -15,6 +15,7 @@ export interface PluginMetadata {
   type?: string;
   apiVersion?: string;
   dependencies?: string[];
+  license?: string[];
 }
 
 /**
@@ -33,6 +34,7 @@ export interface PluginConfig {
   author?: string;
   type?: string;
   dependencies?: string[];
+  license?: string[];
 }
 
 /**

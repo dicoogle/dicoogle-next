@@ -1,9 +1,0 @@
-{
-  "allowedRoots": [
-    "/home",
-    "~/Documents",
-    "~/Downloads",
-    "C:\\",
-    "D:\\"
-  ]
-}

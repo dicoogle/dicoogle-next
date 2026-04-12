@@ -12,31 +12,16 @@ ARG BASE_PATH
 ENV BASE_PATH=$BASE_PATH
 ARG VITE_BASE_PATH
 ENV VITE_BASE_PATH=$BASE_PATH
-ARG FILESYSTEM_SERVER_PORT
-ENV FILESYSTEM_SERVER_PORT=$FILESYSTEM_SERVER_PORT
-ARG VITE_FILESYSTEM_API_BASE_URL
-ENV VITE_FILESYSTEM_API_BASE_URL=$VITE_FILESYSTEM_API_BASE_URL
 
 RUN npm run build
 
-# --- Stage 2: Nginx + Node.js Backend ---
+# --- Stage 2: Nginx ---
 FROM nginx:alpine
 
-# 1. Install Node.js inside the Nginx container
-RUN apk add --update nodejs npm
-
-# 2. Set up the Node.js backend
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --omit=dev
-# Copy your updated Express server
-COPY FileSystemManagerServer.js ./
-
-# 3. Set up Nginx and the Frontend
+# Set up Nginx and the Frontend
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html/next
 
 EXPOSE 3000
 
-# 4. Start the Node.js server in the background (&) and Nginx in the foreground
-CMD sh -c "FILESYSTEM_SERVER_PORT=3333 node FileSystemManagerServer.js & nginx -g 'daemon off;'"
+CMD ["nginx", "-g", "daemon off;"]

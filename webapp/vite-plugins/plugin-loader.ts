@@ -20,6 +20,7 @@ interface PluginConfig {
   author?: string;
   type?: string;
   dependencies?: string[];
+  license?: string[];
 }
 
 interface DiscoveredPlugin {
@@ -68,6 +69,14 @@ function validatePluginConfig(
     dependencies: Array.isArray(config.dependencies)
       ? config.dependencies.filter((dep): dep is string => typeof dep === "string")
       : undefined,
+    license:
+      typeof config.license === "string"
+        ? [config.license]
+        : Array.isArray(config.license)
+          ? config.license.filter(
+              (entry): entry is string => typeof entry === "string",
+            )
+          : undefined,
   };
 
   if (!normalized.id) {
@@ -107,6 +116,7 @@ function validatePluginConfig(
     "author",
     "type",
     "dependencies",
+    "license",
   ]);
 
   Object.keys(config).forEach((key) => {
@@ -276,6 +286,7 @@ export function registerAllPlugins() {
       author: plugin.config.author,
       type: plugin.config.type,
       dependencies: plugin.config.dependencies,
+      license: plugin.config.license,
     });
 
     // Default to enabled unless explicitly set to false
@@ -348,8 +359,13 @@ export function createPluginLoader(): Plugin {
         discoveredPlugins.forEach((plugin) => {
           const displayName = plugin.config.name || plugin.id;
           const version = plugin.config.version || "?";
-          const enabled = plugin.config.enabled !== false ? "✓" : "✗";
-          console.log(`  ${enabled} ${displayName} v${version} (${plugin.id})`);
+          const defaultState =
+            plugin.config.enabled !== false
+              ? "enabled-by-default"
+              : "disabled-by-default";
+          console.log(
+            `  - ${displayName} v${version} (${plugin.id}) [${defaultState}]`,
+          );
         });
         console.log("");
       }
