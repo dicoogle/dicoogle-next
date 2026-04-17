@@ -2,11 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import wasm from "vite-plugin-wasm";
-import topLevelAwait from "vite-plugin-top-level-await";
 import { createPluginLoader } from "./vite-plugins/plugin-loader";
 
 export default defineConfig({
-  plugins: [react(), wasm(), topLevelAwait(), createPluginLoader()],
+  plugins: [react(), wasm(), createPluginLoader()],
   base: process.env.BASE_PATH || "/experimental/",
   resolve: {
     alias: {
@@ -14,6 +13,7 @@ export default defineConfig({
     },
   },
   build: {
+    target: 'es2022',
     outDir: "dist",
     assetsDir: "assets",
   },
@@ -28,7 +28,6 @@ export default defineConfig({
     },
   },
   assetsInclude: ["**/*.wasm"],
-
   optimizeDeps: {
     exclude: ["@icr/polyseg-wasm"],
   },

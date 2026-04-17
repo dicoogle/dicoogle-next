@@ -452,7 +452,7 @@ export function ServiceSettings() {
                         </Button>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="outline-solid"
                           onClick={handleCancel}
                         >
                           Cancel
@@ -658,7 +658,7 @@ export function ServiceSettings() {
                                   </Button>
                                   <Button
                                     size="sm"
-                                    variant="outline"
+                                    variant="outline-solid"
                                     onClick={handleCancelQuerySettings}
                                   >
                                     Cancel
@@ -667,7 +667,7 @@ export function ServiceSettings() {
                               ) : (
                                 <Button
                                   size="sm"
-                                  variant="outline"
+                                  variant="outline-solid"
                                   onClick={handleStartEditQuerySettings}
                                 >
                                   Edit Settings
@@ -692,7 +692,7 @@ export function ServiceSettings() {
                     {!isEditing && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="outline-solid"
                         onClick={() => handleStartEdit(config.id)}
                       >
                         Edit
@@ -791,7 +791,7 @@ export function ServiceSettings() {
               </Button>
               <Button
                 size="sm"
-                variant="outline"
+                variant="outline-solid"
                 onClick={() => {
                   setShowAddServer(false);
                   setNewServer({

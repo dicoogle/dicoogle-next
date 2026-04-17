@@ -166,7 +166,7 @@ export function SystemInfo() {
           </p>
           <Button
             onClick={handleViewLog}
-            variant="outline"
+            variant="outline-solid"
             className="w-full sm:w-auto"
           >
             <FileText className="h-4 w-4 mr-2" />
@@ -211,7 +211,7 @@ export function SystemInfo() {
             <div className="flex items-center gap-2">
               <Button
                 onClick={togglePolling}
-                variant="outline"
+                variant="outline-solid"
                 size="sm"
                 className="gap-2"
               >
@@ -247,7 +247,7 @@ export function SystemInfo() {
             <pre
               ref={logContainerRef}
               onScroll={handleScroll}
-              className="bg-muted/50 p-4 rounded-lg text-xs font-mono overflow-auto max-h-[60vh] whitespace-pre-wrap break-words"
+              className="bg-muted/50 p-4 rounded-lg text-xs font-mono overflow-auto max-h-[60vh] whitespace-pre-wrap wrap-break-word"
             >
               {logContent || "No log content available."}
             </pre>

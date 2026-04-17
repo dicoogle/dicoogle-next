@@ -533,7 +533,7 @@ export function DicomViewer({
       : "text-neutral-300 border-neutral-700 hover:bg-neutral-800";
 
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex flex-col font-sans">
+    <div className="fixed inset-0 bg-black z-100 flex flex-col font-sans">
       {/* PROGRESS BAR - Minimal Modern Design */}
       {imageIds.length > 1 && (
         <div
@@ -576,7 +576,7 @@ export function DicomViewer({
             variant={
               activeTool === cornerstoneTools.WindowLevelTool.toolName
                 ? "default"
-                : "outline"
+                : "outline-solid"
             }
             size="sm"
             onClick={() => setTool(cornerstoneTools.WindowLevelTool.toolName)}
@@ -589,7 +589,7 @@ export function DicomViewer({
             variant={
               activeTool === cornerstoneTools.PanTool.toolName
                 ? "default"
-                : "outline"
+                : "outline-solid"
             }
             size="sm"
             onClick={() => setTool(cornerstoneTools.PanTool.toolName)}
@@ -602,7 +602,7 @@ export function DicomViewer({
             variant={
               activeTool === cornerstoneTools.ZoomTool.toolName
                 ? "default"
-                : "outline"
+                : "outline-solid"
             }
             size="sm"
             onClick={() => setTool(cornerstoneTools.ZoomTool.toolName)}
@@ -618,7 +618,7 @@ export function DicomViewer({
             variant={
               activeTool === cornerstoneTools.RectangleROITool.toolName
                 ? "default"
-                : "outline"
+                : "outline-solid"
             }
             size="sm"
             onClick={() => setTool(cornerstoneTools.RectangleROITool.toolName)}
@@ -631,7 +631,7 @@ export function DicomViewer({
             variant={
               activeTool === cornerstoneTools.EllipticalROITool.toolName
                 ? "default"
-                : "outline"
+                : "outline-solid"
             }
             size="sm"
             onClick={() => setTool(cornerstoneTools.EllipticalROITool.toolName)}
@@ -644,7 +644,7 @@ export function DicomViewer({
             variant={
               activeTool === cornerstoneTools.PlanarFreehandROITool.toolName
                 ? "default"
-                : "outline"
+                : "outline-solid"
             }
             size="sm"
             onClick={() =>
@@ -661,7 +661,7 @@ export function DicomViewer({
           <div className="w-px h-6 bg-neutral-700 mx-2" />
 
           <Button
-            variant="outline"
+            variant="outline-solid"
             size="sm"
             onClick={rotateImage}
             className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
@@ -670,7 +670,7 @@ export function DicomViewer({
             Rotate
           </Button>
           <Button
-            variant="outline"
+            variant="outline-solid"
             size="sm"
             onClick={resetView}
             className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
@@ -682,7 +682,7 @@ export function DicomViewer({
           <div className="w-px h-6 bg-neutral-700 mx-2" />
 
           <Button
-            variant={showMetadata ? "default" : "outline"}
+            variant={showMetadata ? "default" : "outline-solid"}
             size="sm"
             onClick={() => setShowMetadata(!showMetadata)}
             className={
@@ -697,9 +697,9 @@ export function DicomViewer({
         </div>
 
         {/* Right Side Buttons */}
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
-            variant="outline"
+            variant="outline-solid"
             size="sm"
             onClick={toggleFullscreen}
             className="text-neutral-300 border-neutral-700 hover:bg-neutral-800"
@@ -757,7 +757,7 @@ export function DicomViewer({
         <div className="flex-1 relative">
           <div
             ref={viewerRef}
-            className="w-full h-full outline-none"
+            className="w-full h-full outline-hidden"
             onContextMenu={(e) => e.preventDefault()}
           />
         </div>

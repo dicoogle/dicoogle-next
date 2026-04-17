@@ -76,7 +76,7 @@ export function ImageList({
           <div className="flex gap-2">
             <Button
               size="sm"
-              variant={viewMode === "list" ? "default" : "outline"}
+              variant={viewMode === "list" ? "default" : "outline-solid"}
               onClick={() => setViewMode("list")}
             >
               <List className="w-4 h-4 mr-1" />
@@ -84,7 +84,7 @@ export function ImageList({
             </Button>
             <Button
               size="sm"
-              variant={viewMode === "grid" ? "default" : "outline"}
+              variant={viewMode === "grid" ? "default" : "outline-solid"}
               onClick={() => setViewMode("grid")}
             >
               <LayoutGrid className="w-4 h-4 mr-1" />
@@ -103,7 +103,7 @@ export function ImageList({
               placeholder="Search by SOP UID or Instance Number..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
           {searchQuery && (
@@ -131,7 +131,7 @@ export function ImageList({
                   onClick={() => handleCardClick(absoluteIndex)}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full cursor-pointer"
                 >
-                  <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity flex-shrink-0">
+                  <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity shrink-0">
                     <img
                       src={dicoogleService.getThumbnail(image.sopInstanceUID)}
                       alt={`Image ${absoluteIndex + 1}`}
@@ -161,7 +161,7 @@ export function ImageList({
                   <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="outline-solid"
                       onClick={() => onViewQuick(absoluteIndex)}
                       className="w-full text-xs px-2"
                       title="View in Quick Viewer"
@@ -170,7 +170,7 @@ export function ImageList({
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="outline-solid"
                       onClick={(e) => onViewDump(image.sopInstanceUID, e)}
                       className="w-full text-xs px-2"
                       title="View DICOM Metadata"
@@ -195,7 +195,7 @@ export function ImageList({
                   className="border border-border rounded-lg p-4 hover:border-primary transition-colors flex items-center gap-4 cursor-pointer"
                 >
                   {/* Thumbnail */}
-                  <div className="w-20 h-20 bg-muted rounded flex-shrink-0 overflow-hidden">
+                  <div className="w-20 h-20 bg-muted rounded shrink-0 overflow-hidden">
                     <img
                       src={dicoogleService.getThumbnail(image.sopInstanceUID)}
                       alt={`Image ${absoluteIndex + 1}`}
@@ -221,10 +221,10 @@ export function ImageList({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2 shrink-0">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="outline-solid"
                       onClick={() => onViewQuick(absoluteIndex)}
                       title="View in Quick Viewer"
                     >
@@ -232,7 +232,7 @@ export function ImageList({
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="outline-solid"
                       onClick={(e) => onViewDump(image.sopInstanceUID, e)}
                       title="View DICOM Metadata"
                     >
@@ -255,7 +255,7 @@ export function ImageList({
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                variant="outline"
+                variant="outline-solid"
                 onClick={pagination.previousPage}
                 disabled={pagination.isFirstPage}
               >
@@ -266,7 +266,7 @@ export function ImageList({
               </span>
               <Button
                 size="sm"
-                variant="outline"
+                variant="outline-solid"
                 onClick={pagination.nextPage}
                 disabled={pagination.isLastPage}
               >

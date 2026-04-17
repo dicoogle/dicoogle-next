@@ -78,7 +78,7 @@ export function QuickViewer({
 
   return (
     <div
-      className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-sm flex items-center justify-center !mt-0"
+      className="fixed inset-0 z-1000 bg-black/95 backdrop-blur-xs flex items-center justify-center mt-0!"
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >

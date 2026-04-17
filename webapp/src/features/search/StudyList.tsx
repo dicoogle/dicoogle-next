@@ -127,7 +127,7 @@ const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
                   .map((ext) => (
                     <Button
                       key={ext.id}
-                      variant="outline"
+                      variant="outline-solid"
                       size="sm"
                       onClick={() => invokeResultOptionAction(ext, study, context)}
                     >
@@ -175,7 +175,7 @@ const StudyListItem = ({
       </div>
       <div className="space-y-0.5">
         <div className="flex items-center gap-1">
-          <User className="w-3 h-3 text-gray-500 flex-shrink-0" />
+          <User className="w-3 h-3 text-gray-500 shrink-0" />
           <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
             {study.patientName || "Unknown Patient"}
           </span>
@@ -185,7 +185,7 @@ const StudyListItem = ({
         </div>
       </div>
       <div className="flex items-center gap-1 text-xs">
-        <Calendar className="w-3 h-3 text-gray-500 flex-shrink-0" />
+        <Calendar className="w-3 h-3 text-gray-500 shrink-0" />
         <span className="truncate">{formatDate(study.studyDate)}</span>
       </div>
       <div className="text-xs">
@@ -383,7 +383,7 @@ export function StudyList({ studies }: StudyListProps) {
             {batchExtensions.map((ext) => (
               <Button
                 key={ext.id}
-                variant="outline"
+                variant="outline-solid"
                 size="sm"
                 disabled={filteredStudies.length === 0}
                 onClick={() =>
@@ -405,7 +405,7 @@ export function StudyList({ studies }: StudyListProps) {
           rendererExtensions.length > 0 && (
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
+                variant="outline-solid"
                 size="sm"
                 onClick={() => handleViewModeChange("list")}
                 className={viewMode === "list" ? "border-primary" : ""}
@@ -414,7 +414,7 @@ export function StudyList({ studies }: StudyListProps) {
                 List
               </Button>
               <Button
-                variant="outline"
+                variant="outline-solid"
                 size="sm"
                 onClick={() => handleViewModeChange("card")}
                 className={viewMode === "card" ? "border-primary" : ""}
@@ -426,7 +426,7 @@ export function StudyList({ studies }: StudyListProps) {
               {rendererExtensions.map((ext) => (
                 <Button
                   key={ext.id}
-                  variant="outline"
+                  variant="outline-solid"
                   size="sm"
                   onClick={() => handleViewModeChange(ext.id)}
                   className={viewMode === ext.id ? "border-primary" : ""}
@@ -453,7 +453,7 @@ export function StudyList({ studies }: StudyListProps) {
       {!selectedStudy && filteredStudies.length > itemsPerPage && (
         <div className="flex items-center justify-between pt-4">
           <Button
-            variant="outline"
+            variant="outline-solid"
             size="sm"
             onClick={handlePreviousPage}
             disabled={currentPage === 1}
@@ -466,7 +466,7 @@ export function StudyList({ studies }: StudyListProps) {
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <Button
                 key={page}
-                variant={currentPage === page ? "default" : "outline"}
+                variant={currentPage === page ? "default" : "outline-solid"}
                 size="sm"
                 onClick={() => setCurrentPage(page)}
                 className="w-8 h-8 p-0"
@@ -477,7 +477,7 @@ export function StudyList({ studies }: StudyListProps) {
           </div>
 
           <Button
-            variant="outline"
+            variant="outline-solid"
             size="sm"
             onClick={handleNextPage}
             disabled={currentPage === totalPages}
