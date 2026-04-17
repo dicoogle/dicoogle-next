@@ -61,7 +61,7 @@ export function ManagementPage() {
         </div>
       </div>
 
-      <div className="border-b border-border sticky top-0 bg-background/95 backdrop-blur z-10">
+      <div className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-10">
         <div className="mx-auto max-w-8xl px-16">
           <nav className="flex gap-1 overflow-x-auto" aria-label="Tabs">
             {coreTabs.map((tab) => (

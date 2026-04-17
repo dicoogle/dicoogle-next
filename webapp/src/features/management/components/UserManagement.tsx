@@ -261,7 +261,7 @@ export function UserManagement() {
           <div className="flex gap-3 pt-2">
             <Button
               type="button"
-              variant="outline"
+              variant="outline-solid"
               onClick={() => setEditModalOpen(false)}
               className="flex-1"
               disabled={editLoading}

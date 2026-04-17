@@ -111,7 +111,7 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-lg shadow-xl w-[90vw] h-[80vh] max-w-6xl flex flex-col">
-        <div className="p-6 flex-shrink-0">
+        <div className="p-6 shrink-0">
           <FileBrowserHeader
             currentPath={currentPath}
             onClose={onClose}
@@ -148,7 +148,7 @@ export const FileBrowserModal: React.FC<FileBrowserModalProps> = ({
           )}
         </div>
 
-        <div className="p-6 flex-shrink-0">
+        <div className="p-6 shrink-0">
           <FileBrowserFooter
             currentPath={currentPath}
             selectedFile={selectedFile && selectedFile.isDir ? {

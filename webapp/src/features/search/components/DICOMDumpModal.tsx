@@ -47,7 +47,7 @@ export function DICOMDumpModal({
   const pagination = usePagination(filteredTags, PAGE_SIZE);
 
   return (
-    <div className="fixed inset-0 z-[1002] bg-black/80 backdrop-blur-sm flex items-center justify-center !mt-0">
+    <div className="fixed inset-0 z-1002 bg-black/80 backdrop-blur-xs flex items-center justify-center mt-0!">
       <div className="bg-card border border-border rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-border">
@@ -76,7 +76,7 @@ export function DICOMDumpModal({
               placeholder="Search tags..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
           {searchQuery && (
@@ -138,7 +138,7 @@ export function DICOMDumpModal({
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="outline-solid"
                   onClick={pagination.previousPage}
                   disabled={pagination.isFirstPage}
                 >
@@ -149,7 +149,7 @@ export function DICOMDumpModal({
                 </span>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="outline-solid"
                   onClick={pagination.nextPage}
                   disabled={pagination.isLastPage}
                 >

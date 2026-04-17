@@ -42,7 +42,7 @@ export function LoggerView() {
         <h3 className="text-sm font-semibold text-gray-200">Server Logs</h3>
         <Button
           size="sm"
-          variant="outline"
+          variant="outline-solid"
           onClick={fetchLogs}
           disabled={loading}
           className="text-xs h-8"

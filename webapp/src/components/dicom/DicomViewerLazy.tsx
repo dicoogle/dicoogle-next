@@ -51,7 +51,7 @@ class LazyLoadErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
+        <div className="fixed inset-0 bg-black z-100 flex items-center justify-center">
           <div className="bg-red-900/20 border border-red-800 p-6 rounded-lg text-center max-w-md mx-4">
             <p className="text-red-400 font-semibold mb-2">Error Loading Viewer</p>
             <p className="text-red-300 text-sm">
@@ -67,7 +67,7 @@ class LazyLoadErrorBoundary extends Component<
               </Button>
               {this.props.onClose && (
                 <Button
-                  variant="outline"
+                  variant="outline-solid"
                   onClick={this.props.onClose}
                   className="border-red-700 text-red-200 hover:bg-red-900/30"
                 >
@@ -96,7 +96,7 @@ export function DicomViewerLazy(props: DicomViewerProps) {
     >
       <Suspense
         fallback={
-          <div className="fixed inset-0 bg-black z-[100] flex items-center justify-center">
+          <div className="fixed inset-0 bg-black z-100 flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
               <p className="text-neutral-300 text-lg font-medium">

@@ -207,7 +207,7 @@ export function PluginSettings() {
             </div>
             <button
               onClick={handleDismissInfo}
-              className="p-1 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors flex-shrink-0"
+              className="p-1 rounded-md hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors shrink-0"
               title="Dismiss"
             >
               <X className="w-4 h-4 text-blue-700 dark:text-blue-300" />

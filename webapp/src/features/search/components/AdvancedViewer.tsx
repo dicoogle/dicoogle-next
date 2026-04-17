@@ -38,7 +38,7 @@ export function AdvancedViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] bg-black/95 flex flex-col">
+    <div className="fixed inset-0 z-1000 bg-black/95 flex flex-col">
       {/* Cornerstone Viewer fills everything; toolbar/header are handled inside */}
       <div className="flex-1 bg-black">
         <DicomViewerLazy
