@@ -21,7 +21,7 @@ export const FileBrowserFooter: React.FC<FileBrowserFooterProps> = ({
     }
     return 'Select This Directory';
   };
-  
+
   const getInstructionText = () => {
     if (selectedFile && selectedFile.isDir) {
       return `Folder "${selectedFile.name}" is selected. Click to choose it, or double-click to navigate into it.`;
@@ -35,7 +35,7 @@ export const FileBrowserFooter: React.FC<FileBrowserFooterProps> = ({
         {getInstructionText()}
       </p>
       <div className="flex gap-2 justify-end">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline-solid" onClick={onCancel}>
           Cancel
         </Button>
         <Button

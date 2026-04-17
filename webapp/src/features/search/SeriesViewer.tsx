@@ -225,7 +225,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant={viewMode === "list" ? "default" : "outline"}
+                variant={viewMode === "list" ? "default" : "outline-solid"}
                 onClick={() => setViewMode("list")}
               >
                 <List className="w-4 h-4 mr-1" />
@@ -233,7 +233,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
               </Button>
               <Button
                 size="sm"
-                variant={viewMode === "grid" ? "default" : "outline"}
+                variant={viewMode === "grid" ? "default" : "outline-solid"}
                 onClick={() => setViewMode("grid")}
               >
                 <LayoutGrid className="w-4 h-4 mr-1" />
@@ -251,7 +251,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                   onClick={() => handleCardClick(s)}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors group flex flex-col h-full cursor-pointer"
                 >
-                  <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity flex-shrink-0">
+                  <div className="w-full h-40 bg-gray-100 dark:bg-gray-800 rounded-md mb-3 relative overflow-hidden group-hover:opacity-90 transition-opacity shrink-0">
                     {s.images && s.images.length > 0 ? (
                       <img
                         src={dicoogleService.getThumbnail(
@@ -288,7 +288,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                   <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="outline-solid"
                       onClick={(e) => handleOpenQuickViewer(s, e)}
                       onMouseEnter={handleViewButtonHover}
                       onFocus={handleViewButtonHover}
@@ -300,7 +300,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
 
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="outline-solid"
                       onClick={(e) => handleShowImages(s, e)}
                       disabled={!s.images || s.images.length === 0}
                       className="w-full text-xs px-2"
@@ -319,7 +319,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                   onClick={() => handleCardClick(s)}
                   className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-primary-500 transition-colors flex gap-4 cursor-pointer"
                 >
-                  <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-md relative overflow-hidden hover:opacity-90 transition-opacity flex-shrink-0">
+                  <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-md relative overflow-hidden hover:opacity-90 transition-opacity shrink-0">
                     {s.images && s.images.length > 0 ? (
                       <img
                         src={dicoogleService.getThumbnail(
@@ -357,7 +357,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="outline-solid"
                         onClick={(e) => handleOpenQuickViewer(s, e)}
                         onMouseEnter={handleViewButtonHover}
                         onFocus={handleViewButtonHover}
@@ -367,7 +367,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="outline-solid"
                         onClick={(e) => handleShowImages(s, e)}
                         disabled={!s.images || s.images.length === 0}
                       >

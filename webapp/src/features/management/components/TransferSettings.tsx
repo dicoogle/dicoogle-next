@@ -187,7 +187,7 @@ export function TransferSettings() {
           <div className="flex gap-2">
             <Button
               size="sm"
-              variant="outline"
+              variant="outline-solid"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1 || loading}
             >
@@ -196,7 +196,7 @@ export function TransferSettings() {
             </Button>
             <Button
               size="sm"
-              variant="outline"
+              variant="outline-solid"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages || loading}
             >

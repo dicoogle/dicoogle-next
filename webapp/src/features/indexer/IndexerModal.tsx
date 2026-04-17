@@ -246,19 +246,23 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
   const handleApplySettings = async () => {
     setWatcherLoading(true);
     try {
+      const currentSettings = await dicoogleService.getIndexerSettings();
+
       await dicoogleService.setIndexerSettings({
+        ...currentSettings,
         path: watcherPath,
         watcher: watcherEnabled,
       });
+
       toast.success("Settings applied successfully");
       await loadSettings();
     } catch (err) {
       toast.error("Failed to apply settings");
+      console.error("Settings Update Error:", err);
     } finally {
       setWatcherLoading(false);
     }
   };
-
   const handlePathSuggestion = (suggestion: string) => {
     setPath(suggestion);
     setShowSuggestions(false);
@@ -268,7 +272,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
   const handlePathSelect = (selectedPath: string) => {
     // Convert absolute path to file:/// URI format that Dicoogle expects
     const fileUri = `file://${selectedPath}`;
-    
+
     if (activeTab === "manual") {
       setPath(fileUri);
     } else {
@@ -288,22 +292,20 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
           <div className="flex gap-1 px-6">
             <button
               onClick={() => setActiveTab("manual")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "manual"
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "manual"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-              }`}
+                }`}
             >
               <FolderOpen className="h-4 w-4 inline mr-2" />
               Manual Scan
             </button>
             <button
               onClick={() => setActiveTab("auto")}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === "auto"
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === "auto"
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-              }`}
+                }`}
             >
               <Eye className="h-4 w-4 inline mr-2" />
               Auto-Index
@@ -345,7 +347,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
                   </button>
                 </div>
                 {showSuggestions && (
-                  <div className="mt-1 bg-white border rounded-md shadow-sm">
+                  <div className="mt-1 bg-white border rounded-md shadow-xs">
                     {PATH_SUGGESTIONS.map((suggestion) => (
                       <button
                         key={suggestion}
@@ -366,7 +368,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
               <div className="flex gap-2 justify-between">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="outline-solid"
                   onClick={() => setTasksModalOpen(true)}
                 >
                   <List className="h-4 w-4 mr-2" />
@@ -489,7 +491,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
                         {isRunning && (
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="outline-solid"
                             onClick={() => handleCancelTask(task.taskUid)}
                             disabled={isCancelling}
                           >
@@ -539,7 +541,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
                 <div className="flex items-center justify-between mt-4 pt-4 border-t">
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="outline-solid"
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                   >
@@ -550,7 +552,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
                   </span>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="outline-solid"
                     onClick={() =>
                       setCurrentPage((p) => Math.min(totalPages, p + 1))
                     }

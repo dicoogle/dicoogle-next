@@ -85,7 +85,7 @@ export default function StudyTriageWorkspace({
           <div className="border-b border-border px-4 py-3 text-sm font-medium">
             Study List
           </div>
-          <div className="max-h-[34rem] overflow-auto">
+          <div className="max-h-136 overflow-auto">
             <div className="grid grid-cols-[2fr_100px_90px_2fr] gap-2 border-b border-border bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               <div>Patient</div>
               <div>Date</div>
@@ -130,7 +130,7 @@ export default function StudyTriageWorkspace({
             </div>
 
             <div className="overflow-hidden rounded-lg border border-border bg-muted/30">
-              <div className="aspect-[4/3] w-full bg-muted">
+              <div className="aspect-4/3 w-full bg-muted">
                 {selectedRow.previewUrl ? (
                   <img
                     src={selectedRow.previewUrl}
