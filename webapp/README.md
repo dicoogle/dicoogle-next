@@ -107,6 +107,8 @@ You can provide configuration via environment variables.
   - Vite build base path (fallback in `vite.config.ts`: `/experimental/`)
 - `VITE_APP_VERSION`
   - Optional app version exposed in plugin context
+- `VITE_FILESYSTEM_START_PATH`
+  - Optional initial path for the file browser modal (example: `/dicoogle`); if unset, roots are loaded from backend
 
 ## Running Locally
 
