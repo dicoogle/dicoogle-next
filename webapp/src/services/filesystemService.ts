@@ -24,6 +24,7 @@ export interface FilesystemRootsResponse {
 
 class FilesystemService {
   private apiBaseUrl = this.resolveApiBaseUrl();
+  private configuredStartPath = this.resolveConfiguredStartPath();
 
   private resolveApiBaseUrl(): string {
     const envUrl = import.meta.env.VITE_API_BASE_URL;
@@ -41,6 +42,20 @@ class FilesystemService {
 
   private normalizeClientPath(value: string): string {
     return value.replace(/\\/g, "/");
+  }
+
+  private resolveConfiguredStartPath(): string | null {
+    const envPath = import.meta.env.VITE_FILESYSTEM_START_PATH;
+    if (!envPath || typeof envPath !== "string") {
+      return null;
+    }
+
+    const trimmed = envPath.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    return this.normalizeClientPath(trimmed);
   }
 
   private buildFolderChain(currentPath: string): FolderChainItem[] {
@@ -160,6 +175,10 @@ class FilesystemService {
 
 
   async getRoots(): Promise<string[]> {
+    if (this.configuredStartPath) {
+      return [this.configuredStartPath];
+    }
+
     const data = await this.fetchPathContents("");
     return data.directories.map((entry) => entry.path);
   }
