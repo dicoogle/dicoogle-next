@@ -7,16 +7,16 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import org.dcm4che3.util.UIDUtils;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.http.HttpStatus;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 import org.dicoogle.app.config.DimseTransferCapabilityConfigProperties;
 import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityItem;
 import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityListResponse;
 import org.dicoogle.protocol.dimse.DimseCStoreProperties;
 import org.dicoogle.protocol.dimse.DimseCStoreServer;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class DimseTransferCapabilityService {
@@ -56,7 +56,8 @@ public class DimseTransferCapabilityService {
     boolean replaced = false;
     for (int i = 0; i < updated.size(); i++) {
       if (sopClassUid.equals(updated.get(i).getSopClassUid())) {
-        updated.set(i, new DimseCStoreProperties.AcceptedTransferCapability(sopClassUid, normalizedTs));
+        updated.set(
+            i, new DimseCStoreProperties.AcceptedTransferCapability(sopClassUid, normalizedTs));
         replaced = true;
         break;
       }
@@ -100,7 +101,8 @@ public class DimseTransferCapabilityService {
                         item.sopClassUid(), normalizeTransferSyntaxes(item.transferSyntaxUids())))
             .toList();
 
-    List<DimseCStoreProperties.AcceptedTransferCapability> normalized = normalizeCapabilities(mapped);
+    List<DimseCStoreProperties.AcceptedTransferCapability> normalized =
+        normalizeCapabilities(mapped);
     DimseTransferCapabilityStore.StoredCapabilities saved =
         saveWithConflictMapping(normalized, expectedVersion, actor);
     apply(saved);
@@ -135,7 +137,8 @@ public class DimseTransferCapabilityService {
             .map(
                 capability ->
                     new TransferCapabilityItem(
-                        capability.getSopClassUid(), List.copyOf(capability.getTransferSyntaxUids())))
+                        capability.getSopClassUid(),
+                        List.copyOf(capability.getTransferSyntaxUids())))
             .toList();
 
     return new TransferCapabilityListResponse(
@@ -179,7 +182,8 @@ public class DimseTransferCapabilityService {
       result.add(new DimseCStoreProperties.AcceptedTransferCapability(sopClassUid, normalizedTs));
     }
 
-    result.sort(Comparator.comparing(DimseCStoreProperties.AcceptedTransferCapability::getSopClassUid));
+    result.sort(
+        Comparator.comparing(DimseCStoreProperties.AcceptedTransferCapability::getSopClassUid));
     return result;
   }
 

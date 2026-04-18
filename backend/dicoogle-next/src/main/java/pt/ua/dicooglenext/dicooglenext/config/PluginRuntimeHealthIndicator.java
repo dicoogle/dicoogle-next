@@ -3,11 +3,11 @@ package org.dicoogle.app.config;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.springframework.boot.health.contributor.Health;
-import org.springframework.boot.health.contributor.HealthIndicator;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
 
 public class PluginRuntimeHealthIndicator implements HealthIndicator {
 
@@ -22,8 +22,10 @@ public class PluginRuntimeHealthIndicator implements HealthIndicator {
 
   @Override
   public Health health() {
-    long readableCount = storagePlugins.stream().filter(ReadableStoragePlugin.class::isInstance).count();
-    long writableCount = storagePlugins.stream().filter(WritableStoragePlugin.class::isInstance).count();
+    long readableCount =
+        storagePlugins.stream().filter(ReadableStoragePlugin.class::isInstance).count();
+    long writableCount =
+        storagePlugins.stream().filter(WritableStoragePlugin.class::isInstance).count();
 
     String requiredScheme = runtimeProperties.getStartupValidation().getWritableScheme();
     boolean hasWritableForRequiredScheme =

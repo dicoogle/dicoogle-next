@@ -34,9 +34,7 @@ public class DicomwebController {
     return ResponseEntity.ok().contentType(APPLICATION_DICOM).body(payload);
   }
 
-  @GetMapping(
-      value = "/studies/{studyInstanceUid}/metadata",
-      produces = "application/dicom+json")
+  @GetMapping(value = "/studies/{studyInstanceUid}/metadata", produces = "application/dicom+json")
   public ResponseEntity<String> retrieveStudyMetadata(@PathVariable String studyInstanceUid) {
     return ResponseEntity.ok()
         .contentType(APPLICATION_DICOM_JSON)
@@ -63,6 +61,7 @@ public class DicomwebController {
       @PathVariable String sopInstanceUid) {
     return ResponseEntity.ok()
         .contentType(APPLICATION_DICOM_JSON)
-        .body(retrieveService.instanceMetadata(studyInstanceUid, seriesInstanceUid, sopInstanceUid));
+        .body(
+            retrieveService.instanceMetadata(studyInstanceUid, seriesInstanceUid, sopInstanceUid));
   }
 }

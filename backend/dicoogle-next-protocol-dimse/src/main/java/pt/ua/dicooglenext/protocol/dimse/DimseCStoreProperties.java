@@ -74,8 +74,10 @@ public class DimseCStoreProperties {
     return List.of(
         new AcceptedTransferCapability(UID.Verification, List.of(UID.ImplicitVRLittleEndian)),
         new AcceptedTransferCapability(UID.SecondaryCaptureImageStorage, storageTransferSyntaxes),
-        new AcceptedTransferCapability(UID.ComputedRadiographyImageStorage, storageTransferSyntaxes),
-        new AcceptedTransferCapability(UID.DigitalXRayImageStorageForPresentation, storageTransferSyntaxes),
+        new AcceptedTransferCapability(
+            UID.ComputedRadiographyImageStorage, storageTransferSyntaxes),
+        new AcceptedTransferCapability(
+            UID.DigitalXRayImageStorageForPresentation, storageTransferSyntaxes),
         new AcceptedTransferCapability(
             UID.DigitalMammographyXRayImageStorageForPresentation, storageTransferSyntaxes),
         new AcceptedTransferCapability(UID.UltrasoundImageStorage, storageTransferSyntaxes),
@@ -94,7 +96,8 @@ public class DimseCStoreProperties {
 
     public AcceptedTransferCapability(String sopClassUid, List<String> transferSyntaxUids) {
       this.sopClassUid = sopClassUid;
-      this.transferSyntaxUids = transferSyntaxUids == null ? List.of() : List.copyOf(transferSyntaxUids);
+      this.transferSyntaxUids =
+          transferSyntaxUids == null ? List.of() : List.copyOf(transferSyntaxUids);
     }
 
     public String getSopClassUid() {

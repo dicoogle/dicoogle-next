@@ -3,12 +3,12 @@ package org.dicoogle.app.config;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.dicoogle.sdk.storage.StoragePlugin;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.dicoogle.sdk.storage.StoragePlugin;
-import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 public class PluginStartupValidator implements ApplicationRunner {
 

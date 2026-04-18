@@ -4,14 +4,14 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.dicoogle.core.plugins.PluginRegistry;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.storage.filero.FileReadOnlyStoragePlugin;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties(PluginRuntimeProperties.class)

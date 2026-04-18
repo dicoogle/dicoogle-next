@@ -9,17 +9,17 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 import org.dicoogle.app.config.DimseTransferCapabilityConfigProperties;
 import org.dicoogle.protocol.dimse.DimseCStoreProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
 
 @Component
 @ConditionalOnProperty(prefix = "app.dimse.cstore.config", name = "source", havingValue = "jdbc")
 public class JdbcDimseTransferCapabilityStore implements DimseTransferCapabilityStore {
 
-  private static final TypeReference<List<DimseCStoreProperties.AcceptedTransferCapability>> TYPE_REF =
-      new TypeReference<>() {};
+  private static final TypeReference<List<DimseCStoreProperties.AcceptedTransferCapability>>
+      TYPE_REF = new TypeReference<>() {};
 
   private final ObjectMapper objectMapper;
   private final DimseTransferCapabilityConfigProperties properties;
@@ -95,11 +95,7 @@ public class JdbcDimseTransferCapabilityStore implements DimseTransferCapability
 
       connection.commit();
       return new StoredCapabilities(
-          newVersion,
-          "jdbc",
-          actor,
-          now.toInstant().toString(),
-          List.copyOf(capabilities));
+          newVersion, "jdbc", actor, now.toInstant().toString(), List.copyOf(capabilities));
     } catch (SQLException ex) {
       throw new IllegalStateException("Failed to save DIMSE transfer capability config", ex);
     }

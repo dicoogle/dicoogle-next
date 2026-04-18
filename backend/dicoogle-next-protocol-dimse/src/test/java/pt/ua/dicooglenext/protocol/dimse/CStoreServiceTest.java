@@ -14,12 +14,12 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
-import org.junit.jupiter.api.Test;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StoredObject;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
+import org.junit.jupiter.api.Test;
 
 class CStoreServiceTest {
 
@@ -152,7 +152,8 @@ class CStoreServiceTest {
     }
   }
 
-  private static final class WritableFilePlugin implements ReadableStoragePlugin, WritableStoragePlugin {
+  private static final class WritableFilePlugin
+      implements ReadableStoragePlugin, WritableStoragePlugin {
 
     private int storedCount = 0;
     private String mediaStorageSopClassUid;

@@ -2,31 +2,31 @@ package org.dicoogle.protocol.dicomweb;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import jakarta.json.Json;
+import jakarta.json.stream.JsonGenerator;
 import java.io.ByteArrayInputStream;
-import java.io.StringWriter;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
-import jakarta.json.Json;
-import jakarta.json.stream.JsonGenerator;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.json.JSONWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
 import org.dicoogle.sdk.service.StorageRetrieveEventListener;
 import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.StorageRetrieveFailureEvent;
 import org.dicoogle.sdk.storage.StorageRetrieveSuccessEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class DicomwebRetrieveService {
@@ -66,7 +66,10 @@ public class DicomwebRetrieveService {
     increment("dicoogle.wadors.requests", "instance");
 
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
-    try (var stream = storageRouter.requireReadable(located.location().getScheme()).openForRead(located.location())) {
+    try (var stream =
+        storageRouter
+            .requireReadable(located.location().getScheme())
+            .openForRead(located.location())) {
       byte[] payload = stream.readAllBytes();
       emitRetrieveSuccess(
           studyInstanceUid,
@@ -157,7 +160,8 @@ public class DicomwebRetrieveService {
     return toDicomJson(metadata);
   }
 
-  public String instanceMetadata(String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
+  public String instanceMetadata(
+      String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
     LOGGER.info(
         "WADO-RS instance metadata request: studyUID={}, seriesUID={}, sopUID={}",
         studyInstanceUid,

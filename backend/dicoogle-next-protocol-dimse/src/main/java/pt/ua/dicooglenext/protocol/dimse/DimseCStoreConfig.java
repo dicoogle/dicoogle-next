@@ -2,14 +2,14 @@ package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.DimseAssociationAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @EnableConfigurationProperties(DimseCStoreProperties.class)
