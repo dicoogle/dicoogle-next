@@ -6,11 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import org.junit.jupiter.api.Test;
-import org.springframework.boot.DefaultApplicationArguments;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.DefaultApplicationArguments;
 
 class PluginStartupValidatorTest {
 
@@ -58,8 +58,8 @@ class PluginStartupValidatorTest {
     }
   }
 
-  private static final class WritableTestStoragePlugin
-      extends ReadOnlyStoragePlugin implements WritableStoragePlugin {
+  private static final class WritableTestStoragePlugin extends ReadOnlyStoragePlugin
+      implements WritableStoragePlugin {
 
     @Override
     public org.dicoogle.sdk.storage.StoredObject store(InputStream data, String contentType) {

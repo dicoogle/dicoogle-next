@@ -16,9 +16,6 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomOutputStream;
-import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
@@ -27,6 +24,9 @@ import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StoredObject;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 class DicomwebRetrieveServiceTest {
 
@@ -124,8 +124,7 @@ class DicomwebRetrieveServiceTest {
   }
 
   private static final class InMemoryHierarchicalStoragePlugin
-      implements
-          ReadableStoragePlugin,
+      implements ReadableStoragePlugin,
           WritableStoragePlugin,
           DicomInstanceLocator,
           QueryIndexStorageLocator {

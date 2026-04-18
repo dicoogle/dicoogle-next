@@ -6,10 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import org.junit.jupiter.api.Test;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
+import org.junit.jupiter.api.Test;
 
 class PluginRuntimeConfigTest {
 
@@ -46,7 +46,8 @@ class PluginRuntimeConfigTest {
     assertEquals("s3", config.primaryStorageScheme(properties));
   }
 
-  private static final class SimpleStoragePlugin implements ReadableStoragePlugin, WritableStoragePlugin {
+  private static final class SimpleStoragePlugin
+      implements ReadableStoragePlugin, WritableStoragePlugin {
 
     private final String scheme;
 
