@@ -16,7 +16,8 @@ class SystemStatusServiceTest {
     StaticListableBeanFactory factory = new StaticListableBeanFactory();
 
     SystemStatusService service =
-        new SystemStatusService(environment, factory.getBeanProvider(DimseTransferCapabilityService.class));
+        new SystemStatusService(
+            environment, factory.getBeanProvider(DimseTransferCapabilityService.class));
 
     assertThat(service.currentStatus().environment()).isEqualTo("test");
     assertThat(service.currentStatus().status()).isEqualTo("ok");

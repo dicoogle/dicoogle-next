@@ -1,8 +1,8 @@
 package org.dicoogle.protocol.dimse;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.security.GeneralSecurityException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -25,13 +25,13 @@ import org.dcm4che3.net.service.BasicCEchoSCP;
 import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.DicomServiceRegistry;
-import org.springframework.context.SmartLifecycle;
 import org.dicoogle.sdk.query.DimseAssociationAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
 import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
 import org.dicoogle.sdk.storage.DimseAssociationClosedEvent;
 import org.dicoogle.sdk.storage.DimseAssociationFailedEvent;
 import org.dicoogle.sdk.storage.DimseAssociationRejectedEvent;
+import org.springframework.context.SmartLifecycle;
 
 public class DimseCStoreServer implements SmartLifecycle {
 
@@ -191,7 +191,8 @@ public class DimseCStoreServer implements SmartLifecycle {
     }
   }
 
-  private void configureTransferCapabilities(ApplicationEntity ae, DimseCStoreProperties properties) {
+  private void configureTransferCapabilities(
+      ApplicationEntity ae, DimseCStoreProperties properties) {
     int index = 0;
     for (DimseCStoreProperties.AcceptedTransferCapability capability :
         properties.getAcceptedTransferCapabilities()) {

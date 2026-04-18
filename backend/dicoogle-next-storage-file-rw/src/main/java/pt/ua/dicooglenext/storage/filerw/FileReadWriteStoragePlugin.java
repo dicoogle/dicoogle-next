@@ -23,8 +23,7 @@ import org.dicoogle.sdk.storage.StoredObject;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 public class FileReadWriteStoragePlugin
-    implements
-        ReadableStoragePlugin,
+    implements ReadableStoragePlugin,
         WritableStoragePlugin,
         DicomInstanceLocator,
         QueryIndexStorageLocator {

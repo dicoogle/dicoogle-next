@@ -13,8 +13,6 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.dicoogle.core.storage.NoWritableStoragePluginException;
 import org.dicoogle.core.storage.StoragePluginNotFoundException;
 import org.dicoogle.core.storage.StorageRouter;
@@ -22,6 +20,8 @@ import org.dicoogle.sdk.query.StorageIngestEventListener;
 import org.dicoogle.sdk.storage.StorageIngestFailureEvent;
 import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
 import org.dicoogle.sdk.storage.StoredObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CStoreService {
 
@@ -108,7 +108,8 @@ public class CStoreService {
       ps310Payload = normalizeToPs310(request.payload(), affectedSopClassUid, transferSyntaxUid);
     } catch (IOException ex) {
       CStoreResult result =
-          CStoreResult.cannotUnderstand("Failed to create a PS3.10 DICOM file payload", identifiers);
+          CStoreResult.cannotUnderstand(
+              "Failed to create a PS3.10 DICOM file payload", identifiers);
       emitIngestFailure(request, identifiers, result, scheme);
       increment("dicoogle.cstore.failure", scheme);
       recordOutcome("failure", scheme, startNs);

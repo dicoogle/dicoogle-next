@@ -4,6 +4,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import java.security.Principal;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityListResponse;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityReplaceRequest;
+import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityUpsertRequest;
+import org.dicoogle.app.service.DimseTransferCapabilityService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,10 +16,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityListResponse;
-import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityReplaceRequest;
-import org.dicoogle.app.dto.DimseTransferCapabilityDtos.TransferCapabilityUpsertRequest;
-import org.dicoogle.app.service.DimseTransferCapabilityService;
 
 @RestController
 @RequestMapping("/system/config/dimse/transfer-capabilities")
@@ -50,7 +50,8 @@ public class DimseTransferCapabilityController {
   @Operation(
       summary = "Delete one SOP capability",
       security = @SecurityRequirement(name = "basicAuth"))
-  public TransferCapabilityListResponse delete(@PathVariable String sopClassUid, Principal principal) {
+  public TransferCapabilityListResponse delete(
+      @PathVariable String sopClassUid, Principal principal) {
     return service.deleteOne(sopClassUid, actor(principal));
   }
 
