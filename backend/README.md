@@ -20,7 +20,7 @@ Default profile is `dev`, which enables:
 DIMSE status (current):
 
 - Implemented: C-ECHO, C-STORE, C-FIND (Study Root)
-- Not implemented yet: C-MOVE
+- Implemented: C-MOVE (Study Root)
 
 DIMSE C-STORE currently uses a strict curated list of accepted transfer capabilities (SOP class +
 transfer syntax combinations) under `app.dimse.cstore.accepted-transfer-capabilities`.
@@ -36,6 +36,9 @@ You can change transfer capabilities at runtime via API:
 
 C-FIND (Study Root) is always enabled when DIMSE server is enabled (`app.dimse.cstore.enabled=true`).
 Supported query levels are `STUDY`, `SERIES`, and `IMAGE`.
+
+C-MOVE (Study Root) is enabled by default and uses destination AE aliases from
+`app.dimse.cmove.destinations`.
 
 Query behavior:
 
