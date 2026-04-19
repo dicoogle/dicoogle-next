@@ -156,6 +156,13 @@ class DimseCFindSCPIntegrationTest {
             List.of(),
             new DimseCFindProperties(),
             new SimpleMeterRegistry());
+    CMoveService cMoveService =
+        new CMoveService(
+            List.of(),
+            List.of(),
+            new DimseCFindProperties(),
+            new DimseCMoveProperties(),
+            new SimpleMeterRegistry());
 
     DimseCStoreProperties properties = new DimseCStoreProperties();
     properties.setEnabled(true);
@@ -164,7 +171,14 @@ class DimseCFindSCPIntegrationTest {
     properties.setPort(port);
     properties.setStorageScheme("mem");
 
-    server = new DimseCStoreServer(cStoreService, cFindService, properties, "mem");
+    server =
+        new DimseCStoreServer(
+            cStoreService,
+            cFindService,
+            cMoveService,
+            new StorageRouter(List.of(storage)),
+            properties,
+            "mem");
     server.start();
   }
 
