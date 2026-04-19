@@ -43,6 +43,10 @@ app:
         - STUDY
         - SERIES
         - IMAGE
+    cmove:
+      enabled: true
+      max-results: 1000
+      destinations: {}
     cstore:
       enabled: false
       ae-title: DICOOGLE
