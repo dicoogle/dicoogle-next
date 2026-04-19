@@ -23,7 +23,8 @@ class DimseListQueryTaskTest {
     Attributes match = new Attributes();
     match.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
 
-    DimseListQueryTask task = new DimseListQueryTask(null, null, rq, keys, List.of(match));
+    DimseListQueryTask task =
+        new DimseListQueryTask(null, null, rq, keys, ignored -> List.of(match));
 
     task.onCancelRQ(null);
 
@@ -44,7 +45,8 @@ class DimseListQueryTaskTest {
     Attributes second = new Attributes();
     second.setString(Tag.StudyInstanceUID, VR.UI, "1.2.4");
 
-    DimseListQueryTask task = new DimseListQueryTask(null, null, rq, keys, List.of(first, second));
+    DimseListQueryTask task =
+        new DimseListQueryTask(null, null, rq, keys, ignored -> List.of(first, second));
 
     assertEquals(true, invokeHasMore(task));
     assertEquals("1.2.3", invokeNext(task).getString(Tag.StudyInstanceUID));
