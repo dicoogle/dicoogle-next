@@ -45,7 +45,6 @@ class FileReadWriteDimseFindPluginTest {
             java.util.Map.of("modality", "MR"),
             false,
             false,
-            false,
             () -> false);
 
     assertFalse(plugin.find(request).isEmpty());
@@ -56,6 +55,36 @@ class FileReadWriteDimseFindPluginTest {
     String raw = "brain patientid:123 modality:MR";
     assertTrue(FileReadWriteDimseFindPlugin.extractKeywordFilters(raw).containsKey("patientid"));
     assertTrue(FileReadWriteDimseFindPlugin.extractFreeText(raw).contains("brain"));
+  }
+
+  @Test
+  void supportsArbitraryDicomKeywordFilter() throws Exception {
+    Path root = Files.createTempDirectory("query-file-test-any-keyword");
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(root, "file");
+    storage.store(
+        new java.io.ByteArrayInputStream(createDicom("P1", "FELIX", "MR", "A1", "20240101")),
+        "application/dicom");
+
+    FileReadWriteDimseFindPlugin plugin = new FileReadWriteDimseFindPlugin(storage);
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+
+    var request =
+        new DimseFindServicePlugin.FindRequest(
+            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
+            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+            "CALLING",
+            "CALLED",
+            10,
+            keys,
+            null,
+            java.util.Map.of("StudyDate", "20240101"),
+            false,
+            false,
+            () -> false);
+
+    assertEquals(1, plugin.find(request).size());
   }
 
   @Test
@@ -87,7 +116,6 @@ class FileReadWriteDimseFindPluginTest {
             keys,
             null,
             java.util.Map.of(),
-            false,
             false,
             false,
             () -> false);
@@ -122,7 +150,6 @@ class FileReadWriteDimseFindPluginTest {
             keys,
             null,
             java.util.Map.of(),
-            false,
             false,
             false,
             () -> false);
@@ -162,7 +189,6 @@ class FileReadWriteDimseFindPluginTest {
             java.util.Map.of(),
             false,
             false,
-            false,
             () -> false);
     assertEquals(0, plugin.find(requestNoDateTimeNegotiation).size());
 
@@ -178,7 +204,6 @@ class FileReadWriteDimseFindPluginTest {
             java.util.Map.of(),
             false,
             true,
-            false,
             () -> false);
     assertEquals(1, plugin.find(requestWithDateTimeNegotiation).size());
   }
@@ -210,7 +235,6 @@ class FileReadWriteDimseFindPluginTest {
             java.util.Map.of(),
             false,
             false,
-            false,
             () -> false);
     assertEquals(0, plugin.find(requestWithoutFuzzy).size());
 
@@ -225,7 +249,6 @@ class FileReadWriteDimseFindPluginTest {
             null,
             java.util.Map.of(),
             true,
-            false,
             false,
             () -> false);
     assertEquals(1, plugin.find(requestWithFuzzy).size());
@@ -261,7 +284,6 @@ class FileReadWriteDimseFindPluginTest {
             java.util.Map.of(),
             false,
             false,
-            false,
             () -> false);
     assertEquals(1, plugin.find(request).size());
   }
@@ -289,7 +311,6 @@ class FileReadWriteDimseFindPluginTest {
             keys,
             null,
             java.util.Map.of(),
-            false,
             false,
             false,
             () -> true);

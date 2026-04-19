@@ -10,6 +10,7 @@ import java.util.Set;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
+import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.sdk.PluginMetadata;
@@ -54,6 +55,72 @@ class CFindServiceTest {
 
     assertEquals(1, matches.size());
     assertEquals("1.2.3", matches.get(0).getString(Tag.StudyInstanceUID));
+  }
+
+  @Test
+  void rejectsDateTimeRangeWithoutNegotiation() {
+    CFindService service =
+        new CFindService(
+            List.of(new DummyFindPlugin()),
+            List.<DimseFindAccessPolicy>of(),
+            new DimseCFindProperties(),
+            new SimpleMeterRegistry());
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.AcquisitionDateTime, VR.DT, "20240101000000-20241231235959");
+
+    DicomServiceException ex =
+        assertThrows(
+            DicomServiceException.class,
+            () ->
+                service.find(
+                    "1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 90, Set.of(), null));
+    assertEquals(Status.IdentifierDoesNotMatchSOPClass, ex.getStatus());
+  }
+
+  @Test
+  void rejectsInvalidRangeSyntax() {
+    CFindService service =
+        new CFindService(
+            List.of(new DummyFindPlugin()),
+            List.<DimseFindAccessPolicy>of(),
+            new DimseCFindProperties(),
+            new SimpleMeterRegistry());
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyDate, VR.DA, "-");
+
+    DicomServiceException ex =
+        assertThrows(
+            DicomServiceException.class,
+            () ->
+                service.find(
+                    "1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 91, Set.of(), null));
+    assertEquals(Status.IdentifierDoesNotMatchSOPClass, ex.getStatus());
+  }
+
+  @Test
+  void acceptsDateTimeRangeWithNegotiation() throws Exception {
+    CFindService service =
+        new CFindService(
+            List.of(new DummyFindPlugin()),
+            List.<DimseFindAccessPolicy>of(),
+            new DimseCFindProperties(),
+            new SimpleMeterRegistry());
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.AcquisitionDateTime, VR.DT, "20240101000000-20241231235959");
+
+    List<Attributes> matches =
+        service.find(
+            "1.2.840.10008.5.1.4.1.2.2.1",
+            keys,
+            "CALLING",
+            "CALLED",
+            92,
+            Set.of(QueryOption.DATETIME),
+            null);
+    assertEquals(1, matches.size());
   }
 
   @Test

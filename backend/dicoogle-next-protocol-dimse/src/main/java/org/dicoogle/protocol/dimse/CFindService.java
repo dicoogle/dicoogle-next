@@ -14,6 +14,7 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.VR;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
@@ -78,7 +79,8 @@ public class CFindService {
     if (!supportedLevels.contains(normalizedLevel)) {
       increment("dicoogle.cfind.failure", "unsupported-query-level");
       throw new DicomServiceException(
-          Status.UnableToProcess, "Unsupported QueryRetrieveLevel: " + normalizedLevel);
+          Status.IdentifierDoesNotMatchSOPClass,
+          "Unsupported QueryRetrieveLevel: " + normalizedLevel);
     }
 
     DimseFindServicePlugin.QueryRetrieveLevel level;
@@ -86,8 +88,11 @@ public class CFindService {
       level = DimseFindServicePlugin.QueryRetrieveLevel.valueOf(normalizedLevel);
     } catch (IllegalArgumentException ex) {
       increment("dicoogle.cfind.failure", "invalid-query-level");
-      throw new DicomServiceException(Status.UnableToProcess, "Invalid QueryRetrieveLevel");
+      throw new DicomServiceException(
+          Status.IdentifierDoesNotMatchSOPClass, "Invalid QueryRetrieveLevel");
     }
+
+    validateIdentifier(keys, queryOptions);
 
     if (plugins.isEmpty()) {
       increment("dicoogle.cfind.failure", "no-query-plugin");
@@ -118,7 +123,6 @@ public class CFindService {
             keywordFilters,
             queryOptions.contains(QueryOption.FUZZY),
             queryOptions.contains(QueryOption.DATETIME),
-            queryOptions.contains(QueryOption.RELATIONAL),
             cancelRequested == null ? () -> false : cancelRequested);
 
     for (DimseFindAccessPolicy policy : accessPolicies) {
@@ -216,6 +220,52 @@ public class CFindService {
     } else {
       meterRegistry.counter(meterName, "reason", reason).increment();
     }
+  }
+
+  private void validateIdentifier(Attributes keys, Set<QueryOption> queryOptions)
+      throws DicomServiceException {
+    for (int tag : keys.tags()) {
+      if (tag == Tag.QueryRetrieveLevel) {
+        continue;
+      }
+
+      String value = keys.getString(tag, null);
+      if (value == null || value.isBlank()) {
+        continue;
+      }
+
+      VR vr = keys.getVR(tag);
+      if (vr == VR.DT && containsRange(value) && !queryOptions.contains(QueryOption.DATETIME)) {
+        increment("dicoogle.cfind.failure", "datetime-negotiation-required");
+        throw new DicomServiceException(
+            Status.IdentifierDoesNotMatchSOPClass,
+            "DT range matching requires DATETIME query negotiation");
+      }
+
+      if ((vr == VR.DA || vr == VR.TM || vr == VR.DT) && hasInvalidRangeSyntax(value)) {
+        increment("dicoogle.cfind.failure", "invalid-range-syntax");
+        throw new DicomServiceException(
+            Status.IdentifierDoesNotMatchSOPClass,
+            String.format("Invalid range syntax for query key: %08X", tag));
+      }
+    }
+  }
+
+  private boolean containsRange(String value) {
+    return value.indexOf('-') >= 0;
+  }
+
+  private boolean hasInvalidRangeSyntax(String value) {
+    int firstDash = value.indexOf('-');
+    if (firstDash < 0) {
+      return false;
+    }
+    if (value.indexOf('-', firstDash + 1) >= 0) {
+      return true;
+    }
+    String start = value.substring(0, firstDash).trim();
+    String end = value.substring(firstDash + 1).trim();
+    return start.isEmpty() && end.isEmpty();
   }
 
   private void recordLatency(String outcome, String level, long startNs) {
