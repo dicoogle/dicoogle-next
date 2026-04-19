@@ -17,9 +17,11 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.dicoogle.sdk.query.DimseMoveServicePlugin;
 import org.dicoogle.storage.filerw.FileReadWriteStoragePlugin;
 
-public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
+public class FileReadWriteDimseFindPlugin
+    implements DimseFindServicePlugin, DimseMoveServicePlugin {
 
   private static final PluginMetadata METADATA =
       new PluginMetadata("query-file-rw", "Filesystem DIMSE C-FIND Query", "0.1.0", "query-index");
@@ -38,26 +40,7 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
 
   @Override
   public List<Attributes> find(FindRequest request) throws IOException {
-    String studyUid = request.keys().getString(Tag.StudyInstanceUID, null);
-    String seriesUid = request.keys().getString(Tag.SeriesInstanceUID, null);
-    String sopUid = request.keys().getString(Tag.SOPInstanceUID, null);
-
-    List<java.net.URI> uris;
-    if (request.level() == QueryRetrieveLevel.IMAGE
-        && hasText(studyUid)
-        && hasText(seriesUid)
-        && hasText(sopUid)) {
-      uris =
-          storagePlugin.locateInstance(studyUid, seriesUid, sopUid).map(List::of).orElse(List.of());
-    } else if (request.level() == QueryRetrieveLevel.SERIES
-        && hasText(studyUid)
-        && hasText(seriesUid)) {
-      uris = storagePlugin.listSeriesInstances(studyUid, seriesUid);
-    } else if (request.level() == QueryRetrieveLevel.STUDY && hasText(studyUid)) {
-      uris = storagePlugin.listStudyInstances(studyUid);
-    } else {
-      uris = storagePlugin.listAllInstances();
-    }
+    List<java.net.URI> uris = selectUris(request.level(), request.keys());
 
     Set<String> seen = new LinkedHashSet<>();
     List<Attributes> out = new ArrayList<>();
@@ -86,6 +69,72 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
     }
 
     return out;
+  }
+
+  @Override
+  public List<MoveCandidate> resolve(MoveRequest request) throws IOException {
+    List<java.net.URI> uris = selectUris(request.level(), request.keys());
+    Set<String> seen = new LinkedHashSet<>();
+    List<MoveCandidate> out = new ArrayList<>();
+
+    for (java.net.URI uri : uris) {
+      if (!seen.add(uri.toString())) {
+        continue;
+      }
+      if (request.cancelRequested() != null && request.cancelRequested().getAsBoolean()) {
+        break;
+      }
+      Attributes attrs = readDataset(uri);
+      if (!matchesDicomKeys(
+          attrs,
+          request.keys(),
+          new FindRequest(
+              request.informationModel(),
+              request.level(),
+              request.callingAet(),
+              request.calledAet(),
+              request.associationSerialNo(),
+              request.keys(),
+              null,
+              Map.of(),
+              false,
+              false,
+              request.cancelRequested()))) {
+        continue;
+      }
+      String sopClassUid = attrs.getString(Tag.SOPClassUID, null);
+      String sopInstanceUid = attrs.getString(Tag.SOPInstanceUID, null);
+      if (!hasText(sopClassUid) || !hasText(sopInstanceUid)) {
+        continue;
+      }
+      out.add(new MoveCandidate(sopClassUid, sopInstanceUid, uri));
+    }
+
+    return out;
+  }
+
+  private List<java.net.URI> selectUris(QueryRetrieveLevel level, Attributes keys)
+      throws IOException {
+    String studyUid = keys.getString(Tag.StudyInstanceUID, null);
+    String seriesUid = keys.getString(Tag.SeriesInstanceUID, null);
+    String sopUid = keys.getString(Tag.SOPInstanceUID, null);
+
+    if (level == QueryRetrieveLevel.IMAGE
+        && hasText(studyUid)
+        && hasText(seriesUid)
+        && hasText(sopUid)) {
+      return storagePlugin
+          .locateInstance(studyUid, seriesUid, sopUid)
+          .map(List::of)
+          .orElse(List.of());
+    }
+    if (level == QueryRetrieveLevel.SERIES && hasText(studyUid) && hasText(seriesUid)) {
+      return storagePlugin.listSeriesInstances(studyUid, seriesUid);
+    }
+    if (level == QueryRetrieveLevel.STUDY && hasText(studyUid)) {
+      return storagePlugin.listStudyInstances(studyUid);
+    }
+    return storagePlugin.listAllInstances();
   }
 
   private Attributes readDataset(java.net.URI location) throws IOException {
