@@ -10,9 +10,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
+import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.sdk.query.DimseFindAccessPolicy;
@@ -52,7 +54,9 @@ public class CFindService {
       Attributes keys,
       String callingAet,
       String calledAet,
-      int associationSerialNo)
+      int associationSerialNo,
+      java.util.Set<QueryOption> queryOptions,
+      BooleanSupplier cancelRequested)
       throws DicomServiceException {
     long startNs = System.nanoTime();
     increment("dicoogle.cfind.requests", null);
@@ -111,7 +115,11 @@ public class CFindService {
             associationSerialNo,
             normalizedKeys,
             freeText,
-            keywordFilters);
+            keywordFilters,
+            queryOptions.contains(QueryOption.FUZZY),
+            queryOptions.contains(QueryOption.DATETIME),
+            queryOptions.contains(QueryOption.RELATIONAL),
+            cancelRequested == null ? () -> false : cancelRequested);
 
     for (DimseFindAccessPolicy policy : accessPolicies) {
       DimseFindAccessPolicy.Decision decision = policy.evaluate(request);

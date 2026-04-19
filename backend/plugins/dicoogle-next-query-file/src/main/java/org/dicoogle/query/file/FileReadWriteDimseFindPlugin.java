@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
@@ -67,6 +68,9 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
       if (!seen.add(uri.toString())) {
         continue;
       }
+      if (request.cancelRequested() != null && request.cancelRequested().getAsBoolean()) {
+        break;
+      }
       Attributes attrs = readDataset(uri);
       if (!matchesFreeText(attrs, freeText)) {
         continue;
@@ -74,7 +78,7 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
       if (!matchesKeywordFilters(attrs, filters)) {
         continue;
       }
-      if (!matchesDicomKeys(attrs, request.keys())) {
+      if (!matchesDicomKeys(attrs, request.keys(), request)) {
         continue;
       }
       out.add(filterByLevel(attrs, request.level()));
@@ -137,27 +141,50 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
     };
   }
 
-  private boolean matchesDicomKeys(Attributes attrs, Attributes keys) {
-    return matchesUid(attrs, Tag.StudyInstanceUID, keys)
-        && matchesUid(attrs, Tag.SeriesInstanceUID, keys)
-        && matchesUid(attrs, Tag.SOPInstanceUID, keys)
-        && matchesString(attrs, Tag.PatientID, keys)
-        && matchesString(attrs, Tag.Modality, keys)
-        && matchesString(attrs, Tag.PatientName, keys)
-        && matchesString(attrs, Tag.StudyDescription, keys)
-        && matchesString(attrs, Tag.SeriesDescription, keys)
-        && matchesString(attrs, Tag.AccessionNumber, keys)
-        && matchesDate(attrs, Tag.PatientBirthDate, keys)
-        && matchesDate(attrs, Tag.StudyDate, keys)
-        && matchesDate(attrs, Tag.SeriesDate, keys);
+  private boolean matchesDicomKeys(Attributes attrs, Attributes keys, FindRequest request) {
+    for (int tag : keys.tags()) {
+      if (tag == Tag.QueryRetrieveLevel) {
+        continue;
+      }
+      VR vr = keys.getVR(tag);
+      if (vr == VR.SQ) {
+        if (!matchesSequence(attrs, keys, tag, request)) {
+          return false;
+        }
+        continue;
+      }
+
+      String expected = keys.getString(tag, null);
+      if (!hasText(expected)) {
+        continue;
+      }
+      if (!matchesTagValue(attrs, expected, tag, vr, request)) {
+        return false;
+      }
+    }
+    return true;
   }
 
-  private boolean matchesUid(Attributes attrs, int tag, Attributes keys) {
-    String expected = keys.getString(tag, null);
-    if (!hasText(expected)) {
-      return true;
-    }
+  private boolean matchesTagValue(
+      Attributes attrs, String expected, int tag, VR vr, FindRequest request) {
     String actual = attrs.getString(tag, "");
+    if (vr == VR.UI) {
+      return matchesUidValue(actual, expected);
+    }
+    if (vr == VR.DA) {
+      return matchesDateValue(actual, expected);
+    }
+    if (vr == VR.TM) {
+      return matchesRangeValue(actual, expected);
+    }
+    if (vr == VR.DT) {
+      return request.dateTimeMatchingEnabled() && matchesRangeValue(actual, expected);
+    }
+    boolean fuzzy = vr == VR.PN && request.fuzzyMatchingEnabled();
+    return matchesStringValue(actual, expected, fuzzy);
+  }
+
+  private boolean matchesUidValue(String actual, String expected) {
     for (String candidate : splitMultiValue(expected)) {
       if (actual.equals(candidate)) {
         return true;
@@ -166,28 +193,26 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
     return false;
   }
 
-  private boolean matchesString(Attributes attrs, int tag, Attributes keys) {
-    String expected = keys.getString(tag, null);
-    if (!hasText(expected)) {
-      return true;
-    }
-    String actual = attrs.getString(tag, "");
+  private boolean matchesStringValue(String actual, String expected, boolean fuzzy) {
     for (String candidate : splitMultiValue(expected)) {
-      if (matchesStringValue(actual, candidate)) {
-        return true;
+      if (fuzzy) {
+        if (normalizeForFuzzy(actual).contains(normalizeForFuzzy(candidate))) {
+          return true;
+        }
+        continue;
       }
-    }
-    return false;
-  }
 
-  private boolean matchesDate(Attributes attrs, int tag, Attributes keys) {
-    String expected = keys.getString(tag, null);
-    if (!hasText(expected)) {
-      return true;
-    }
-    String actual = attrs.getString(tag, "");
-    for (String candidate : splitMultiValue(expected)) {
-      if (matchesDateValue(actual, candidate)) {
+      if (candidate.indexOf('*') >= 0 || candidate.indexOf('?') >= 0) {
+        String regex = wildcardToRegex(candidate);
+        if (Pattern.compile(regex, Pattern.CASE_INSENSITIVE | Pattern.DOTALL)
+            .matcher(actual)
+            .matches()) {
+          return true;
+        }
+        continue;
+      }
+
+      if (actual.equalsIgnoreCase(candidate)) {
         return true;
       }
     }
@@ -205,14 +230,8 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
     return out;
   }
 
-  private boolean matchesStringValue(String actual, String expected) {
-    if (expected.indexOf('*') >= 0 || expected.indexOf('?') >= 0) {
-      String regex = wildcardToRegex(expected);
-      return Pattern.compile(regex, Pattern.CASE_INSENSITIVE | Pattern.DOTALL)
-          .matcher(actual)
-          .matches();
-    }
-    return actual.equalsIgnoreCase(expected);
+  private String normalizeForFuzzy(String value) {
+    return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
   }
 
   private String wildcardToRegex(String wildcard) {
@@ -233,6 +252,10 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
   }
 
   private boolean matchesDateValue(String actual, String expected) {
+    return matchesRangeValue(actual, expected);
+  }
+
+  private boolean matchesRangeValue(String actual, String expected) {
     int dash = expected.indexOf('-');
     if (dash < 0) {
       return actual.equals(expected);
@@ -246,6 +269,31 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
     }
     if (hasText(end) && actual.compareTo(end) > 0) {
       return false;
+    }
+    return true;
+  }
+
+  private boolean matchesSequence(Attributes attrs, Attributes keys, int tag, FindRequest request) {
+    Sequence expected = keys.getSequence(tag);
+    if (expected == null || expected.isEmpty()) {
+      return true;
+    }
+    Sequence actual = attrs.getSequence(tag);
+    if (actual == null || actual.isEmpty()) {
+      return false;
+    }
+
+    for (Attributes expectedItem : expected) {
+      boolean matchedOne = false;
+      for (Attributes actualItem : actual) {
+        if (matchesDicomKeys(actualItem, expectedItem, request)) {
+          matchedOne = true;
+          break;
+        }
+      }
+      if (!matchedOne) {
+        return false;
+      }
     }
     return true;
   }
