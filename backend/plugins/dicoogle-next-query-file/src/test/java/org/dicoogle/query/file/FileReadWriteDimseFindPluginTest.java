@@ -13,6 +13,7 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomOutputStream;
 import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.dicoogle.sdk.query.DimseMoveServicePlugin;
 import org.dicoogle.storage.filerw.FileReadWriteStoragePlugin;
 import org.junit.jupiter.api.Test;
 
@@ -316,6 +317,35 @@ class FileReadWriteDimseFindPluginTest {
             () -> true);
 
     assertEquals(0, plugin.find(request).size());
+  }
+
+  @Test
+  void resolvesMoveCandidatesByStudy() throws Exception {
+    Path root = Files.createTempDirectory("query-file-test-move");
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(root, "file");
+    storage.store(
+        new java.io.ByteArrayInputStream(
+            createDicom("P1", "MOVE", "MR", "A1", "20240101", "101010", "20240101101010")),
+        "application/dicom");
+
+    FileReadWriteDimseFindPlugin plugin = new FileReadWriteDimseFindPlugin(storage);
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
+
+    DimseMoveServicePlugin.MoveRequest request =
+        new DimseMoveServicePlugin.MoveRequest(
+            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
+            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+            "CALLING",
+            "CALLED",
+            "DEST",
+            10,
+            keys,
+            () -> false);
+
+    assertEquals(1, plugin.resolve(request).size());
   }
 
   private byte[] createDicom(
