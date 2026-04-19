@@ -45,6 +45,10 @@ Query behavior:
 - Mixed queries are supported (for example: free text + strict DICOM keys together).
 - Broad queries without UIDs are supported by scanning indexed instances and filtering in-memory.
 - Response size is capped by `app.dimse.cfind.max-results` (default `1000`).
+- Optional query negotiation supported: `FUZZY` (PN fuzzy matching), `DATETIME` (DT matching/ranges),
+  and `RELATIONAL` advertised at association level.
+- Sequence/nested matching keys are supported for sequence items in the query dataset.
+- C-CANCEL stops response emission and now also short-circuits plugin scanning.
 
 `keyword:value` filters currently supported:
 

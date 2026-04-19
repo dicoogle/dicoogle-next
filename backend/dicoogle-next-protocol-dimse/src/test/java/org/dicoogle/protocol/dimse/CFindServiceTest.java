@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -31,7 +32,7 @@ class CFindServiceTest {
     DicomServiceException ex =
         assertThrows(
             DicomServiceException.class,
-            () -> service.find("1.2.840.10008.5.1.4.1.2.2.1", keys, "A", "B", 10));
+            () -> service.find("1.2.840.10008.5.1.4.1.2.2.1", keys, "A", "B", 10, Set.of(), null));
     assertEquals(Status.IdentifierDoesNotMatchSOPClass, ex.getStatus());
   }
 
@@ -49,7 +50,7 @@ class CFindServiceTest {
     keys.setString(Tag.AccessionNumber, VR.SH, "brain");
 
     List<Attributes> matches =
-        service.find("1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 77);
+        service.find("1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 77, Set.of(), null);
 
     assertEquals(1, matches.size());
     assertEquals("1.2.3", matches.get(0).getString(Tag.StudyInstanceUID));
@@ -70,7 +71,7 @@ class CFindServiceTest {
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
 
     List<Attributes> matches =
-        service.find("1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 88);
+        service.find("1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 88, Set.of(), null);
     assertEquals(1, matches.size());
   }
 
@@ -102,7 +103,9 @@ class CFindServiceTest {
     DicomServiceException ex =
         assertThrows(
             DicomServiceException.class,
-            () -> service.find("1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 99));
+            () ->
+                service.find(
+                    "1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 99, Set.of(), null));
     assertEquals(Status.UnableToProcess, ex.getStatus());
   }
 

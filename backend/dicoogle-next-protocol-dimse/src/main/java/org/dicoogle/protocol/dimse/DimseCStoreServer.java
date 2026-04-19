@@ -3,6 +3,7 @@ package org.dicoogle.protocol.dimse;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -18,6 +19,7 @@ import org.dcm4che3.net.AssociationMonitor;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.Device;
 import org.dcm4che3.net.PDVInputStream;
+import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.net.pdu.AAssociateRJ;
 import org.dcm4che3.net.pdu.PresentationContext;
@@ -231,13 +233,16 @@ public class DimseCStoreServer implements SmartLifecycle {
               UID.ImplicitVRLittleEndian));
     }
 
-    ae.addTransferCapability(
+    TransferCapability cfindTc =
         new TransferCapability(
             "cfind-study-root-scp",
             STUDY_ROOT_FIND_UID,
             TransferCapability.Role.SCP,
             UID.ImplicitVRLittleEndian,
-            UID.ExplicitVRLittleEndian));
+            UID.ExplicitVRLittleEndian);
+    cfindTc.setQueryOptions(
+        EnumSet.of(QueryOption.RELATIONAL, QueryOption.DATETIME, QueryOption.FUZZY));
+    ae.addTransferCapability(cfindTc);
   }
 
   public synchronized void applyAcceptedTransferCapabilities(

@@ -1,8 +1,9 @@
 package org.dicoogle.protocol.dimse;
 
-import java.util.List;
+import java.util.Set;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.net.Association;
+import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.pdu.PresentationContext;
 import org.dcm4che3.net.service.BasicCFindSCP;
 import org.dcm4che3.net.service.DicomServiceException;
@@ -31,13 +32,21 @@ class DimseCFindSCP extends BasicCFindSCP {
         as.getCallingAET(),
         as.getCalledAET());
 
-    List<Attributes> matches =
-        cFindService.find(
-            rq.getString(org.dcm4che3.data.Tag.AffectedSOPClassUID),
-            keys,
-            as.getCallingAET(),
-            as.getCalledAET(),
-            as.getSerialNo());
-    return new DimseListQueryTask(as, pc, rq, keys, matches);
+    Set<QueryOption> queryOptions =
+        as.getRequestedQueryOptionsFor(rq.getString(org.dcm4che3.data.Tag.AffectedSOPClassUID));
+    return new DimseListQueryTask(
+        as,
+        pc,
+        rq,
+        keys,
+        cancelRequested ->
+            cFindService.find(
+                rq.getString(org.dcm4che3.data.Tag.AffectedSOPClassUID),
+                keys,
+                as.getCallingAET(),
+                as.getCalledAET(),
+                as.getSerialNo(),
+                queryOptions,
+                cancelRequested));
   }
 }
