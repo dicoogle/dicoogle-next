@@ -28,7 +28,6 @@ public interface DimseFindServicePlugin extends QueryIndexPlugin {
       java.util.Map<String, String> keywordFilters,
       boolean fuzzyMatchingEnabled,
       boolean dateTimeMatchingEnabled,
-      boolean relationalMatchingEnabled,
       BooleanSupplier cancelRequested) {}
 
   List<Attributes> find(FindRequest request) throws IOException;

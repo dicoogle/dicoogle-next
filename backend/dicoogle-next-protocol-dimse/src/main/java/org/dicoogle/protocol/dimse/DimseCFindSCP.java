@@ -33,7 +33,7 @@ class DimseCFindSCP extends BasicCFindSCP {
         as.getCalledAET());
 
     Set<QueryOption> queryOptions =
-        as.getRequestedQueryOptionsFor(rq.getString(org.dcm4che3.data.Tag.AffectedSOPClassUID));
+        as.getQueryOptionsFor(rq.getString(org.dcm4che3.data.Tag.AffectedSOPClassUID));
     return new DimseListQueryTask(
         as,
         pc,

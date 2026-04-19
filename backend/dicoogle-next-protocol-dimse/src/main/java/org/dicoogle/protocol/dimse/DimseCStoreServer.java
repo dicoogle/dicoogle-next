@@ -240,8 +240,7 @@ public class DimseCStoreServer implements SmartLifecycle {
             TransferCapability.Role.SCP,
             UID.ImplicitVRLittleEndian,
             UID.ExplicitVRLittleEndian);
-    cfindTc.setQueryOptions(
-        EnumSet.of(QueryOption.RELATIONAL, QueryOption.DATETIME, QueryOption.FUZZY));
+    cfindTc.setQueryOptions(EnumSet.of(QueryOption.DATETIME, QueryOption.FUZZY));
     ae.addTransferCapability(cfindTc);
   }
 

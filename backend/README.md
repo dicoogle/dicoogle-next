@@ -45,20 +45,17 @@ Query behavior:
 - Mixed queries are supported (for example: free text + strict DICOM keys together).
 - Broad queries without UIDs are supported by scanning indexed instances and filtering in-memory.
 - Response size is capped by `app.dimse.cfind.max-results` (default `1000`).
-- Optional query negotiation supported: `FUZZY` (PN fuzzy matching), `DATETIME` (DT matching/ranges),
-  and `RELATIONAL` advertised at association level.
+- Optional query negotiation supported: `FUZZY` (PN fuzzy matching) and `DATETIME`
+  (DT matching/ranges).
 - Sequence/nested matching keys are supported for sequence items in the query dataset.
 - C-CANCEL stops response emission and now also short-circuits plugin scanning.
+- Invalid C-FIND identifiers (missing/unsupported level, invalid range syntax, DT ranges without
+  DATETIME negotiation) are rejected with `IdentifierDoesNotMatchSOPClass`.
 
-`keyword:value` filters currently supported:
+`keyword:value` filters:
 
-- `patientid`
-- `patientname`
-- `studyinstanceuid`
-- `seriesinstanceuid`
-- `sopinstanceuid`
-- `accessionnumber`
-- `modality`
+- Any DICOM keyword present in the object can be used (case-insensitive), for example
+  `StudyDate`, `AccessionNumber`, `PatientID`, `Modality`, `StudyDescription`.
 
 Config source options:
 

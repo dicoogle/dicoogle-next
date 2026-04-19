@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Sequence;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
@@ -75,7 +76,7 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
       if (!matchesFreeText(attrs, freeText)) {
         continue;
       }
-      if (!matchesKeywordFilters(attrs, filters)) {
+      if (!matchesKeywordFilters(attrs, filters, request)) {
         continue;
       }
       if (!matchesDicomKeys(attrs, request.keys(), request)) {
@@ -110,35 +111,49 @@ public class FileReadWriteDimseFindPlugin implements DimseFindServicePlugin {
     return haystack.contains(freeText);
   }
 
-  private boolean matchesKeywordFilters(Attributes attrs, Map<String, String> filters) {
+  private boolean matchesKeywordFilters(
+      Attributes attrs, Map<String, String> filters, FindRequest request) {
     if (filters == null || filters.isEmpty()) {
       return true;
     }
 
     for (Map.Entry<String, String> entry : filters.entrySet()) {
-      int tag = mapKeywordToTag(entry.getKey());
+      int tag = resolveKeywordToTag(entry.getKey(), attrs);
       if (tag == -1) {
-        continue;
+        return false;
       }
-      String actual = attrs.getString(tag, "");
-      if (!actual.equalsIgnoreCase(entry.getValue())) {
+      VR vr = attrs.getVR(tag);
+      if (!matchesTagValue(attrs, entry.getValue(), tag, vr == null ? VR.LO : vr, request)) {
         return false;
       }
     }
     return true;
   }
 
-  private int mapKeywordToTag(String keyword) {
-    return switch (keyword.toLowerCase(Locale.ROOT)) {
-      case "patientid" -> Tag.PatientID;
-      case "patientname" -> Tag.PatientName;
-      case "studyinstanceuid" -> Tag.StudyInstanceUID;
-      case "seriesinstanceuid" -> Tag.SeriesInstanceUID;
-      case "sopinstanceuid" -> Tag.SOPInstanceUID;
-      case "accessionnumber" -> Tag.AccessionNumber;
-      case "modality" -> Tag.Modality;
-      default -> -1;
-    };
+  private int resolveKeywordToTag(String keyword, Attributes attrs) {
+    int direct = ElementDictionary.tagForKeyword(keyword, null);
+    if (direct >= 0) {
+      return direct;
+    }
+
+    String normalized = normalizeKeyword(keyword);
+    for (int tag : attrs.tags()) {
+      String candidate = ElementDictionary.keywordOf(tag, null);
+      if (candidate != null && normalizeKeyword(candidate).equals(normalized)) {
+        return tag;
+      }
+    }
+    return -1;
+  }
+
+  private String normalizeKeyword(String keyword) {
+    StringBuilder out = new StringBuilder(keyword.length());
+    for (char c : keyword.toCharArray()) {
+      if (Character.isLetterOrDigit(c)) {
+        out.append(Character.toLowerCase(c));
+      }
+    }
+    return out.toString();
   }
 
   private boolean matchesDicomKeys(Attributes attrs, Attributes keys, FindRequest request) {
