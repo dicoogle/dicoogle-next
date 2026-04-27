@@ -113,6 +113,84 @@ class DimseCMoveSCPIntegrationTest {
     assertEquals(List.of(sopUid), receivedSops);
   }
 
+  @Test
+  void reportsFailureWhenDestinationUnavailable() throws Exception {
+    Path root = Files.createTempDirectory("cmove-integration-dest-down");
+    int sourcePort = randomPort();
+    int destinationPort = randomPort();
+
+    String studyUid = "1.2.3.4.6";
+    String seriesUid = "1.2.3.4.6.1";
+    String sopUid = "1.2.3.4.6.1.1";
+    startSourceServer(root, sourcePort, destinationPort);
+    storeDicom(root, createDicom(studyUid, seriesUid, sopUid));
+
+    association = openMoveScu(sourcePort);
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyInstanceUID, VR.UI, studyUid);
+
+    DimseRSP rsp =
+        association.cmove(
+            "1.2.840.10008.5.1.4.1.2.2.2", 0, keys, UID.ImplicitVRLittleEndian, "DEST");
+
+    int finalStatus = -1;
+    while (rsp.next()) {
+      int status = rsp.getCommand().getInt(Tag.Status, -1);
+      if (!Status.isPending(status)) {
+        finalStatus = status;
+      }
+    }
+
+    assertEquals(Status.UnableToPerformSubOperations, finalStatus);
+  }
+
+  @Test
+  void reportsCancelWhenMoveIsCancelled() throws Exception {
+    Path root = Files.createTempDirectory("cmove-integration-cancel");
+    int sourcePort = randomPort();
+    int destinationPort = randomPort();
+
+    List<String> receivedSops = Collections.synchronizedList(new ArrayList<>());
+    startDestinationScp(destinationPort, receivedSops, true);
+
+    String studyUid = "1.2.3.4.7";
+    String seriesUid = "1.2.3.4.7.1";
+    for (int i = 0; i < 2; i++) {
+      storeDicom(root, createDicom(studyUid, seriesUid, "1.2.3.4.7.1." + (i + 1)));
+    }
+    startSourceServer(root, sourcePort, destinationPort);
+
+    association = openMoveScu(sourcePort);
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyInstanceUID, VR.UI, studyUid);
+
+    DimseRSP rsp =
+        association.cmove(
+            "1.2.840.10008.5.1.4.1.2.2.2", 0, keys, UID.ImplicitVRLittleEndian, "DEST");
+
+    int finalStatus = -1;
+    boolean canceledSent = false;
+    while (rsp.next()) {
+      int status = rsp.getCommand().getInt(Tag.Status, -1);
+      if (Status.isPending(status) && !canceledSent) {
+        rsp.cancel(association);
+        canceledSent = true;
+        continue;
+      }
+      if (!Status.isPending(status)) {
+        finalStatus = status;
+      }
+    }
+
+    assertTrue(canceledSent);
+    assertEquals(Status.Cancel, finalStatus);
+    assertTrue(receivedSops.size() <= 2);
+  }
+
   private void startSourceServer(Path root, int sourcePort, int destinationPort) {
     FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(root, "file");
     StorageRouter storageRouter = new StorageRouter(List.of(storage));
@@ -152,6 +230,11 @@ class DimseCMoveSCPIntegrationTest {
   }
 
   private void startDestinationScp(int port, List<String> receivedSops) throws Exception {
+    startDestinationScp(port, receivedSops, false);
+  }
+
+  private void startDestinationScp(int port, List<String> receivedSops, boolean slowStore)
+      throws Exception {
     destinationDevice = new Device("cmove-destination-device");
     destinationDevice.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
     destinationDevice.setScheduledExecutor(
@@ -188,6 +271,13 @@ class DimseCMoveSCPIntegrationTest {
               Attributes rsp)
               throws IOException {
             receivedSops.add(rq.getString(Tag.AffectedSOPInstanceUID));
+            if (slowStore) {
+              try {
+                Thread.sleep(150);
+              } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+              }
+            }
             data.skipAll();
             rsp.setInt(Tag.Status, VR.US, Status.Success);
           }
