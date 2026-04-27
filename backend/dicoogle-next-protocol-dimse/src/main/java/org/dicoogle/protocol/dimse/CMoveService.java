@@ -75,6 +75,8 @@ public class CMoveService {
           "Unsupported QueryRetrieveLevel: " + normalizedLevel);
     }
 
+    validateIdentifierByLevel(keys, normalizedLevel);
+
     if (!hasDestination(moveDestinationAet)) {
       throw new DicomServiceException(
           Status.MoveDestinationUnknown, "Unknown move destination: " + moveDestinationAet);
@@ -180,5 +182,28 @@ public class CMoveService {
   private String unique(DimseMoveServicePlugin.MoveCandidate candidate) {
     URI location = candidate.location();
     return candidate.sopClassUid() + "|" + candidate.sopInstanceUid() + "|" + location;
+  }
+
+  private void validateIdentifierByLevel(Attributes keys, String level)
+      throws DicomServiceException {
+    String studyUid = keys.getString(Tag.StudyInstanceUID, null);
+    String seriesUid = keys.getString(Tag.SeriesInstanceUID, null);
+    String sopUid = keys.getString(Tag.SOPInstanceUID, null);
+
+    if ("STUDY".equals(level) && !hasText(studyUid)) {
+      throw new DicomServiceException(
+          Status.IdentifierDoesNotMatchSOPClass,
+          "StudyInstanceUID is required for QueryRetrieveLevel=STUDY");
+    }
+    if ("SERIES".equals(level) && (!hasText(studyUid) || !hasText(seriesUid))) {
+      throw new DicomServiceException(
+          Status.IdentifierDoesNotMatchSOPClass,
+          "StudyInstanceUID and SeriesInstanceUID are required for QueryRetrieveLevel=SERIES");
+    }
+    if ("IMAGE".equals(level) && (!hasText(studyUid) || !hasText(seriesUid) || !hasText(sopUid))) {
+      throw new DicomServiceException(
+          Status.IdentifierDoesNotMatchSOPClass,
+          "StudyInstanceUID, SeriesInstanceUID and SOPInstanceUID are required for QueryRetrieveLevel=IMAGE");
+    }
   }
 }

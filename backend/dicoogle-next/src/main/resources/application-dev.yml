@@ -21,6 +21,8 @@ springdoc:
 app:
   dimse:
     cfind:
+    cmove:
+      destinations: {}
     cstore:
       enabled: true
   storage:
