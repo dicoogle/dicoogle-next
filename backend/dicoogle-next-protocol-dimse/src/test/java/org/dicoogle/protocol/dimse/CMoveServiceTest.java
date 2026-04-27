@@ -31,6 +31,7 @@ class CMoveServiceTest {
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
 
     DicomServiceException ex =
         assertThrows(
@@ -90,11 +91,75 @@ class CMoveServiceTest {
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
 
     List<DimseMoveServicePlugin.MoveCandidate> out =
         service.resolve(
             CMoveService.STUDY_ROOT_MOVE_UID, keys, "DEST", "CALLING", "CALLED", 3, () -> false);
     assertEquals(1, out.size());
+  }
+
+  @Test
+  void rejectsStudyLevelWithoutStudyUid() {
+    DimseCMoveProperties properties = new DimseCMoveProperties();
+    properties.setDestinations(java.util.Map.of("DEST", destination("127.0.0.1", 11113, "DEST")));
+
+    CMoveService service =
+        new CMoveService(
+            List.of(new DummyMovePlugin()),
+            List.of(),
+            new DimseCFindProperties(),
+            properties,
+            new SimpleMeterRegistry());
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+
+    DicomServiceException ex =
+        assertThrows(
+            DicomServiceException.class,
+            () ->
+                service.resolve(
+                    CMoveService.STUDY_ROOT_MOVE_UID,
+                    keys,
+                    "DEST",
+                    "CALLING",
+                    "CALLED",
+                    5,
+                    () -> false));
+    assertEquals(Status.IdentifierDoesNotMatchSOPClass, ex.getStatus());
+  }
+
+  @Test
+  void rejectsSeriesLevelWithoutSeriesUid() {
+    DimseCMoveProperties properties = new DimseCMoveProperties();
+    properties.setDestinations(java.util.Map.of("DEST", destination("127.0.0.1", 11113, "DEST")));
+
+    CMoveService service =
+        new CMoveService(
+            List.of(new DummyMovePlugin()),
+            List.of(),
+            new DimseCFindProperties(),
+            properties,
+            new SimpleMeterRegistry());
+
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, "SERIES");
+    keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
+
+    DicomServiceException ex =
+        assertThrows(
+            DicomServiceException.class,
+            () ->
+                service.resolve(
+                    CMoveService.STUDY_ROOT_MOVE_UID,
+                    keys,
+                    "DEST",
+                    "CALLING",
+                    "CALLED",
+                    6,
+                    () -> false));
+    assertEquals(Status.IdentifierDoesNotMatchSOPClass, ex.getStatus());
   }
 
   @Test
@@ -125,6 +190,7 @@ class CMoveServiceTest {
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
+    keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
 
     DicomServiceException ex =
         assertThrows(
