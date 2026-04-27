@@ -7,17 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "app.dimse.cmove")
 public class DimseCMoveProperties {
 
-  private boolean enabled = true;
   private int maxResults = 1000;
   private Map<String, Destination> destinations = new LinkedHashMap<>();
-
-  public boolean isEnabled() {
-    return enabled;
-  }
-
-  public void setEnabled(boolean enabled) {
-    this.enabled = enabled;
-  }
 
   public int getMaxResults() {
     return maxResults;

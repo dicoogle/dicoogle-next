@@ -37,7 +37,7 @@ You can change transfer capabilities at runtime via API:
 C-FIND (Study Root) is always enabled when DIMSE server is enabled (`app.dimse.cstore.enabled=true`).
 Supported query levels are `STUDY`, `SERIES`, and `IMAGE`.
 
-C-MOVE (Study Root) is enabled by default and uses destination AE aliases from
+C-MOVE (Study Root) uses destination AE aliases from
 `app.dimse.cmove.destinations`.
 
 Query behavior:
