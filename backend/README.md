@@ -40,6 +40,19 @@ Supported query levels are `STUDY`, `SERIES`, and `IMAGE`.
 C-MOVE (Study Root) uses destination AE aliases from
 `app.dimse.cmove.destinations`.
 
+Example destination config:
+
+```yaml
+app:
+  dimse:
+    cmove:
+      destinations:
+        DEST_AE:
+          host: 127.0.0.1
+          port: 11113
+          ae-title: DEST_AE
+```
+
 Query behavior:
 
 - Standard C-FIND keys are matched (`StudyInstanceUID`, `SeriesInstanceUID`, `SOPInstanceUID`,
@@ -165,4 +178,11 @@ Mixed free-text + keyword filter on same request (old Dicoogle style):
 ```bash
 findscu -v -S -k QueryRetrieveLevel=STUDY -k "PatientName=brain modality:MR" \
   -aet TESTSCU -aec DICOOGLE localhost 11112
+```
+
+### 9) C-MOVE example (movescu)
+
+```bash
+movescu -v -S -k QueryRetrieveLevel=STUDY -k StudyInstanceUID=<StudyUID> \
+  -aet TESTSCU -aec DICOOGLE localhost 11112 DEST_AE
 ```

@@ -25,6 +25,9 @@ springdoc:
     enabled: false
 
 app:
+  dimse:
+    cmove:
+      destinations: {}
   security:
     docs-enabled: false
     basic-auth:
