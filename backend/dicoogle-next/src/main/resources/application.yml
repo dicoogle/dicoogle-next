@@ -110,6 +110,16 @@ app:
       enabled: false
       root-dir: ./data/storage
       scheme: file
+  query:
+    lucene:
+      enabled: true
+      root-dir: ./data/index
+      index-name: dicoogle-lucene
+      storage-root-dir: ./data/storage
+      auto-reindex-on-startup: true
+      watch-storage: true
+      search-limit: 10000
+      max-boolean-clauses: 2048
   plugins:
     startup-validation:
       require-writable-provider: false
