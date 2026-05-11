@@ -15,6 +15,10 @@ springdoc:
     enabled: false
 
 app:
+  query:
+    lucene:
+      auto-reindex-on-startup: false
+      watch-storage: false
   dimse:
     cfind:
     cmove:
