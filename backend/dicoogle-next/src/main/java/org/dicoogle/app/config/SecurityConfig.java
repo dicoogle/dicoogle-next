@@ -37,6 +37,14 @@ public class SecurityConfig {
                   requests
                       .requestMatchers(HttpMethod.GET, "/system/ping")
                       .permitAll()
+                      .requestMatchers(HttpMethod.GET, "/system/index/status")
+                      .authenticated()
+                      .requestMatchers(HttpMethod.POST, "/system/index/reindex")
+                      .authenticated()
+                      .requestMatchers(HttpMethod.POST, "/system/index/index")
+                      .authenticated()
+                      .requestMatchers(HttpMethod.POST, "/system/index/unindex")
+                      .authenticated()
                       .requestMatchers(HttpMethod.GET, "/system/config/dimse/transfer-capabilities")
                       .authenticated()
                       .requestMatchers(

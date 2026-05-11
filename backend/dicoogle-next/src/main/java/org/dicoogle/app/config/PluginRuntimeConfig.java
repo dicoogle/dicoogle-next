@@ -6,6 +6,7 @@ import java.util.Locale;
 import java.util.Set;
 import org.dicoogle.core.plugins.PluginRegistry;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.sdk.query.QueryIndexPlugin;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.storage.filero.FileReadOnlyStoragePlugin;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,9 +54,11 @@ public class PluginRuntimeConfig {
   }
 
   @Bean
-  PluginRegistry pluginRegistry(ActiveStoragePlugins activeStoragePlugins) {
+  PluginRegistry pluginRegistry(
+      ActiveStoragePlugins activeStoragePlugins, List<QueryIndexPlugin> queryIndexPlugins) {
     PluginRegistry registry = new PluginRegistry();
     activeStoragePlugins.plugins().forEach(registry::register);
+    queryIndexPlugins.forEach(registry::register);
     return registry;
   }
 

@@ -27,6 +27,7 @@
         <module>plugins/dicoogle-next-storage-file-ro</module>
         <module>plugins/dicoogle-next-storage-file-rw</module>
         <module>plugins/dicoogle-next-query-file</module>
+        <module>plugins/dicoogle-next-query-lucene</module>
     </modules>
 
     <properties>
