@@ -278,7 +278,18 @@ class DimseCMoveSCPIntegrationTest {
                 Thread.currentThread().interrupt();
               }
             }
-            data.skipAll();
+
+            ByteArrayOutputStream payload = new ByteArrayOutputStream();
+            data.copyTo(payload);
+
+            try (DicomInputStream dis =
+                new DicomInputStream(
+                    new ByteArrayInputStream(payload.toByteArray()), pc.getTransferSyntax())) {
+              Attributes attrs = dis.readDataset();
+              assertEquals(
+                  rq.getString(Tag.AffectedSOPInstanceUID), attrs.getString(Tag.SOPInstanceUID));
+              assertEquals(rq.getString(Tag.AffectedSOPClassUID), attrs.getString(Tag.SOPClassUID));
+            }
             rsp.setInt(Tag.Status, VR.US, Status.Success);
           }
         });
