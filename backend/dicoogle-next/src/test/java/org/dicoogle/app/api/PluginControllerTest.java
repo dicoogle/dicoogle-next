@@ -30,6 +30,7 @@ class PluginControllerTest {
         .perform(get("/system/plugins").with(httpBasic("developer", "developer")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[?(@.id=='storage-file-ro')]").exists())
-        .andExpect(jsonPath("$[?(@.id=='query-file-rw')]").exists());
+        .andExpect(jsonPath("$[?(@.id=='query-file-rw')]").exists())
+        .andExpect(jsonPath("$[?(@.id=='query-lucene')]").exists());
   }
 }
