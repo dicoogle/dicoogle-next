@@ -110,7 +110,7 @@ final class LuceneStorageWatcher {
         registerTree(path);
         return;
       }
-      if (isDicom(path)) {
+      if (index.isIndexablePath(path)) {
         index.indexPath(path);
       }
     } catch (Exception ex) {
@@ -120,7 +120,7 @@ final class LuceneStorageWatcher {
 
   private void handleModify(Path path) {
     try {
-      if (Files.isRegularFile(path) && isDicom(path)) {
+      if (Files.isRegularFile(path) && index.isIndexablePath(path)) {
         index.indexPath(path);
       }
     } catch (Exception ex) {
@@ -130,7 +130,7 @@ final class LuceneStorageWatcher {
 
   private void handleDelete(Path path) {
     try {
-      if (isDicom(path)) {
+      if (isLikelyDicomName(path)) {
         index.removePath(path);
       }
     } catch (Exception ex) {
@@ -170,7 +170,7 @@ final class LuceneStorageWatcher {
         });
   }
 
-  private boolean isDicom(Path path) {
+  private boolean isLikelyDicomName(Path path) {
     String name = path.getFileName() == null ? "" : path.getFileName().toString();
     return name.toLowerCase().endsWith(".dcm");
   }
