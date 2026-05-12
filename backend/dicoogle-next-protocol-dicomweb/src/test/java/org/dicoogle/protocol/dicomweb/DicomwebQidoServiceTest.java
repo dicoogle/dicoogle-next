@@ -30,6 +30,19 @@ class DicomwebQidoServiceTest {
     assertEquals(1, array.size());
   }
 
+  private static Attributes instanceAttrs(String studyUid, String seriesUid, String sopUid) {
+    Attributes a = new Attributes();
+    a.setString(Tag.StudyInstanceUID, VR.UI, studyUid);
+    a.setString(Tag.SeriesInstanceUID, VR.UI, seriesUid);
+    a.setString(Tag.SOPInstanceUID, VR.UI, sopUid);
+    a.setString(Tag.InstanceNumber, VR.IS, "1");
+    return a;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Basic search
+  // ---------------------------------------------------------------------------
+
   @Test
   void qidoIncludeFieldProjectsAndKeepsRequiredTags() {
     Attributes a1 = dataset("1.2.3", "1.2.3.1", "1.2.3.1.1", "FELIX", "P1");
