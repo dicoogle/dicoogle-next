@@ -2,9 +2,11 @@ package org.dicoogle.protocol.dicomweb;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -16,9 +18,41 @@ public class DicomwebController {
       MediaType.parseMediaType("application/dicom+json");
 
   private final DicomwebRetrieveService retrieveService;
+  private final DicomwebQidoService qidoService;
 
-  public DicomwebController(DicomwebRetrieveService retrieveService) {
+  public DicomwebController(
+      DicomwebRetrieveService retrieveService, DicomwebQidoService qidoService) {
     this.retrieveService = retrieveService;
+    this.qidoService = qidoService;
+  }
+
+  @GetMapping(value = "/studies", produces = "application/dicom+json")
+  public ResponseEntity<String> searchStudies(
+      @RequestParam MultiValueMap<String, String> queryParams) {
+    return ResponseEntity.ok()
+        .contentType(APPLICATION_DICOM_JSON)
+        .body(qidoService.searchStudies(queryParams));
+  }
+
+  @GetMapping(value = "/studies/{studyInstanceUid}/series", produces = "application/dicom+json")
+  public ResponseEntity<String> searchSeries(
+      @PathVariable String studyInstanceUid,
+      @RequestParam MultiValueMap<String, String> queryParams) {
+    return ResponseEntity.ok()
+        .contentType(APPLICATION_DICOM_JSON)
+        .body(qidoService.searchSeries(studyInstanceUid, queryParams));
+  }
+
+  @GetMapping(
+      value = "/studies/{studyInstanceUid}/series/{seriesInstanceUid}/instances",
+      produces = "application/dicom+json")
+  public ResponseEntity<String> searchInstances(
+      @PathVariable String studyInstanceUid,
+      @PathVariable String seriesInstanceUid,
+      @RequestParam MultiValueMap<String, String> queryParams) {
+    return ResponseEntity.ok()
+        .contentType(APPLICATION_DICOM_JSON)
+        .body(qidoService.searchInstances(studyInstanceUid, seriesInstanceUid, queryParams));
   }
 
   @GetMapping(
