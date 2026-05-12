@@ -296,19 +296,22 @@ public class LuceneQueryIndexPlugin
     }
   }
 
+  boolean isIndexablePath(Path path) {
+    return isLikelyDicomFile(path);
+  }
+
   void removePath(Path path) throws IOException {
     writer.deleteDocuments(new Term(LuceneIndexerFields.LOCATION, path.toUri().toString()));
-    writer.commit();
   }
 
   @Override
   public int indexPath(URI uri) throws IOException {
-    Path path = validateFileUri(uri);
+    Path path = validatePathReference(uri);
     if (Files.isDirectory(path)) {
       int indexed = 0;
       try (var walk = Files.walk(path)) {
         for (Path p : walk.filter(Files::isRegularFile).toList()) {
-          if (!isDicomPath(p)) {
+          if (!isLikelyDicomFile(p)) {
             continue;
           }
           if (indexPath(p)) {
@@ -319,7 +322,7 @@ public class LuceneQueryIndexPlugin
       writer.commit();
       return indexed;
     }
-    if (!Files.isRegularFile(path) || !isDicomPath(path)) {
+    if (!Files.isRegularFile(path) || !isLikelyDicomFile(path)) {
       return 0;
     }
     boolean indexed = indexPath(path);
@@ -329,37 +332,57 @@ public class LuceneQueryIndexPlugin
 
   @Override
   public int unindexPath(URI uri) throws IOException {
-    Path path = validateFileUri(uri);
+    Path path = validatePathReference(uri);
     if (Files.isDirectory(path)) {
       int removed = 0;
       try (var walk = Files.walk(path)) {
         for (Path p : walk.filter(Files::isRegularFile).toList()) {
-          if (!isDicomPath(p)) {
+          if (!isLikelyDicomFile(p)) {
             continue;
           }
           removePath(p);
           removed++;
         }
       }
+      writer.commit();
       return removed;
     }
-    if (!isDicomPath(path)) {
+    if (!isLikelyDicomFile(path)) {
       return 0;
     }
     removePath(path);
+    writer.commit();
     return 1;
   }
 
-  private Path validateFileUri(URI uri) {
-    if (uri == null || uri.getScheme() == null || !"file".equalsIgnoreCase(uri.getScheme())) {
-      throw new IllegalArgumentException("Only file:// URIs are supported for path indexing");
+  private Path validatePathReference(URI uri) {
+    if (uri == null) {
+      throw new IllegalArgumentException("Path reference must not be null");
     }
-    return Path.of(uri).toAbsolutePath().normalize();
+    if (uri.getScheme() == null || uri.getScheme().isBlank()) {
+      return Path.of(uri.toString()).toAbsolutePath().normalize();
+    }
+    if ("file".equalsIgnoreCase(uri.getScheme())) {
+      return Path.of(uri).toAbsolutePath().normalize();
+    }
+    throw new IllegalArgumentException("Only filesystem paths are supported for path indexing");
   }
 
-  private boolean isDicomPath(Path path) {
+  private boolean isLikelyDicomFile(Path path) {
+    if (!Files.isRegularFile(path)) {
+      return false;
+    }
     String name = path.getFileName() == null ? "" : path.getFileName().toString();
-    return name.toLowerCase(Locale.ROOT).endsWith(".dcm");
+    if (name.toLowerCase(Locale.ROOT).endsWith(".dcm")) {
+      return true;
+    }
+    try (InputStream stream = Files.newInputStream(path);
+        DicomInputStream dis = new DicomInputStream(stream)) {
+      Attributes attrs = dis.readDataset();
+      return hasText(attrs.getString(Tag.SOPInstanceUID, null));
+    } catch (Exception ex) {
+      return false;
+    }
   }
 
   private void indexUri(URI location, String defaultScheme) throws IOException {
@@ -384,7 +407,7 @@ public class LuceneQueryIndexPlugin
     String scheme = hasText(location.getScheme()) ? location.getScheme() : defaultScheme;
 
     Document doc = new Document();
-    doc.add(new StringField(LuceneIndexerFields.KEY, sopInstanceUid, Field.Store.NO));
+    doc.add(new StringField(LuceneIndexerFields.KEY, location.toString(), Field.Store.NO));
     doc.add(
         new StringField(LuceneIndexerFields.STUDY_INSTANCE_UID, studyInstanceUid, Field.Store.NO));
     doc.add(
@@ -405,7 +428,7 @@ public class LuceneQueryIndexPlugin
             LuceneIndexerFields.PATIENT_NAME_NORMALIZED,
             LuceneValueNormalizer.normalizeForFuzzy(patientName),
             Field.Store.NO));
-    doc.add(new StoredField(LuceneIndexerFields.LOCATION, location.toString()));
+    doc.add(new StringField(LuceneIndexerFields.LOCATION, location.toString(), Field.Store.YES));
     doc.add(
         new StoredField(
             LuceneIndexerFields.STORAGE_SCHEME, LuceneValueNormalizer.nullToEmpty(scheme)));
@@ -428,7 +451,7 @@ public class LuceneQueryIndexPlugin
                 LuceneValueNormalizer.nullToEmpty(modality)),
             Field.Store.NO));
 
-    writer.updateDocument(new Term(LuceneIndexerFields.KEY, sopInstanceUid), doc);
+    writer.updateDocument(new Term(LuceneIndexerFields.KEY, location.toString()), doc);
   }
 
   private Attributes readDataset(URI location) throws IOException {
