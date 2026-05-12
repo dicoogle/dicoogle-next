@@ -86,6 +86,50 @@ class DicomwebControllerTest {
             jsonPath("$.path").value("/dicom-web/studies/1.2.3/series/4.5.6/instances/7.8.9"));
   }
 
+  @Test
+  void qidoSearchStudiesReturnsDicomJsonArray() throws Exception {
+    mockMvc
+        .perform(
+            get("/dicom-web/studies")
+                .queryParam("PatientName", "FELIX")
+                .queryParam("limit", "10")
+                .with(httpBasic("developer", "developer")))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType("application/dicom+json"));
+  }
+
+  @Test
+  void qidoSearchSeriesReturnsDicomJsonArray() throws Exception {
+    mockMvc
+        .perform(
+            get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/series")
+                .queryParam("Modality", "OT")
+                .with(httpBasic("developer", "developer")))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType("application/dicom+json"));
+  }
+
+  @Test
+  void qidoSearchInstancesReturnsDicomJsonArray() throws Exception {
+    mockMvc
+        .perform(
+            get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/series/1.2.826.0.1.3680043.2.1125.3/instances")
+                .queryParam("SOPInstanceUID", "1.2.826.0.1.3680043.2.1125.1")
+                .with(httpBasic("developer", "developer")))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType("application/dicom+json"));
+  }
+
+  @Test
+  void qidoInvalidLimitReturnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            get("/dicom-web/studies")
+                .queryParam("limit", "abc")
+                .with(httpBasic("developer", "developer")))
+        .andExpect(status().isBadRequest());
+  }
+
   private byte[] createValidDicom() {
     try {
       Attributes fmi = new Attributes();

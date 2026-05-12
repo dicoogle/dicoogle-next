@@ -58,6 +58,7 @@ public class SecurityConfig {
                       .authenticated()
                       .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/info")
                       .permitAll();
+                  requests.requestMatchers(HttpMethod.GET, "/dicom-web/**").authenticated();
                   if (properties.isDocsEnabled()) {
                     requests.requestMatchers(DOCS_ENDPOINTS).permitAll();
                   }
