@@ -100,6 +100,9 @@ Default API auth credentials:
 - `GET /api/system/plugins` - Protected list of loaded plugins.
 - `GET /api/actuator/health` - Public health endpoint.
 - `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/instances/{SOPUID}` - Retrieve DICOM instance (`application/dicom`).
+- `GET /api/dicom-web/studies` - QIDO-RS study search (`application/dicom+json`).
+- `GET /api/dicom-web/studies/{StudyUID}/series` - QIDO-RS series search (`application/dicom+json`).
+- `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/instances` - QIDO-RS instance search (`application/dicom+json`).
 - `GET /api/dicom-web/studies/{StudyUID}/metadata` - Study metadata in DICOM JSON (`application/dicom+json`).
 - `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/metadata` - Series metadata in DICOM JSON (`application/dicom+json`).
 - `GET /api/dicom-web/studies/{StudyUID}/series/{SeriesUID}/instances/{SOPUID}/metadata` - Instance metadata in DICOM JSON (`application/dicom+json`).
@@ -164,7 +167,37 @@ curl -i -u developer:developer \
 
 Expected: `404` with `application/problem+json`.
 
-### 8) C-FIND examples (findscu)
+### 8) Query through QIDO-RS
+
+Study-level search:
+
+```bash
+curl -u developer:developer \
+  "http://localhost:8080/api/dicom-web/studies?PatientName=FELIX&limit=10"
+```
+
+Series-level search inside a study:
+
+```bash
+curl -u developer:developer \
+  "http://localhost:8080/api/dicom-web/studies/<StudyUID>/series?Modality=MR"
+```
+
+Instance-level search inside a series:
+
+```bash
+curl -u developer:developer \
+  "http://localhost:8080/api/dicom-web/studies/<StudyUID>/series/<SeriesUID>/instances?includefield=PatientName&includefield=PatientID"
+```
+
+Supported QIDO query parameters:
+
+- Matching keys via DICOM keyword or tag form (e.g. `PatientName`, `StudyDate`, `00100020`).
+- `fuzzymatching=true|false` (mapped to PN fuzzy behavior).
+- `limit` and `offset` for paging.
+- `includefield=all` or repeated `includefield=<Keyword>` for projected responses.
+
+### 9) C-FIND examples (findscu)
 
 Standard Study Root by UID:
 
@@ -180,7 +213,7 @@ findscu -v -S -k QueryRetrieveLevel=STUDY -k "PatientName=brain modality:MR" \
   -aet TESTSCU -aec DICOOGLE localhost 11112
 ```
 
-### 9) C-MOVE example (movescu)
+### 10) C-MOVE example (movescu)
 
 ```bash
 movescu -v -S -k QueryRetrieveLevel=STUDY -k StudyInstanceUID=<StudyUID> \
