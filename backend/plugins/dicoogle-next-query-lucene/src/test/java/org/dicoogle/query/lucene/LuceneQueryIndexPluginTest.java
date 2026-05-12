@@ -2,9 +2,11 @@ package org.dicoogle.query.lucene;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -119,6 +121,69 @@ class LuceneQueryIndexPluginTest {
     int indexed = plugin.reindex();
     assertTrue(indexed >= 1);
     assertTrue(plugin.indexedDocuments() >= 1);
+    plugin.stop();
+  }
+
+  @Test
+  void indexAndUnindexAcceptFileUriAndPlainPathWithoutExtension() throws Exception {
+    Path storageRoot = Files.createTempDirectory("lucene-storage-path");
+    Path indexRoot = Files.createTempDirectory("lucene-index-path");
+
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(storageRoot, "file");
+    StorageRouter router = new StorageRouter(List.of(storage));
+
+    LuceneQueryProperties properties = new LuceneQueryProperties();
+    properties.setRootDir(indexRoot.toString());
+    properties.setStorageRootDir(storageRoot.toString());
+    properties.setAutoReindexOnStartup(false);
+    properties.setWatchStorage(false);
+
+    LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
+
+    Path dicomNoExt = storageRoot.resolve("instance-no-ext");
+    Files.write(dicomNoExt, createDicom("P2", "MARTA", "CT", "A2", "20240202"));
+
+    int indexedViaPathUri = plugin.indexPath(dicomNoExt.toUri());
+    assertEquals(1, indexedViaPathUri);
+    assertTrue(plugin.indexedDocuments() >= 1);
+
+    int removedViaPlainPath = plugin.unindexPath(URI.create(dicomNoExt.toString()));
+    assertEquals(1, removedViaPlainPath);
+    assertEquals(0, plugin.locateInstance("1.2.3", "1.2.3.1", "1.2.3.4.5").isPresent() ? 1 : 0);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> plugin.indexPath(URI.create("http://example.com/file.dcm")));
+
+    plugin.stop();
+  }
+
+  @Test
+  void unindexDirectoryRemovesIndexedDicomFiles() throws Exception {
+    Path storageRoot = Files.createTempDirectory("lucene-storage-unindex-dir");
+    Path indexRoot = Files.createTempDirectory("lucene-index-unindex-dir");
+    Path dir = storageRoot.resolve("dicom-dir");
+    Files.createDirectories(dir);
+
+    Files.write(dir.resolve("a.dcm"), createDicom("P3", "JOAO", "MR", "A3", "20240303"));
+    Files.write(dir.resolve("b"), createDicom("P4", "ANA", "CT", "A4", "20240404"));
+
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(storageRoot, "file");
+    StorageRouter router = new StorageRouter(List.of(storage));
+
+    LuceneQueryProperties properties = new LuceneQueryProperties();
+    properties.setRootDir(indexRoot.toString());
+    properties.setStorageRootDir(storageRoot.toString());
+    properties.setAutoReindexOnStartup(false);
+    properties.setWatchStorage(false);
+
+    LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
+
+    assertEquals(2, plugin.indexPath(dir.toUri()));
+    assertEquals(2, plugin.indexedDocuments());
+    assertEquals(2, plugin.unindexPath(dir.toUri()));
+    assertFalse(plugin.locateInstance("1.2.3", "1.2.3.1", "1.2.3.4.5").isPresent());
+
     plugin.stop();
   }
 

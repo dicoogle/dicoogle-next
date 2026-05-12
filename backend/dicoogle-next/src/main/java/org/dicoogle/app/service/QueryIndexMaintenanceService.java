@@ -2,6 +2,8 @@ package org.dicoogle.app.service;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.dicoogle.sdk.query.QueryIndexMaintenance;
@@ -85,10 +87,33 @@ public class QueryIndexMaintenanceService {
       if (raw == null || raw.isBlank()) {
         throw new IllegalArgumentException("URI values must not be blank");
       }
-      String normalized = raw.trim().replace(" ", "%20");
-      parsed.add(URI.create(normalized));
+      parsed.add(parseUriOrPath(raw.trim()));
     }
     return parsed;
+  }
+
+  private URI parseUriOrPath(String raw) {
+    try {
+      URI uri = URI.create(raw);
+      if (uri.getScheme() != null && !uri.getScheme().isBlank() && !looksLikeWindowsPath(raw)) {
+        return uri;
+      }
+    } catch (IllegalArgumentException ignored) {
+      // Fallback to path parsing below.
+    }
+
+    try {
+      return Path.of(raw).toAbsolutePath().normalize().toUri();
+    } catch (InvalidPathException ex) {
+      throw new IllegalArgumentException("Invalid URI/path: " + raw, ex);
+    }
+  }
+
+  private boolean looksLikeWindowsPath(String value) {
+    return value.length() >= 3
+        && Character.isLetter(value.charAt(0))
+        && value.charAt(1) == ':'
+        && (value.charAt(2) == '\\' || value.charAt(2) == '/');
   }
 
   private List<QueryIndexMaintenance> selectTargets(String pluginId) {
