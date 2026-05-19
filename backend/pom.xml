@@ -24,6 +24,7 @@
         <module>dicoogle-next-core</module>
         <module>dicoogle-next-protocol-dimse</module>
         <module>dicoogle-next-protocol-dicomweb</module>
+        <module>dicoogle-next-protocol-legacy-proxy</module>
         <module>plugins/dicoogle-next-storage-file-ro</module>
         <module>plugins/dicoogle-next-storage-file-rw</module>
         <module>plugins/dicoogle-next-query-file</module>
