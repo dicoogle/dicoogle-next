@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.Tag;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.json.JSONWriter;
 import org.dicoogle.core.storage.StorageRouter;
@@ -138,7 +139,7 @@ public class DicomwebRetrieveService {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED,
           "No query index locator is configured for series metadata requests");
-    }
+      }
 
     List<Attributes> metadata = new ArrayList<>();
     Collection<String> seen = new LinkedHashSet<>();
@@ -170,6 +171,59 @@ public class DicomwebRetrieveService {
 
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
     return toDicomJson(readMetadata(located.location()));
+  }
+
+  /**
+   * Locates a DICOM instance by SOPInstanceUID alone and returns its fully parsed {@link
+   * Attributes}. Used by the {@code /dump} endpoint which receives only the SOP UID from the
+   * client.
+   *
+   * <p>Scans all registered {@link QueryIndexStorageLocator} plugins. For each locator, all indexed
+   * instances are iterated until one whose {@code SOPInstanceUID} attribute matches is found. The
+   * first match wins.
+   *
+   * @param sopInstanceUid the SOPInstanceUID to look up
+   * @return the fully parsed {@link Attributes} of the matching instance
+   * @throws ResponseStatusException 404 if no instance with the given UID is found
+   * @throws ResponseStatusException 501 if no query locators are configured
+   */
+  public Attributes instanceAttributes(String sopInstanceUid) {
+    LOGGER.info("dump request: sopUID={}", sopInstanceUid);
+
+    if (queryLocators.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED,
+          "No query index locator is configured for /dump requests");
+    }
+
+    Collection<String> seen = new LinkedHashSet<>();
+
+    for (QueryIndexStorageLocator plugin : queryLocators) {
+      List<URI> allLocations;
+      try {
+        allLocations = plugin.listAllInstances();
+      } catch (IOException ex) {
+        throw new ResponseStatusException(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "Failed to list instances for /dump lookup",
+            ex);
+      }
+
+      for (URI location : allLocations) {
+        if (!seen.add(location.toString())) {
+          continue;
+        }
+        Attributes attrs = readMetadata(location);
+        String sop = attrs.getString(Tag.SOPInstanceUID, null);
+        if (sopInstanceUid.equals(sop)) {
+          return attrs;
+        }
+      }
+    }
+
+    throw new ResponseStatusException(
+        HttpStatus.NOT_FOUND,
+        "No instance found with SOPInstanceUID: " + sopInstanceUid);
   }
 
   private LocatedInstance locate(
@@ -208,7 +262,7 @@ public class DicomwebRetrieveService {
         HttpStatus.NOT_FOUND, "DICOM instance not found for study/series/SOP identifiers");
   }
 
-  private Attributes readMetadata(URI location) {
+  Attributes readMetadata(URI location) {
     try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location)) {
       byte[] bytes = stream.readAllBytes();
       try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(bytes))) {
