@@ -18,8 +18,9 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
-import org.dicoogle.sdk.query.DimseFindAccessPolicy;
-import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.dicoogle.sdk.query.DimseAccessPolicy;
+import org.dicoogle.sdk.query.QueryRetrieveLevel;
+import org.dicoogle.sdk.query.QueryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,15 +30,15 @@ public class CFindService {
   private static final Pattern KEYWORD_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+:[^\\s]+");
   private static final Logger LOGGER = LoggerFactory.getLogger(CFindService.class);
 
-  private final List<DimseFindServicePlugin> plugins;
-  private final List<DimseFindAccessPolicy> accessPolicies;
+  private final List<QueryService> plugins;
+  private final List<DimseAccessPolicy<QueryService.QueryRequest>> accessPolicies;
   private final Set<String> supportedLevels;
   private final int maxResults;
   private final MeterRegistry meterRegistry;
 
   public CFindService(
-      List<DimseFindServicePlugin> plugins,
-      List<DimseFindAccessPolicy> accessPolicies,
+      List<QueryService> plugins,
+      List<DimseAccessPolicy<QueryService.QueryRequest>> accessPolicies,
       DimseCFindProperties properties,
       MeterRegistry meterRegistry) {
     this.plugins = List.copyOf(plugins);
@@ -83,9 +84,9 @@ public class CFindService {
           "Unsupported QueryRetrieveLevel: " + normalizedLevel);
     }
 
-    DimseFindServicePlugin.QueryRetrieveLevel level;
+    QueryRetrieveLevel level;
     try {
-      level = DimseFindServicePlugin.QueryRetrieveLevel.valueOf(normalizedLevel);
+      level = QueryRetrieveLevel.valueOf(normalizedLevel);
     } catch (IllegalArgumentException ex) {
       increment("dicoogle.cfind.failure", "invalid-query-level");
       throw new DicomServiceException(
@@ -111,9 +112,9 @@ public class CFindService {
       normalizedKeys.setString(Tag.PatientName, org.dcm4che3.data.VR.PN, freeText);
     }
 
-    DimseFindServicePlugin.FindRequest request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
+    QueryService.QueryRequest request =
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
             level,
             callingAet,
             calledAet,
@@ -125,8 +126,8 @@ public class CFindService {
             queryOptions.contains(QueryOption.DATETIME),
             cancelRequested == null ? () -> false : cancelRequested);
 
-    for (DimseFindAccessPolicy policy : accessPolicies) {
-      DimseFindAccessPolicy.Decision decision = policy.evaluate(request);
+    for (DimseAccessPolicy<QueryService.QueryRequest> policy : accessPolicies) {
+      DimseAccessPolicy.Decision decision = policy.evaluate(request);
       if (!decision.allowed()) {
         increment("dicoogle.cfind.failure", "policy-denied");
         throw new DicomServiceException(Status.UnableToProcess, decision.reason());
@@ -142,9 +143,9 @@ public class CFindService {
         freeText,
         keywordFilters.keySet());
 
-    for (DimseFindServicePlugin plugin : plugins) {
+    for (QueryService plugin : plugins) {
       try {
-        List<Attributes> matches = plugin.find(request);
+        List<Attributes> matches = plugin.query(request);
         if (matches != null) {
           List<Attributes> limited =
               matches.size() <= maxResults ? matches : matches.subList(0, maxResults);

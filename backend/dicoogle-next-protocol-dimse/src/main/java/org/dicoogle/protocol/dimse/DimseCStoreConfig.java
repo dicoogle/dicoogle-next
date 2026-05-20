@@ -3,11 +3,12 @@ package org.dicoogle.protocol.dimse;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import org.dicoogle.core.storage.StorageRouter;
-import org.dicoogle.sdk.query.DimseAssociationAccessPolicy;
+import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
-import org.dicoogle.sdk.query.DimseFindAccessPolicy;
-import org.dicoogle.sdk.query.DimseMoveAccessPolicy;
+import org.dicoogle.sdk.query.QueryMoveService;
+import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
+import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -31,8 +32,8 @@ public class DimseCStoreConfig {
 
   @Bean
   CFindService cFindService(
-      List<org.dicoogle.sdk.query.DimseFindServicePlugin> queryPlugins,
-      List<DimseFindAccessPolicy> cfindAccessPolicies,
+      List<QueryService> queryPlugins,
+      List<DimseAccessPolicy<QueryService.QueryRequest>> cfindAccessPolicies,
       DimseCFindProperties properties,
       MeterRegistry meterRegistry) {
     return new CFindService(queryPlugins, cfindAccessPolicies, properties, meterRegistry);
@@ -40,8 +41,8 @@ public class DimseCStoreConfig {
 
   @Bean
   CMoveService cMoveService(
-      List<org.dicoogle.sdk.query.DimseMoveServicePlugin> movePlugins,
-      List<DimseMoveAccessPolicy> cmoveAccessPolicies,
+      List<QueryMoveService> movePlugins,
+      List<DimseAccessPolicy<QueryMoveService.MoveRequest>> cmoveAccessPolicies,
       DimseCFindProperties cfindProperties,
       DimseCMoveProperties properties,
       MeterRegistry meterRegistry) {
@@ -58,7 +59,7 @@ public class DimseCStoreConfig {
       StorageRouter storageRouter,
       DimseCStoreProperties properties,
       List<DimseAssociationEventListener> associationEventListeners,
-      List<DimseAssociationAccessPolicy> associationAccessPolicies,
+      List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies,
       @org.springframework.beans.factory.annotation.Qualifier("primaryStorageScheme")
           String primaryStorageScheme) {
     return new DimseCStoreServer(

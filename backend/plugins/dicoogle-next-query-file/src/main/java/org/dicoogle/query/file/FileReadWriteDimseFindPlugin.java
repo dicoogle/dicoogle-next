@@ -16,12 +16,12 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dicoogle.sdk.PluginMetadata;
-import org.dicoogle.sdk.query.DimseFindServicePlugin;
-import org.dicoogle.sdk.query.DimseMoveServicePlugin;
+import org.dicoogle.sdk.query.QueryMoveService;
+import org.dicoogle.sdk.query.QueryRetrieveLevel;
+import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.storage.filerw.FileReadWriteStoragePlugin;
 
-public class FileReadWriteDimseFindPlugin
-    implements DimseFindServicePlugin, DimseMoveServicePlugin {
+public class FileReadWriteDimseFindPlugin implements QueryService, QueryMoveService {
 
   private static final PluginMetadata METADATA =
       new PluginMetadata("query-file-rw", "Filesystem DIMSE C-FIND Query", "0.1.0", "query-index");
@@ -39,7 +39,7 @@ public class FileReadWriteDimseFindPlugin
   }
 
   @Override
-  public List<Attributes> find(FindRequest request) throws IOException {
+  public List<Attributes> query(QueryRequest request) throws IOException {
     List<java.net.URI> uris = selectUris(request.level(), request.keys());
 
     Set<String> seen = new LinkedHashSet<>();
@@ -72,10 +72,11 @@ public class FileReadWriteDimseFindPlugin
   }
 
   @Override
-  public List<MoveCandidate> resolve(MoveRequest request) throws IOException {
+  public List<QueryMoveService.MoveCandidate> resolve(QueryMoveService.MoveRequest request)
+      throws IOException {
     List<java.net.URI> uris = selectUris(request.level(), request.keys());
     Set<String> seen = new LinkedHashSet<>();
-    List<MoveCandidate> out = new ArrayList<>();
+    List<QueryMoveService.MoveCandidate> out = new ArrayList<>();
 
     for (java.net.URI uri : uris) {
       if (!seen.add(uri.toString())) {
@@ -88,7 +89,7 @@ public class FileReadWriteDimseFindPlugin
       if (!matchesDicomKeys(
           attrs,
           request.keys(),
-          new FindRequest(
+          new QueryRequest(
               request.informationModel(),
               request.level(),
               request.callingAet(),
@@ -107,7 +108,7 @@ public class FileReadWriteDimseFindPlugin
       if (!hasText(sopClassUid) || !hasText(sopInstanceUid)) {
         continue;
       }
-      out.add(new MoveCandidate(sopClassUid, sopInstanceUid, uri));
+      out.add(new QueryMoveService.MoveCandidate(sopClassUid, sopInstanceUid, uri));
     }
 
     return out;
@@ -161,7 +162,7 @@ public class FileReadWriteDimseFindPlugin
   }
 
   private boolean matchesKeywordFilters(
-      Attributes attrs, Map<String, String> filters, FindRequest request) {
+      Attributes attrs, Map<String, String> filters, QueryRequest request) {
     if (filters == null || filters.isEmpty()) {
       return true;
     }
@@ -205,7 +206,7 @@ public class FileReadWriteDimseFindPlugin
     return out.toString();
   }
 
-  private boolean matchesDicomKeys(Attributes attrs, Attributes keys, FindRequest request) {
+  private boolean matchesDicomKeys(Attributes attrs, Attributes keys, QueryRequest request) {
     for (int tag : keys.tags()) {
       if (tag == Tag.QueryRetrieveLevel) {
         continue;
@@ -230,7 +231,7 @@ public class FileReadWriteDimseFindPlugin
   }
 
   private boolean matchesTagValue(
-      Attributes attrs, String expected, int tag, VR vr, FindRequest request) {
+      Attributes attrs, String expected, int tag, VR vr, QueryRequest request) {
     String actual = attrs.getString(tag, "");
     if (vr == VR.UI) {
       return matchesUidValue(actual, expected);
@@ -337,7 +338,8 @@ public class FileReadWriteDimseFindPlugin
     return true;
   }
 
-  private boolean matchesSequence(Attributes attrs, Attributes keys, int tag, FindRequest request) {
+  private boolean matchesSequence(
+      Attributes attrs, Attributes keys, int tag, QueryRequest request) {
     Sequence expected = keys.getSequence(tag);
     if (expected == null || expected.isEmpty()) {
       return true;

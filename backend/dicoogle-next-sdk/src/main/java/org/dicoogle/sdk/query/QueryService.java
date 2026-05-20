@@ -2,22 +2,17 @@ package org.dicoogle.sdk.query;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import org.dcm4che3.data.Attributes;
 
-public interface DimseFindServicePlugin extends QueryIndexPlugin {
+public interface QueryService extends QueryIndexPlugin {
 
   enum InformationModel {
     STUDY_ROOT
   }
 
-  enum QueryRetrieveLevel {
-    STUDY,
-    SERIES,
-    IMAGE
-  }
-
-  record FindRequest(
+  record QueryRequest(
       InformationModel informationModel,
       QueryRetrieveLevel level,
       String callingAet,
@@ -25,10 +20,10 @@ public interface DimseFindServicePlugin extends QueryIndexPlugin {
       int associationSerialNo,
       Attributes keys,
       String freeText,
-      java.util.Map<String, String> keywordFilters,
+      Map<String, String> keywordFilters,
       boolean fuzzyMatchingEnabled,
       boolean dateTimeMatchingEnabled,
       BooleanSupplier cancelRequested) {}
 
-  List<Attributes> find(FindRequest request) throws IOException;
+  List<Attributes> query(QueryRequest request) throws IOException;
 }

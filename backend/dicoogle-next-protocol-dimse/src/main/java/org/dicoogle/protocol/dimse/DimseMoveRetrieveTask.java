@@ -16,13 +16,13 @@ import org.dcm4che3.net.service.BasicRetrieveTask;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.InstanceLocator;
 import org.dicoogle.core.storage.StorageRouter;
-import org.dicoogle.sdk.query.DimseMoveServicePlugin;
+import org.dicoogle.sdk.query.QueryMoveService;
 
 class DimseMoveRetrieveTask extends BasicRetrieveTask<DimseMoveRetrieveTask.StorageMoveLocator> {
 
   @FunctionalInterface
   interface CandidateProvider {
-    List<DimseMoveServicePlugin.MoveCandidate> load(BooleanSupplier cancelRequested)
+    List<QueryMoveService.MoveCandidate> load(BooleanSupplier cancelRequested)
         throws DicomServiceException;
   }
 
@@ -113,14 +113,14 @@ class DimseMoveRetrieveTask extends BasicRetrieveTask<DimseMoveRetrieveTask.Stor
     if (canceledRef[0]) {
       return;
     }
-    List<DimseMoveServicePlugin.MoveCandidate> candidates;
+    List<QueryMoveService.MoveCandidate> candidates;
     try {
       candidates = candidateProvider.load(() -> canceledRef[0]);
     } catch (DicomServiceException ex) {
       status = ex.getStatus();
       return;
     }
-    for (DimseMoveServicePlugin.MoveCandidate candidate : candidates) {
+    for (QueryMoveService.MoveCandidate candidate : candidates) {
       insts.add(
           new StorageMoveLocator(
               candidate.sopClassUid(), candidate.sopInstanceUid(), candidate.location()));

@@ -34,7 +34,7 @@ import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
-import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.storage.StoredObject;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
 import org.junit.jupiter.api.AfterEach;
@@ -311,7 +311,7 @@ class DimseCFindSCPIntegrationTest {
     }
   }
 
-  private record IntegrationFindPlugin(Path root) implements DimseFindServicePlugin {
+  private record IntegrationFindPlugin(Path root) implements QueryService {
 
     @Override
     public PluginMetadata metadata() {
@@ -319,7 +319,7 @@ class DimseCFindSCPIntegrationTest {
     }
 
     @Override
-    public List<Attributes> find(FindRequest request) throws IOException {
+    public List<Attributes> query(QueryRequest request) throws IOException {
       List<Attributes> out = new ArrayList<>();
       BooleanSupplier cancelRequested = request.cancelRequested();
       List<Path> files =
@@ -344,7 +344,7 @@ class DimseCFindSCPIntegrationTest {
       return out;
     }
 
-    private boolean matches(Attributes attrs, FindRequest request) {
+    private boolean matches(Attributes attrs, QueryRequest request) {
       String expectedName = request.keys().getString(Tag.PatientName, null);
       if (expectedName != null && !expectedName.isBlank()) {
         String actualName = attrs.getString(Tag.PatientName, "");

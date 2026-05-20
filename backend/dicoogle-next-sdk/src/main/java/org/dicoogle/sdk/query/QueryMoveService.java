@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.function.BooleanSupplier;
 import org.dcm4che3.data.Attributes;
 
-public interface DimseMoveServicePlugin extends QueryIndexPlugin {
+public interface QueryMoveService extends QueryIndexPlugin {
 
   record MoveRequest(
-      DimseFindServicePlugin.InformationModel informationModel,
-      DimseFindServicePlugin.QueryRetrieveLevel level,
+      QueryService.InformationModel informationModel,
+      QueryRetrieveLevel level,
       String callingAet,
       String calledAet,
       String moveDestinationAet,

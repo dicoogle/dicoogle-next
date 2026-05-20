@@ -12,8 +12,9 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomOutputStream;
-import org.dicoogle.sdk.query.DimseFindServicePlugin;
-import org.dicoogle.sdk.query.DimseMoveServicePlugin;
+import org.dicoogle.sdk.query.QueryMoveService;
+import org.dicoogle.sdk.query.QueryRetrieveLevel;
+import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.storage.filerw.FileReadWriteStoragePlugin;
 import org.junit.jupiter.api.Test;
 
@@ -35,9 +36,9 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.Modality, VR.CS, "MR");
 
     var request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             1,
@@ -48,7 +49,7 @@ class FileReadWriteDimseFindPluginTest {
             false,
             () -> false);
 
-    assertFalse(plugin.find(request).isEmpty());
+    assertFalse(plugin.query(request).isEmpty());
   }
 
   @Test
@@ -72,9 +73,9 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
 
     var request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             10,
@@ -85,7 +86,7 @@ class FileReadWriteDimseFindPluginTest {
             false,
             () -> false);
 
-    assertEquals(1, plugin.find(request).size());
+    assertEquals(1, plugin.query(request).size());
   }
 
   @Test
@@ -108,9 +109,9 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.Modality, VR.CS, "MR\\US");
 
     var request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             2,
@@ -121,7 +122,7 @@ class FileReadWriteDimseFindPluginTest {
             false,
             () -> false);
 
-    assertEquals(1, plugin.find(request).size());
+    assertEquals(1, plugin.query(request).size());
   }
 
   @Test
@@ -142,9 +143,9 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.StudyDate, VR.DA, "20240101-20241231");
 
     var request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             3,
@@ -155,7 +156,7 @@ class FileReadWriteDimseFindPluginTest {
             false,
             () -> false);
 
-    assertEquals(1, plugin.find(request).size());
+    assertEquals(1, plugin.query(request).size());
   }
 
   @Test
@@ -179,9 +180,9 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.AcquisitionDateTime, VR.DT, "20240115100000-20240115120000");
 
     var requestNoDateTimeNegotiation =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             4,
@@ -191,12 +192,12 @@ class FileReadWriteDimseFindPluginTest {
             false,
             false,
             () -> false);
-    assertEquals(0, plugin.find(requestNoDateTimeNegotiation).size());
+    assertEquals(0, plugin.query(requestNoDateTimeNegotiation).size());
 
     var requestWithDateTimeNegotiation =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             5,
@@ -206,7 +207,7 @@ class FileReadWriteDimseFindPluginTest {
             false,
             true,
             () -> false);
-    assertEquals(1, plugin.find(requestWithDateTimeNegotiation).size());
+    assertEquals(1, plugin.query(requestWithDateTimeNegotiation).size());
   }
 
   @Test
@@ -225,9 +226,9 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.PatientName, VR.PN, "felixal");
 
     var requestWithoutFuzzy =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             6,
@@ -237,12 +238,12 @@ class FileReadWriteDimseFindPluginTest {
             false,
             false,
             () -> false);
-    assertEquals(0, plugin.find(requestWithoutFuzzy).size());
+    assertEquals(0, plugin.query(requestWithoutFuzzy).size());
 
     var requestWithFuzzy =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             7,
@@ -252,7 +253,7 @@ class FileReadWriteDimseFindPluginTest {
             true,
             false,
             () -> false);
-    assertEquals(1, plugin.find(requestWithFuzzy).size());
+    assertEquals(1, plugin.query(requestWithFuzzy).size());
   }
 
   @Test
@@ -274,9 +275,9 @@ class FileReadWriteDimseFindPluginTest {
     seq.add(item);
 
     var request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             8,
@@ -286,7 +287,7 @@ class FileReadWriteDimseFindPluginTest {
             false,
             false,
             () -> false);
-    assertEquals(1, plugin.find(request).size());
+    assertEquals(1, plugin.query(request).size());
   }
 
   @Test
@@ -303,9 +304,9 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
 
     var request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             9,
@@ -316,7 +317,7 @@ class FileReadWriteDimseFindPluginTest {
             false,
             () -> true);
 
-    assertEquals(0, plugin.find(request).size());
+    assertEquals(0, plugin.query(request).size());
   }
 
   @Test
@@ -334,10 +335,10 @@ class FileReadWriteDimseFindPluginTest {
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
     keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
 
-    DimseMoveServicePlugin.MoveRequest request =
-        new DimseMoveServicePlugin.MoveRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
-            DimseFindServicePlugin.QueryRetrieveLevel.STUDY,
+    QueryMoveService.MoveRequest request =
+        new QueryMoveService.MoveRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.STUDY,
             "CALLING",
             "CALLED",
             "DEST",
