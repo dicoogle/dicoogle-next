@@ -216,7 +216,6 @@ class FileQueryIndexPluginTest {
             false,
             false,
             () -> false);
-    // Without dateTimeNegotiation: DT tag is treated as plain string match → no match
     assertEquals(0, plugin.query(requestNoDateTimeNegotiation).size());
 
     var requestWithDateTimeNegotiation =
@@ -232,7 +231,6 @@ class FileQueryIndexPluginTest {
             false,
             true,
             () -> false);
-    // With dateTimeNegotiation: DA, TM, DT ranges are all evaluated → A300 matches
     assertEquals(1, plugin.query(requestWithDateTimeNegotiation).size());
   }
 
