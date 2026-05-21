@@ -1,0 +1,78 @@
+package org.dicoogle.sdk.query;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.function.BooleanSupplier;
+import org.dcm4che3.data.Attributes;
+
+/**
+ * The <em>query</em> side of the query/index plugin split for C-FIND / QIDO-RS style searches.
+ *
+ * <p>Implementations answer attribute-based DICOM queries at a given {@link QueryRetrieveLevel}.
+ * The interface is protocol-agnostic: the same plugin instance is used by DIMSE C-FIND, DICOMWeb
+ * QIDO-RS, and any other internal consumer.
+ *
+ * <p>A {@link QueryRequest} carries all parameters that any of these callers may supply, including
+ * optional free-text and keyword filters that go beyond the standard DICOM attribute matching.
+ * Implementations should silently ignore parameters they do not support rather than throwing.
+ *
+ * <p>Query implementations are expected to be backed by an index built by a corresponding {@link
+ * StorageIngestEventListener}. Direct filesystem scanning is not acceptable for production
+ * archives.
+ *
+ * @see QueryMoveService for the move-resolution counterpart
+ */
+public interface QueryService extends QueryIndexPlugin {
+
+  enum InformationModel {
+    STUDY_ROOT
+  }
+
+  /**
+   * Encapsulates all parameters of a single query request.
+   *
+   * @param informationModel the DICOM information model (currently only {@link
+   *     InformationModel#STUDY_ROOT})
+   * @param level the query/retrieve level at which results are requested
+   * @param callingAet the AE title of the requesting entity
+   * @param calledAet the AE title of the called entity
+   * @param associationSerialNo a monotonically increasing identifier for the association, or 0 if
+   *     the query did not originate from a DIMSE association
+   * @param keys the DICOM dataset containing matching keys and return keys
+   * @param freeText an optional free-text search term applied across a set of human-readable
+   *     attributes (e.g. patient name, accession number, study description)
+   * @param keywordFilters optional map of DICOM keyword or tag path to value for additional
+   *     filtering beyond standard DICOM matching
+   * @param fuzzyMatchingEnabled whether fuzzy semantic matching should be applied to PN-typed
+   *     attributes
+   * @param dateTimeMatchingEnabled whether extended datetime matching should be applied
+   * @param cancelRequested a supplier that returns {@code true} once the caller has issued a
+   *     C-CANCEL or equivalent; implementations should poll this and return early if set
+   */
+  record QueryRequest(
+      InformationModel informationModel,
+      QueryRetrieveLevel level,
+      String callingAet,
+      String calledAet,
+      int associationSerialNo,
+      Attributes keys,
+      String freeText,
+      Map<String, String> keywordFilters,
+      boolean fuzzyMatchingEnabled,
+      boolean dateTimeMatchingEnabled,
+      BooleanSupplier cancelRequested) {}
+
+  /**
+   * Executes a query and returns the matching DICOM datasets.
+   *
+   * <p>Each returned {@link Attributes} object should contain at least the requested return keys
+   * for the given {@link QueryRetrieveLevel}. Implementations must not return {@code null}; an
+   * empty list indicates no matches.
+   *
+   * @param request the query parameters
+   * @return a list of matching DICOM attribute sets; never {@code null}
+   * @throws IOException if a recoverable I/O error occurs during query execution
+   */
+  List<Attributes> query(QueryRequest request) throws IOException;
+}

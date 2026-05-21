@@ -13,8 +13,8 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.sdk.PluginMetadata;
-import org.dicoogle.sdk.query.DimseMoveAccessPolicy;
-import org.dicoogle.sdk.query.DimseMoveServicePlugin;
+import org.dicoogle.sdk.query.DimseAccessPolicy;
+import org.dicoogle.sdk.query.QueryMoveService;
 import org.junit.jupiter.api.Test;
 
 class CMoveServiceTest {
@@ -93,7 +93,7 @@ class CMoveServiceTest {
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
     keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
 
-    List<DimseMoveServicePlugin.MoveCandidate> out =
+    List<QueryMoveService.MoveCandidate> out =
         service.resolve(
             CMoveService.STUDY_ROOT_MOVE_UID, keys, "DEST", "CALLING", "CALLED", 3, () -> false);
     assertEquals(1, out.size());
@@ -167,18 +167,8 @@ class CMoveServiceTest {
     DimseCMoveProperties properties = new DimseCMoveProperties();
     properties.setDestinations(java.util.Map.of("DEST", destination("127.0.0.1", 11113, "DEST")));
 
-    DimseMoveAccessPolicy deny =
-        new DimseMoveAccessPolicy() {
-          @Override
-          public PluginMetadata metadata() {
-            return new PluginMetadata("deny-move", "deny move", "1.0.0", "query-index");
-          }
-
-          @Override
-          public Decision evaluate(DimseMoveServicePlugin.MoveRequest request) {
-            return Decision.deny("blocked");
-          }
-        };
+    DimseAccessPolicy<QueryMoveService.MoveRequest> deny =
+        request -> DimseAccessPolicy.Decision.deny("blocked");
 
     CMoveService service =
         new CMoveService(
@@ -215,7 +205,7 @@ class CMoveServiceTest {
     return d;
   }
 
-  private static final class DummyMovePlugin implements DimseMoveServicePlugin {
+  private static final class DummyMovePlugin implements QueryMoveService {
 
     @Override
     public PluginMetadata metadata() {
@@ -229,7 +219,7 @@ class CMoveServiceTest {
     }
   }
 
-  private static final class MultiMovePlugin implements DimseMoveServicePlugin {
+  private static final class MultiMovePlugin implements QueryMoveService {
 
     @Override
     public PluginMetadata metadata() {

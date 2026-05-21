@@ -34,7 +34,7 @@ import org.dcm4che3.net.pdu.PresentationContext;
 import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.dicoogle.core.storage.StorageRouter;
-import org.dicoogle.query.file.FileReadWriteDimseFindPlugin;
+import org.dicoogle.query.file.FileQueryIndexPlugin;
 import org.dicoogle.storage.filerw.FileReadWriteStoragePlugin;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +42,8 @@ import org.junit.jupiter.api.Test;
 class DimseCMoveSCPIntegrationTest {
 
   private DimseCStoreServer sourceServer;
+  private FileReadWriteStoragePlugin storage;
+  private FileQueryIndexPlugin queryPlugin;
   private Device destinationDevice;
   private Device scuDevice;
   private Association association;
@@ -67,6 +69,8 @@ class DimseCMoveSCPIntegrationTest {
       sourceServer.stop();
       sourceServer = null;
     }
+    storage = null;
+    queryPlugin = null;
   }
 
   @Test
@@ -82,7 +86,7 @@ class DimseCMoveSCPIntegrationTest {
     String seriesUid = "1.2.3.4.5.1";
     String sopUid = "1.2.3.4.5.1.1";
     startSourceServer(root, sourcePort, destinationPort);
-    storeDicom(root, createDicom(studyUid, seriesUid, sopUid));
+    storeDicom(createDicom(studyUid, seriesUid, sopUid));
 
     association = openMoveScu(sourcePort);
 
@@ -123,7 +127,7 @@ class DimseCMoveSCPIntegrationTest {
     String seriesUid = "1.2.3.4.6.1";
     String sopUid = "1.2.3.4.6.1.1";
     startSourceServer(root, sourcePort, destinationPort);
-    storeDicom(root, createDicom(studyUid, seriesUid, sopUid));
+    storeDicom(createDicom(studyUid, seriesUid, sopUid));
 
     association = openMoveScu(sourcePort);
 
@@ -157,10 +161,10 @@ class DimseCMoveSCPIntegrationTest {
 
     String studyUid = "1.2.3.4.7";
     String seriesUid = "1.2.3.4.7.1";
-    for (int i = 0; i < 2; i++) {
-      storeDicom(root, createDicom(studyUid, seriesUid, "1.2.3.4.7.1." + (i + 1)));
-    }
     startSourceServer(root, sourcePort, destinationPort);
+    for (int i = 0; i < 2; i++) {
+      storeDicom(createDicom(studyUid, seriesUid, "1.2.3.4.7.1." + (i + 1)));
+    }
 
     association = openMoveScu(sourcePort);
 
@@ -192,9 +196,9 @@ class DimseCMoveSCPIntegrationTest {
   }
 
   private void startSourceServer(Path root, int sourcePort, int destinationPort) {
-    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(root, "file");
+    storage = new FileReadWriteStoragePlugin(root, "file");
     StorageRouter storageRouter = new StorageRouter(List.of(storage));
-    FileReadWriteDimseFindPlugin queryPlugin = new FileReadWriteDimseFindPlugin(storage);
+    queryPlugin = new FileQueryIndexPlugin(storage);
 
     CStoreService cStoreService = new CStoreService(storageRouter);
     CFindService cFindService =
@@ -349,9 +353,24 @@ class DimseCMoveSCPIntegrationTest {
     }
   }
 
-  private static void storeDicom(Path root, byte[] payload) throws IOException {
-    FileReadWriteStoragePlugin plugin = new FileReadWriteStoragePlugin(root, "file");
-    plugin.store(new ByteArrayInputStream(payload), "application/dicom");
+  private void storeDicom(byte[] payload) throws IOException {
+    var stored = storage.store(new ByteArrayInputStream(payload), "application/dicom");
+    Attributes attrs;
+    try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(payload))) {
+      attrs = dis.readDataset();
+    }
+    queryPlugin.onIngestSuccess(
+        new org.dicoogle.sdk.storage.StorageIngestSuccessEvent(
+            0,
+            "CALLING",
+            "CALLED",
+            storage.scheme(),
+            attrs.getString(Tag.PatientID, ""),
+            attrs.getString(Tag.StudyInstanceUID, ""),
+            attrs.getString(Tag.SeriesInstanceUID, ""),
+            attrs.getString(Tag.SOPInstanceUID, ""),
+            attrs.getString(Tag.SOPClassUID, ""),
+            stored.location()));
   }
 
   private static byte[] createDicom(String studyUid, String seriesUid, String sopUid)

@@ -14,8 +14,8 @@ import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.sdk.PluginMetadata;
-import org.dicoogle.sdk.query.DimseFindAccessPolicy;
-import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.dicoogle.sdk.query.DimseAccessPolicy;
+import org.dicoogle.sdk.query.QueryService;
 import org.junit.jupiter.api.Test;
 
 class CFindServiceTest {
@@ -25,7 +25,7 @@ class CFindServiceTest {
     CFindService service =
         new CFindService(
             List.of(new DummyFindPlugin()),
-            List.<DimseFindAccessPolicy>of(),
+            List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
@@ -42,7 +42,7 @@ class CFindServiceTest {
     CFindService service =
         new CFindService(
             List.of(new DummyFindPlugin()),
-            List.<DimseFindAccessPolicy>of(),
+            List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
@@ -62,7 +62,7 @@ class CFindServiceTest {
     CFindService service =
         new CFindService(
             List.of(new DummyFindPlugin()),
-            List.<DimseFindAccessPolicy>of(),
+            List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
@@ -83,7 +83,7 @@ class CFindServiceTest {
     CFindService service =
         new CFindService(
             List.of(new DummyFindPlugin()),
-            List.<DimseFindAccessPolicy>of(),
+            List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
@@ -104,7 +104,7 @@ class CFindServiceTest {
     CFindService service =
         new CFindService(
             List.of(new DummyFindPlugin()),
-            List.<DimseFindAccessPolicy>of(),
+            List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
@@ -130,7 +130,7 @@ class CFindServiceTest {
     CFindService service =
         new CFindService(
             List.of(new MultiResultFindPlugin()),
-            List.<DimseFindAccessPolicy>of(),
+            List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             properties,
             new SimpleMeterRegistry());
 
@@ -144,19 +144,8 @@ class CFindServiceTest {
 
   @Test
   void deniesQueryWhenPolicyRejects() {
-    DimseFindAccessPolicy denyPolicy =
-        new DimseFindAccessPolicy() {
-          @Override
-          public org.dicoogle.sdk.PluginMetadata metadata() {
-            return new org.dicoogle.sdk.PluginMetadata(
-                "deny-cfind", "Deny C-FIND", "1.0.0", "query-index");
-          }
-
-          @Override
-          public Decision evaluate(DimseFindServicePlugin.FindRequest request) {
-            return Decision.deny("denied by policy");
-          }
-        };
+    DimseAccessPolicy<QueryService.QueryRequest> denyPolicy =
+        request -> DimseAccessPolicy.Decision.deny("denied by policy");
     CFindService service =
         new CFindService(
             List.of(new DummyFindPlugin()),
@@ -176,7 +165,7 @@ class CFindServiceTest {
     assertEquals(Status.UnableToProcess, ex.getStatus());
   }
 
-  private static final class DummyFindPlugin implements DimseFindServicePlugin {
+  private static final class DummyFindPlugin implements QueryService {
 
     @Override
     public PluginMetadata metadata() {
@@ -184,7 +173,7 @@ class CFindServiceTest {
     }
 
     @Override
-    public List<Attributes> find(FindRequest request) throws IOException {
+    public List<Attributes> query(QueryRequest request) throws IOException {
       Attributes a = new Attributes();
       a.setString(
           Tag.StudyInstanceUID, VR.UI, request.keys().getString(Tag.StudyInstanceUID, "1.2.3"));
@@ -193,7 +182,7 @@ class CFindServiceTest {
     }
   }
 
-  private static final class MultiResultFindPlugin implements DimseFindServicePlugin {
+  private static final class MultiResultFindPlugin implements QueryService {
 
     @Override
     public PluginMetadata metadata() {
@@ -201,7 +190,7 @@ class CFindServiceTest {
     }
 
     @Override
-    public List<Attributes> find(FindRequest request) throws IOException {
+    public List<Attributes> query(QueryRequest request) throws IOException {
       Attributes a1 = new Attributes();
       a1.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
       Attributes a2 = new Attributes();

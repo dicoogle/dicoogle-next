@@ -1,6 +1,6 @@
 package org.dicoogle.query.file;
 
-import org.dicoogle.storage.filerw.FileReadWriteStoragePlugin;
+import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,9 +9,8 @@ import org.springframework.context.annotation.Configuration;
 public class FileQueryConfig {
 
   @Bean
-  @ConditionalOnBean(FileReadWriteStoragePlugin.class)
-  FileReadWriteDimseFindPlugin fileReadWriteDimseFindPlugin(
-      FileReadWriteStoragePlugin storagePlugin) {
-    return new FileReadWriteDimseFindPlugin(storagePlugin);
+  @ConditionalOnBean(ReadableStoragePlugin.class)
+  FileQueryIndexPlugin fileQueryIndexPlugin(ReadableStoragePlugin storagePlugin) {
+    return new FileQueryIndexPlugin(storagePlugin);
   }
 }
