@@ -139,16 +139,6 @@ public class FileReadWriteStoragePlugin
     return results;
   }
 
-  public List<URI> listAllInstances() throws IOException {
-    List<URI> results = new ArrayList<>();
-    if (!Files.exists(rootDirectory)) {
-      return results;
-    }
-
-    collectDicomFiles(rootDirectory, results);
-    return results;
-  }
-
   @Override
   public List<URI> listSeriesInstances(String studyInstanceUid, String seriesInstanceUid)
       throws IOException {

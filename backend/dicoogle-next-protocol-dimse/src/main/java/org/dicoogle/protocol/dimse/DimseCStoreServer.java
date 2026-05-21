@@ -27,7 +27,7 @@ import org.dcm4che3.net.service.BasicCEchoSCP;
 import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.DicomServiceRegistry;
-import org.dicoogle.sdk.query.DimseAssociationAccessPolicy;
+import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
 import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
 import org.dicoogle.sdk.storage.DimseAssociationClosedEvent;
@@ -47,7 +47,7 @@ public class DimseCStoreServer implements SmartLifecycle {
   private final DimseCStoreProperties properties;
   private final String primaryStorageScheme;
   private final List<DimseAssociationEventListener> associationEventListeners;
-  private final List<DimseAssociationAccessPolicy> associationAccessPolicies;
+  private final List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies;
 
   private volatile boolean running;
   private Device device;
@@ -80,7 +80,7 @@ public class DimseCStoreServer implements SmartLifecycle {
       DimseCStoreProperties properties,
       String primaryStorageScheme,
       List<DimseAssociationEventListener> associationEventListeners,
-      List<DimseAssociationAccessPolicy> associationAccessPolicies) {
+      List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies) {
     this.cStoreService = Objects.requireNonNull(cStoreService);
     this.cFindService = Objects.requireNonNull(cFindService);
     this.cMoveService = Objects.requireNonNull(cMoveService);
@@ -353,8 +353,8 @@ public class DimseCStoreServer implements SmartLifecycle {
   }
 
   private String checkAccessPolicies(DimseAssociationAcceptedEvent event) {
-    for (DimseAssociationAccessPolicy policy : associationAccessPolicies) {
-      DimseAssociationAccessPolicy.Decision decision = policy.evaluate(event);
+    for (DimseAccessPolicy<DimseAssociationAcceptedEvent> policy : associationAccessPolicies) {
+      DimseAccessPolicy.Decision decision = policy.evaluate(event);
       if (!decision.allowed()) {
         return decision.reason();
       }
