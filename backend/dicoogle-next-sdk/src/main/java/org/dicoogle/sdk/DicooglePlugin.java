@@ -4,10 +4,10 @@ package org.dicoogle.sdk;
  * Root interface for all Dicoogle plugins.
  *
  * <p>Every plugin must implement this interface (usually indirectly, through a more specific
- * sub-interface such as {@link org.dicoogle.sdk.storage.StoragePlugin} or
- * {@link org.dicoogle.sdk.query.QueryIndexPlugin}). The framework discovers plugins on the
- * classpath and calls {@link #start()} once when the plugin is activated and {@link #stop()} when
- * it is deactivated or the application shuts down.
+ * sub-interface such as {@link org.dicoogle.sdk.storage.StoragePlugin} or {@link
+ * org.dicoogle.sdk.query.QueryIndexPlugin}). The framework discovers plugins on the classpath and
+ * calls {@link #start()} once when the plugin is activated and {@link #stop()} when it is
+ * deactivated or the application shuts down.
  *
  * <p>Both lifecycle methods have empty default implementations; override only the ones your plugin
  * needs.

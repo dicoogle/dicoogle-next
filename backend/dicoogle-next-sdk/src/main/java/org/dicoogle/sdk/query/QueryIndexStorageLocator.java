@@ -12,8 +12,8 @@ import java.util.Optional;
  * identify a study, series, or instance, it resolves the concrete storage {@link URI}s that can be
  * passed to {@link org.dicoogle.sdk.storage.ReadableStoragePlugin#openForRead(URI)}.
  *
- * <p>Implementations are typically backed by the same index as the corresponding
- * {@link StorageIngestEventListener}, and are consumed by the C-MOVE service and DICOMWeb WADO-RS
+ * <p>Implementations are typically backed by the same index as the corresponding {@link
+ * StorageIngestEventListener}, and are consumed by the C-MOVE service and DICOMWeb WADO-RS
  * endpoints.
  */
 public interface QueryIndexStorageLocator extends QueryIndexPlugin {
@@ -21,11 +21,11 @@ public interface QueryIndexStorageLocator extends QueryIndexPlugin {
   /**
    * Locates the storage URI for a single SOP instance.
    *
-   * @param studyInstanceUid  the Study Instance UID
+   * @param studyInstanceUid the Study Instance UID
    * @param seriesInstanceUid the Series Instance UID
-   * @param sopInstanceUid    the SOP Instance UID
+   * @param sopInstanceUid the SOP Instance UID
    * @return the storage URI wrapped in an {@link Optional}, or {@link Optional#empty()} if the
-   *         instance is not known to this index
+   *     instance is not known to this index
    * @throws IOException if a recoverable I/O error occurs during lookup
    */
   Optional<URI> locateInstance(
@@ -46,7 +46,7 @@ public interface QueryIndexStorageLocator extends QueryIndexPlugin {
   /**
    * Returns the storage URIs for all instances belonging to a series.
    *
-   * @param studyInstanceUid  the Study Instance UID
+   * @param studyInstanceUid the Study Instance UID
    * @param seriesInstanceUid the Series Instance UID
    * @return an unordered list of URIs; empty if no instances for the series are known
    * @throws IOException if a recoverable I/O error occurs during lookup

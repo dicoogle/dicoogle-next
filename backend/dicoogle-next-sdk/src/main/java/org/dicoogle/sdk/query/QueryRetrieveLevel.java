@@ -3,8 +3,8 @@ package org.dicoogle.sdk.query;
 /**
  * The DICOM Query/Retrieve hierarchy level at which a query or move operation is scoped.
  *
- * <p>Corresponds to the {@code QueryRetrieveLevel} (0008,0052) attribute defined in
- * PS 3.4 C.3.3 / C.4.1.
+ * <p>Corresponds to the {@code QueryRetrieveLevel} (0008,0052) attribute defined in PS 3.4 C.3.3 /
+ * C.4.1.
  *
  * <ul>
  *   <li>{@link #STUDY} — results are aggregated at the study level; one result per matching study.

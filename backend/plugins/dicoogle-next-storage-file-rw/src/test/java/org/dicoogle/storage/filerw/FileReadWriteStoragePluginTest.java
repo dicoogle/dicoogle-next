@@ -49,7 +49,10 @@ class FileReadWriteStoragePluginTest {
       fmi.setString(Tag.TransferSyntaxUID, VR.UI, UID.ExplicitVRLittleEndian);
       fmi.setString(Tag.MediaStorageSOPClassUID, VR.UI, UID.SecondaryCaptureImageStorage);
       fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, "1.2.826.0.1.3680043.2.1125.1");
-      fmi.setString(Tag.ImplementationClassUID, VR.UI, "1.2.826.0.1.3680043.2.1125.99");
+      fmi.setString(
+          Tag.ImplementationClassUID,
+          VR.UI,
+          org.dicoogle.sdk.ImplementationInfo.IMPLEMENTATION_CLASS_UID);
 
       Attributes attrs = new Attributes();
       attrs.setString(Tag.SOPClassUID, VR.UI, UID.SecondaryCaptureImageStorage);
