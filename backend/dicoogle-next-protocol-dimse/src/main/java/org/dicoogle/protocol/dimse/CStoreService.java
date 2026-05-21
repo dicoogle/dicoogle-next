@@ -204,9 +204,14 @@ public class CStoreService {
       fmi.setString(Tag.MediaStorageSOPClassUID, VR.UI, sopClassUid);
       fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, sopInstanceUid);
       fmi.setString(Tag.TransferSyntaxUID, VR.UI, transferSyntaxUid);
-      fmi.setString(Tag.ImplementationClassUID, VR.UI, UIDUtilsHolder.IMPLEMENTATION_CLASS_UID);
       fmi.setString(
-          Tag.ImplementationVersionName, VR.SH, UIDUtilsHolder.IMPLEMENTATION_VERSION_NAME);
+          Tag.ImplementationClassUID,
+          VR.UI,
+          org.dicoogle.sdk.ImplementationInfo.IMPLEMENTATION_CLASS_UID);
+      fmi.setString(
+          Tag.ImplementationVersionName,
+          VR.SH,
+          org.dicoogle.sdk.ImplementationInfo.IMPLEMENTATION_VERSION_NAME);
 
       ByteArrayOutputStream output = new ByteArrayOutputStream(payload.length + 512);
       try (DicomOutputStream dos = new DicomOutputStream(output, transferSyntaxUid)) {
@@ -214,11 +219,6 @@ public class CStoreService {
       }
       return output.toByteArray();
     }
-  }
-
-  private static final class UIDUtilsHolder {
-    private static final String IMPLEMENTATION_CLASS_UID = "1.2.826.0.1.3680043.10.5432.1";
-    private static final String IMPLEMENTATION_VERSION_NAME = "DICOOGLE_NEXT";
   }
 
   private boolean isPresent(String value) {

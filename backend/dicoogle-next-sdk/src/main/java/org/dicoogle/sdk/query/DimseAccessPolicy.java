@@ -3,9 +3,8 @@ package org.dicoogle.sdk.query;
 /**
  * Evaluates whether an incoming DIMSE request should be allowed to proceed.
  *
- * <p>This is a generic, protocol-level access control hook that is orthogonal to indexing and
- * query concerns. The type parameter {@code R} is the request descriptor specific to each DIMSE
- * service:
+ * <p>This is a generic, protocol-level access control hook that is orthogonal to indexing and query
+ * concerns. The type parameter {@code R} is the request descriptor specific to each DIMSE service:
  *
  * <ul>
  *   <li>For association negotiation: {@link org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent}
@@ -35,7 +34,7 @@ public interface DimseAccessPolicy<R> {
    * The outcome of an access-policy evaluation.
    *
    * @param allowed {@code true} if the request may proceed, {@code false} if it should be denied
-   * @param reason  a human-readable explanation; empty string when the request is allowed
+   * @param reason a human-readable explanation; empty string when the request is allowed
    */
   record Decision(boolean allowed, String reason) {
 
@@ -52,7 +51,7 @@ public interface DimseAccessPolicy<R> {
      * Returns a decision that denies the request.
      *
      * @param reason a human-readable explanation shown in logs; if {@code null} a generic message
-     *               is used
+     *     is used
      * @return a deny decision
      */
     public static Decision deny(String reason) {

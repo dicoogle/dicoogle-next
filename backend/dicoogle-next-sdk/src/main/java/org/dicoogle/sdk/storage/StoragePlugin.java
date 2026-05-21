@@ -22,8 +22,8 @@ public interface StoragePlugin extends DicooglePlugin {
   /**
    * Returns the URI scheme handled by this storage backend (e.g. {@code "file"}, {@code "s3"}).
    *
-   * <p>The framework uses this value to match URIs returned from {@link WritableStoragePlugin#store}
-   * back to the plugin that can read them.
+   * <p>The framework uses this value to match URIs returned from {@link
+   * WritableStoragePlugin#store} back to the plugin that can read them.
    *
    * @return the URI scheme; never {@code null} or blank
    */

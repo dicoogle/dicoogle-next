@@ -15,14 +15,13 @@ public interface ReadableStoragePlugin extends StoragePlugin {
   /**
    * Opens the instance at the given storage URI for reading.
    *
-   * <p>The returned stream is unbuffered; callers should wrap it in a
-   * {@link java.io.BufferedInputStream} if random or repeated reads are required.
+   * <p>The returned stream is unbuffered; callers should wrap it in a {@link
+   * java.io.BufferedInputStream} if random or repeated reads are required.
    *
-   * @param location the storage URI previously returned by
-   *                 {@link WritableStoragePlugin#store} or by an index locator; must use
-   *                 the scheme declared by {@link StoragePlugin#scheme()}
-   * @return an open {@link InputStream} positioned at the start of the stored data;
-   *         never {@code null}
+   * @param location the storage URI previously returned by {@link WritableStoragePlugin#store} or
+   *     by an index locator; must use the scheme declared by {@link StoragePlugin#scheme()}
+   * @return an open {@link InputStream} positioned at the start of the stored data; never {@code
+   *     null}
    * @throws IOException if the instance cannot be found or a read error occurs
    */
   InputStream openForRead(URI location) throws IOException;
