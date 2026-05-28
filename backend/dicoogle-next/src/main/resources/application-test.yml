@@ -17,6 +17,8 @@ springdoc:
 app:
   query:
     lucene:
+      root-dir: ./target/test-index
+      index-name: dicoogle-lucene
       auto-reindex-on-startup: false
       watch-storage: false
   dimse:
@@ -30,10 +32,6 @@ app:
       root-dir: ./target/test-storage/wado
     file-rw:
       enabled: false
-  query:
-    lucene:
-      root-dir: ./target/test-index
-      index-name: dicoogle-lucene
   security:
     docs-enabled: false
     basic-auth:

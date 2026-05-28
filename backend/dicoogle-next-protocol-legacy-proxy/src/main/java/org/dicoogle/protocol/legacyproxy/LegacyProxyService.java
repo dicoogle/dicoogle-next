@@ -2,7 +2,6 @@ package org.dicoogle.protocol.legacyproxy;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Collections;
-import java.util.List;
 import java.util.Set;
 import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.slf4j.Logger;
@@ -28,9 +27,7 @@ public class LegacyProxyService {
 
   private static final Logger log = LoggerFactory.getLogger(LegacyProxyService.class);
 
-  /**
-   * Hop-by-hop headers that must not be forwarded to the upstream server per RFC 7230.
-   */
+  /** Hop-by-hop headers that must not be forwarded to the upstream server per RFC 7230. */
   private static final Set<String> HOP_BY_HOP_HEADERS =
       Set.of(
           "connection",
@@ -81,9 +78,7 @@ public class LegacyProxyService {
           webClient.method(method).uri(uri).headers(h -> h.addAll(headers));
 
       byte[] responseBody =
-          (body.length > 0
-                  ? requestSpec.bodyValue(body)
-                  : requestSpec)
+          (body.length > 0 ? requestSpec.bodyValue(body) : requestSpec)
               .retrieve()
               .bodyToMono(byte[].class)
               .block(properties.getTimeout());
@@ -108,8 +103,7 @@ public class LegacyProxyService {
   }
 
   private String buildUri(HttpServletRequest request) {
-    UriComponentsBuilder builder =
-        UriComponentsBuilder.fromUriString(request.getRequestURI());
+    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(request.getRequestURI());
     String queryString = request.getQueryString();
     if (queryString != null) {
       builder.query(queryString);
@@ -120,8 +114,7 @@ public class LegacyProxyService {
   private HttpHeaders extractHeaders(HttpServletRequest request, String token) {
     HttpHeaders headers = new HttpHeaders();
 
-    Collections.list(request.getHeaderNames())
-        .stream()
+    Collections.list(request.getHeaderNames()).stream()
         .filter(name -> !HOP_BY_HOP_HEADERS.contains(name.toLowerCase()))
         // Strip incoming Authorization — we manage it ourselves
         .filter(name -> !"authorization".equalsIgnoreCase(name))

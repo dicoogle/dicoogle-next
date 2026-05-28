@@ -159,10 +159,7 @@ public final class DicomTagTransformer {
         }
         // Use dcm4che's dictionary for the keyword; fall back to hex for private tags
         String keyword = ElementDictionary.keywordOf(tag, null);
-        String key =
-            (keyword != null && !keyword.isBlank())
-                ? keyword
-                : String.format("%08X", tag);
+        String key = (keyword != null && !keyword.isBlank()) ? keyword : String.format("%08X", tag);
 
         String value = attrs.getString(tag, (String) null);
         result.put(key, value);

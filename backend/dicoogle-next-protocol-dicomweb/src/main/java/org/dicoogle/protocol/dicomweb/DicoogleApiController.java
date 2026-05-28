@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,8 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
  * <ul>
  *   <li>{@code /DICOMWeb/Studies}, {@code /Series}, {@code /Instances} — QIDO results as flat
  *       keyword JSON (legacy Dicoogle path names).
- *   <li>{@code GET /dump?uid=<SOPInstanceUID>} — full attribute dump of a single instance,
- *       matching the legacy Dicoogle {@code /dump} endpoint exactly.
+ *   <li>{@code GET /dump?uid=<SOPInstanceUID>} — full attribute dump of a single instance, matching
+ *       the legacy Dicoogle {@code /dump} endpoint exactly.
  * </ul>
  */
 @RestController

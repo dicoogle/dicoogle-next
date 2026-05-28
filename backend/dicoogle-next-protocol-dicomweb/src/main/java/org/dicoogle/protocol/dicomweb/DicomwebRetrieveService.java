@@ -139,7 +139,7 @@ public class DicomwebRetrieveService {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED,
           "No query index locator is configured for series metadata requests");
-      }
+    }
 
     List<Attributes> metadata = new ArrayList<>();
     Collection<String> seen = new LinkedHashSet<>();
@@ -192,8 +192,7 @@ public class DicomwebRetrieveService {
 
     if (queryLocators.isEmpty()) {
       throw new ResponseStatusException(
-          HttpStatus.NOT_IMPLEMENTED,
-          "No query index locator is configured for /dump requests");
+          HttpStatus.NOT_IMPLEMENTED, "No query index locator is configured for /dump requests");
     }
 
     Collection<String> seen = new LinkedHashSet<>();
@@ -204,9 +203,7 @@ public class DicomwebRetrieveService {
         allLocations = plugin.listAllInstances();
       } catch (IOException ex) {
         throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "Failed to list instances for /dump lookup",
-            ex);
+            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to list instances for /dump lookup", ex);
       }
 
       for (URI location : allLocations) {
@@ -222,8 +219,7 @@ public class DicomwebRetrieveService {
     }
 
     throw new ResponseStatusException(
-        HttpStatus.NOT_FOUND,
-        "No instance found with SOPInstanceUID: " + sopInstanceUid);
+        HttpStatus.NOT_FOUND, "No instance found with SOPInstanceUID: " + sopInstanceUid);
   }
 
   private LocatedInstance locate(

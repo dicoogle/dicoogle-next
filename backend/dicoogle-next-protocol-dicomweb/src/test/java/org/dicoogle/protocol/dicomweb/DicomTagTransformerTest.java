@@ -164,8 +164,9 @@ class DicomTagTransformerTest {
     @Test
     void privateTagFallsBackToHex() {
       Attributes attrs = new Attributes();
-      // Write a private tag (group 0009, odd group = private)
-      attrs.setString(0x00090010, VR.LO, "private-value");
+      // Use a tag in the private data range (element > 0x00FF) that dcm4che doesn't know.
+      // Elements 0x0010-0x00FF in private groups are PrivateCreatorID in dcm4che.
+      attrs.setString(0x00091001, VR.LO, "private-value");
 
       String result = DicomTagTransformer.toDumpResponse(attrs);
 

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.Iterator;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -96,7 +95,7 @@ public class SearchController {
    * <p>Legacy Dicoogle supported two modes:
    *
    * <ul>
-   *   <li>Free-text: {@code query=felix} → mapped to {@code PatientName=felix*} (wildcard)
+   *   <li>Free-text: {@code query=felix} → mapped to {@code PatientName=felix}
    *   <li>Keyword: {@code query=PatientName:FELIX} → mapped to {@code PatientName=FELIX}
    * </ul>
    */
@@ -118,9 +117,8 @@ public class SearchController {
         }
       }
     } else {
-      // Free-text mode: treat the whole string as a PatientName wildcard search
-      String wildcard = query.endsWith("*") ? query : query + "*";
-      params.add("PatientName", wildcard);
+      // Free-text mode: treat the whole string as a PatientName search
+      params.add("PatientName", query);
       params.add("fuzzymatching", "true");
     }
 
@@ -155,8 +153,8 @@ public class SearchController {
   }
 
   /**
-   * Ensures all expected UI fields are present in each result (with null defaults), so the
-   * frontend never has to guard against missing keys.
+   * Ensures all expected UI fields are present in each result (with null defaults), so the frontend
+   * never has to guard against missing keys.
    */
   private ObjectNode normaliseResult(ObjectNode item) {
     for (Map.Entry<String, String> field : EXPECTED_FIELDS.entrySet()) {
@@ -168,8 +166,8 @@ public class SearchController {
   }
 
   /**
-   * Required top-level fields expected by the dicoogle-next UI's SearchStore.
-   * Keys are DICOM keywords; values are human-readable descriptions (unused at runtime).
+   * Required top-level fields expected by the dicoogle-next UI's SearchStore. Keys are DICOM
+   * keywords; values are human-readable descriptions (unused at runtime).
    */
   private static final Map<String, String> EXPECTED_FIELDS =
       Map.ofEntries(
