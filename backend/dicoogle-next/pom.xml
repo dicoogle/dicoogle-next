@@ -68,11 +68,6 @@
         </dependency>
         <dependency>
             <groupId>org.dicoogle</groupId>
-            <artifactId>dicoogle-next-query-lucene</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.dicoogle</groupId>
             <artifactId>dicoogle-next-protocol-dimse</artifactId>
             <version>${project.version}</version>
         </dependency>
