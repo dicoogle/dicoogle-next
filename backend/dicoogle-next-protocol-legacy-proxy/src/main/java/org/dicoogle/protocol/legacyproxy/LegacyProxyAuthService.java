@@ -33,7 +33,8 @@ public class LegacyProxyAuthService {
   private final LegacyProxyProperties properties;
   private final AtomicReference<String> cachedToken = new AtomicReference<>();
 
-  public LegacyProxyAuthService(WebClient legacyDicoogleWebClient, LegacyProxyProperties properties) {
+  public LegacyProxyAuthService(
+      WebClient legacyDicoogleWebClient, LegacyProxyProperties properties) {
     this.webClient = legacyDicoogleWebClient;
     this.properties = properties;
   }

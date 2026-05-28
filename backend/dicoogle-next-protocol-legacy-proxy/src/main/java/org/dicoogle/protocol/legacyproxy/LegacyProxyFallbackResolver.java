@@ -41,10 +41,7 @@ public class LegacyProxyFallbackResolver implements HandlerExceptionResolver, Or
 
   @Override
   public ModelAndView resolveException(
-      HttpServletRequest request,
-      HttpServletResponse response,
-      Object handler,
-      Exception ex) {
+      HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
 
     if (!(ex instanceof NoResourceFoundException)) {
       // Only handle "no route found" — let everything else propagate normally
@@ -63,8 +60,7 @@ public class LegacyProxyFallbackResolver implements HandlerExceptionResolver, Or
 
       proxyResponse
           .getHeaders()
-          .forEach(
-              (name, values) -> values.forEach(value -> response.addHeader(name, value)));
+          .forEach((name, values) -> values.forEach(value -> response.addHeader(name, value)));
 
       byte[] body = proxyResponse.getBody();
       if (body != null && body.length > 0) {
@@ -73,7 +69,11 @@ public class LegacyProxyFallbackResolver implements HandlerExceptionResolver, Or
       }
 
     } catch (Exception e) {
-      log.error("Legacy proxy fallback failed for {} {}", request.getMethod(), request.getRequestURI(), e);
+      log.error(
+          "Legacy proxy fallback failed for {} {}",
+          request.getMethod(),
+          request.getRequestURI(),
+          e);
       response.setStatus(HttpServletResponse.SC_BAD_GATEWAY);
     }
 

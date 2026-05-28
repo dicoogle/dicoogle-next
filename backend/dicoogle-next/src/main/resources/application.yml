@@ -1,15 +1,134 @@
-# Dicoogle Next application configuration
+spring:
+  application:
+    name: dicoogle-next
+  profiles:
+    default: dev
+  jackson:
+    default-property-inclusion: non_null
+server:
+  servlet:
+    context-path: /api
+
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  info:
+    env:
+      enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
 
 app:
+  security:
+    docs-enabled: false
+    allowed-origins: []
+  dimse:
+    cfind:
+      max-results: 1000
+      supported-query-levels:
+        - STUDY
+        - SERIES
+        - IMAGE
+    cmove:
+      max-results: 1000
+      destinations: {}
+    cstore:
+      enabled: false
+      ae-title: DICOOGLE
+      bind-address: 0.0.0.0
+      port: 11112
+      storage-scheme: file
+      config:
+        source: yaml
+        sync-interval-ms: 5000
+        jdbc:
+          auto-create-table: true
+          table-name: dimse_transfer_capability_config
+          config-key: dimse.cstore.acceptedTransferCapabilities
+          node-id: ${HOSTNAME:dicoogle-next-node}
+          url: ""
+          username: ""
+          password: ""
+      accepted-transfer-capabilities:
+        - sop-class-uid: 1.2.840.10008.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.7
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1.2
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.6.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.4
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.4.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.2
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.2.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+  query:
+    lucene:
+      enabled: true
+      root-dir: ./data/index
+      index-name: dicoogle-lucene
+      storage-root-dir: ./data/storage
+      auto-reindex-on-startup: true
+      watch-storage: true
+      search-limit: 10000
+      max-boolean-clauses: 2048
+  storage:
+    file-ro:
+      root-dir: ./data/storage
+    file-rw:
+      enabled: false
+      root-dir: ./data/storage
+      scheme: file
   plugins:
     startup-validation:
       require-writable-provider: false
+      writable-scheme: file
     storage:
       primary-scheme: file
+      enabled-schemes: []
+      disabled-schemes: []
 
-# Legacy Dicoogle proxy — disabled by default.
-# Enable when running alongside a legacy Dicoogle instance to proxy
-# any requests that dicoogle-next does not yet handle natively.
 dicoogle:
   legacy-proxy:
     enabled: false

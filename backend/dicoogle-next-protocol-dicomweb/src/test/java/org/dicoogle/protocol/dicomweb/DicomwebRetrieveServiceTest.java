@@ -177,6 +177,11 @@ class DicomwebRetrieveServiceTest {
     public List<URI> listSeriesInstances(String studyInstanceUid, String seriesInstanceUid) {
       return List.of(LOCATION);
     }
+
+    @Override
+    public List<URI> listAllInstances() {
+      return List.of(LOCATION);
+    }
   }
 
   private static final class EmptyHierarchicalStoragePlugin

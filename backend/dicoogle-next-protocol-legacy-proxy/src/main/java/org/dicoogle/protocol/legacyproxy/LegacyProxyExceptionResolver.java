@@ -45,18 +45,15 @@ public class LegacyProxyExceptionResolver implements HandlerExceptionResolver, O
   }
 
   /**
-   * Intercepts {@link NoResourceFoundException} and proxies the request to legacy Dicoogle.
-   * All other exception types are ignored so that normal Spring MVC error handling takes over.
+   * Intercepts {@link NoResourceFoundException} and proxies the request to legacy Dicoogle. All
+   * other exception types are ignored so that normal Spring MVC error handling takes over.
    *
-   * @return an empty (already-committed) {@link ModelAndView} when the request was proxied,
-   *     or {@code null} to let other resolvers handle the exception.
+   * @return an empty (already-committed) {@link ModelAndView} when the request was proxied, or
+   *     {@code null} to let other resolvers handle the exception.
    */
   @Override
   public ModelAndView resolveException(
-      HttpServletRequest request,
-      HttpServletResponse response,
-      Object handler,
-      Exception ex) {
+      HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
 
     if (!(ex instanceof NoResourceFoundException)) {
       return null;
@@ -88,8 +85,7 @@ public class LegacyProxyExceptionResolver implements HandlerExceptionResolver, O
     response.setStatus(entity.getStatusCode().value());
     entity
         .getHeaders()
-        .forEach(
-            (name, values) -> values.forEach(value -> response.addHeader(name, value)));
+        .forEach((name, values) -> values.forEach(value -> response.addHeader(name, value)));
 
     byte[] body = entity.getBody();
     if (body != null && body.length > 0) {
