@@ -23,7 +23,7 @@ class DicomwebQidoServiceTest {
     Attributes a2 = dataset("1.2.3", "1.2.3.2", "1.2.3.2.1", "FELIX", "P1");
 
     DicomwebQidoService service =
-        new DicomwebQidoService(List.of(new StubFindPlugin(List.of(a1, a2))));
+        new DicomwebQidoService(List.of(new StubQueryPlugin(List.of(a1, a2))));
     String json = service.searchStudies(new LinkedMultiValueMap<>());
 
     JsonArray array = Json.createReader(new StringReader(json)).readArray();
@@ -47,7 +47,8 @@ class DicomwebQidoServiceTest {
   void qidoIncludeFieldProjectsAndKeepsRequiredTags() {
     Attributes a1 = dataset("1.2.3", "1.2.3.1", "1.2.3.1.1", "FELIX", "P1");
 
-    DicomwebQidoService service = new DicomwebQidoService(List.of(new StubFindPlugin(List.of(a1))));
+    DicomwebQidoService service =
+        new DicomwebQidoService(List.of(new StubQueryPlugin(List.of(a1))));
     LinkedMultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("includefield", "PatientName");
 
@@ -64,7 +65,7 @@ class DicomwebQidoServiceTest {
     Attributes a3 = dataset("1.2.5", "1.2.5.1", "1.2.5.1.1", "JOAO", "P3");
 
     DicomwebQidoService service =
-        new DicomwebQidoService(List.of(new StubFindPlugin(List.of(a1, a2, a3))));
+        new DicomwebQidoService(List.of(new StubQueryPlugin(List.of(a1, a2, a3))));
     LinkedMultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("offset", "1");
     params.add("limit", "1");
@@ -76,7 +77,7 @@ class DicomwebQidoServiceTest {
 
   @Test
   void qidoRejectsInvalidLimit() {
-    DicomwebQidoService service = new DicomwebQidoService(List.of(new StubFindPlugin(List.of())));
+    DicomwebQidoService service = new DicomwebQidoService(List.of(new StubQueryPlugin(List.of())));
     LinkedMultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     params.add("limit", "abc");
 
@@ -95,7 +96,7 @@ class DicomwebQidoServiceTest {
     return attrs;
   }
 
-  private record StubFindPlugin(List<Attributes> values) implements QueryService {
+  private record StubQueryPlugin(List<Attributes> values) implements QueryService {
     @Override
     public org.dicoogle.sdk.PluginMetadata metadata() {
       return new org.dicoogle.sdk.PluginMetadata("stub", "stub", "0", "query-index");
