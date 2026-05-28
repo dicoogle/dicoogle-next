@@ -40,7 +40,7 @@ class QueryIndexControllerTest {
   void indexStatusReturnsOkForAuthenticatedUser() throws Exception {
     mockMvc
         .perform(get("/system/index/status").with(httpBasic("developer", "developer")))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk());
   }
 
   @Test
@@ -52,7 +52,7 @@ class QueryIndexControllerTest {
   void reindexReturnsOkForAuthenticatedUser() throws Exception {
     mockMvc
         .perform(post("/system/index/reindex").with(httpBasic("developer", "developer")))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk());
   }
 
   @Test
@@ -82,7 +82,7 @@ class QueryIndexControllerTest {
                 .with(httpBasic("developer", "developer"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -91,7 +91,7 @@ class QueryIndexControllerTest {
         """
         {
           "uris": ["%s"],
-            "pluginId": "query-file-rw"
+            "pluginId": "query-lucene"
         }
         """
             .formatted(testDataRoot.toString().replace("\\", "\\\\"));
@@ -102,6 +102,6 @@ class QueryIndexControllerTest {
                 .with(httpBasic("developer", "developer"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk());
   }
 }

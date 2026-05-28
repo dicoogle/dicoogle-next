@@ -98,7 +98,7 @@ public class LuceneQueryIndexPlugin
 
   @Override
   public String indexId() {
-    return "lucene";
+    return "query-lucene";
   }
 
   @Override
