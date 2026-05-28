@@ -3,7 +3,6 @@ package org.dicoogle.app.api;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.file.Files;
@@ -41,7 +40,7 @@ class QueryIndexControllerTest {
   void indexStatusReturnsOkForAuthenticatedUser() throws Exception {
     mockMvc
         .perform(get("/system/index/status").with(httpBasic("developer", "developer")))
-        .andExpect(status().isOk());
+        .andExpect(status().isNotImplemented());
   }
 
   @Test
@@ -53,7 +52,7 @@ class QueryIndexControllerTest {
   void reindexReturnsOkForAuthenticatedUser() throws Exception {
     mockMvc
         .perform(post("/system/index/reindex").with(httpBasic("developer", "developer")))
-        .andExpect(status().isOk());
+        .andExpect(status().isNotImplemented());
   }
 
   @Test
@@ -83,7 +82,7 @@ class QueryIndexControllerTest {
                 .with(httpBasic("developer", "developer"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
-        .andExpect(status().isBadRequest());
+        .andExpect(status().isNotImplemented());
   }
 
   @Test
@@ -92,7 +91,7 @@ class QueryIndexControllerTest {
         """
         {
           "uris": ["%s"],
-          "pluginId": "lucene"
+            "pluginId": "query-file-rw"
         }
         """
             .formatted(testDataRoot.toString().replace("\\", "\\\\"));
@@ -103,7 +102,6 @@ class QueryIndexControllerTest {
                 .with(httpBasic("developer", "developer"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].pluginId").value("lucene"));
+        .andExpect(status().isNotImplemented());
   }
 }

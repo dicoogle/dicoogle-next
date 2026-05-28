@@ -17,7 +17,8 @@ import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.json.JSONWriter;
-import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.dicoogle.sdk.query.QueryRetrieveLevel;
+import org.dicoogle.sdk.query.QueryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
@@ -30,34 +31,29 @@ public class DicomwebQidoService {
   private static final Set<String> RESERVED_PARAMS =
       Set.of("fuzzymatching", "limit", "offset", "includefield");
 
-  private final List<DimseFindServicePlugin> plugins;
+  private final List<QueryService> plugins;
 
-  public DicomwebQidoService(List<DimseFindServicePlugin> plugins) {
+  public DicomwebQidoService(List<QueryService> plugins) {
     this.plugins = List.copyOf(plugins);
   }
 
   public String searchStudies(MultiValueMap<String, String> queryParams) {
-    return search(DimseFindServicePlugin.QueryRetrieveLevel.STUDY, null, null, queryParams);
+    return search(QueryRetrieveLevel.STUDY, null, null, queryParams);
   }
 
   public String searchSeries(String studyInstanceUid, MultiValueMap<String, String> queryParams) {
-    return search(
-        DimseFindServicePlugin.QueryRetrieveLevel.SERIES, studyInstanceUid, null, queryParams);
+    return search(QueryRetrieveLevel.SERIES, studyInstanceUid, null, queryParams);
   }
 
   public String searchInstances(
       String studyInstanceUid,
       String seriesInstanceUid,
       MultiValueMap<String, String> queryParams) {
-    return search(
-        DimseFindServicePlugin.QueryRetrieveLevel.IMAGE,
-        studyInstanceUid,
-        seriesInstanceUid,
-        queryParams);
+    return search(QueryRetrieveLevel.IMAGE, studyInstanceUid, seriesInstanceUid, queryParams);
   }
 
   private String search(
-      DimseFindServicePlugin.QueryRetrieveLevel level,
+      QueryRetrieveLevel level,
       String pathStudyUid,
       String pathSeriesUid,
       MultiValueMap<String, String> queryParams) {
@@ -67,9 +63,9 @@ public class DicomwebQidoService {
     }
 
     ParsedQuery query = parseQuery(level, pathStudyUid, pathSeriesUid, queryParams);
-    DimseFindServicePlugin.FindRequest request =
-        new DimseFindServicePlugin.FindRequest(
-            DimseFindServicePlugin.InformationModel.STUDY_ROOT,
+    QueryService.QueryRequest request =
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
             level,
             "QIDO-SCU",
             "DICOOGLE",
@@ -89,10 +85,10 @@ public class DicomwebQidoService {
     return toDicomJson(paged);
   }
 
-  private List<Attributes> runQuery(DimseFindServicePlugin.FindRequest request) {
-    for (DimseFindServicePlugin plugin : plugins) {
+  private List<Attributes> runQuery(QueryService.QueryRequest request) {
+    for (QueryService plugin : plugins) {
       try {
-        List<Attributes> result = plugin.find(request);
+        List<Attributes> result = plugin.query(request);
         if (result != null) {
           return result;
         }
@@ -105,7 +101,7 @@ public class DicomwebQidoService {
   }
 
   private ParsedQuery parseQuery(
-      DimseFindServicePlugin.QueryRetrieveLevel level,
+      QueryRetrieveLevel level,
       String pathStudyUid,
       String pathSeriesUid,
       MultiValueMap<String, String> queryParams) {
@@ -194,8 +190,7 @@ public class DicomwebQidoService {
     return new IncludeFields(all, tags);
   }
 
-  private List<Attributes> deduplicateByLevel(
-      List<Attributes> values, DimseFindServicePlugin.QueryRetrieveLevel level) {
+  private List<Attributes> deduplicateByLevel(List<Attributes> values, QueryRetrieveLevel level) {
     Map<String, Attributes> byKey = new LinkedHashMap<>();
     for (Attributes attrs : values) {
       String key = dedupKey(attrs, level);
@@ -207,7 +202,7 @@ public class DicomwebQidoService {
     return List.copyOf(byKey.values());
   }
 
-  private String dedupKey(Attributes attrs, DimseFindServicePlugin.QueryRetrieveLevel level) {
+  private String dedupKey(Attributes attrs, QueryRetrieveLevel level) {
     String study = attrs.getString(Tag.StudyInstanceUID, null);
     String series = attrs.getString(Tag.SeriesInstanceUID, null);
     String sop = attrs.getString(Tag.SOPInstanceUID, null);
@@ -221,9 +216,7 @@ public class DicomwebQidoService {
   }
 
   private List<Attributes> applyIncludeFieldProjection(
-      List<Attributes> values,
-      DimseFindServicePlugin.QueryRetrieveLevel level,
-      IncludeFields includeFields) {
+      List<Attributes> values, QueryRetrieveLevel level, IncludeFields includeFields) {
     if (includeFields.includeAll() || includeFields.tags().isEmpty()) {
       return values;
     }
@@ -243,7 +236,7 @@ public class DicomwebQidoService {
     return out;
   }
 
-  private Set<Integer> requiredTags(DimseFindServicePlugin.QueryRetrieveLevel level) {
+  private Set<Integer> requiredTags(QueryRetrieveLevel level) {
     return switch (level) {
       case STUDY -> Set.of(Tag.StudyInstanceUID);
       case SERIES -> Set.of(Tag.StudyInstanceUID, Tag.SeriesInstanceUID);

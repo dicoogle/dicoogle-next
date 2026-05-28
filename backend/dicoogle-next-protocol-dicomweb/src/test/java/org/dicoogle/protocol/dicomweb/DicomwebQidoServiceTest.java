@@ -11,7 +11,7 @@ import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
-import org.dicoogle.sdk.query.DimseFindServicePlugin;
+import org.dicoogle.sdk.query.QueryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.util.LinkedMultiValueMap;
 
@@ -95,14 +95,14 @@ class DicomwebQidoServiceTest {
     return attrs;
   }
 
-  private record StubFindPlugin(List<Attributes> values) implements DimseFindServicePlugin {
+  private record StubFindPlugin(List<Attributes> values) implements QueryService {
     @Override
     public org.dicoogle.sdk.PluginMetadata metadata() {
       return new org.dicoogle.sdk.PluginMetadata("stub", "stub", "0", "query-index");
     }
 
     @Override
-    public List<Attributes> find(FindRequest request) {
+    public List<Attributes> query(QueryRequest request) {
       return values;
     }
   }

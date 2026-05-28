@@ -15,12 +15,6 @@ springdoc:
     enabled: false
 
 app:
-  query:
-    lucene:
-      enabled: true
-      root-dir: ./target/test-index/${random.uuid}
-      auto-reindex-on-startup: false
-      watch-storage: false
   dimse:
     cfind:
     cmove:
