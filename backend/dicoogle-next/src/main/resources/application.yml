@@ -33,6 +33,8 @@ springdoc:
     tags-sorter: alpha
 
 app:
+  users:
+    path: ./data/users.yml
   security:
     docs-enabled: false
     allowed-origins: []

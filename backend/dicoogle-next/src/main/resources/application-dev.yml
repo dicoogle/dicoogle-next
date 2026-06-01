@@ -42,6 +42,7 @@ app:
       disabled-schemes: []
   security:
     docs-enabled: true
-    basic-auth:
+  users:
+    seed:
       username: developer
       password: developer

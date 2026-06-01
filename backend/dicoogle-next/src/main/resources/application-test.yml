@@ -32,8 +32,9 @@ app:
       root-dir: ./target/test-storage/wado
     file-rw:
       enabled: false
-  security:
-    docs-enabled: false
-    basic-auth:
+  users:
+    seed:
       username: developer
       password: developer
+  security:
+    docs-enabled: false
