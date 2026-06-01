@@ -28,7 +28,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * intercept {@link NoResourceFoundException} before it gets turned into a generic 500 response.
  */
 @Component
-@ConditionalOnProperty(prefix = "dicoogle.legacy-proxy", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(
+    prefix = "dicoogle.legacy-proxy",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 public class LegacyProxyExceptionResolver implements HandlerExceptionResolver, Ordered {
 
   private static final Logger log = LoggerFactory.getLogger(LegacyProxyExceptionResolver.class);

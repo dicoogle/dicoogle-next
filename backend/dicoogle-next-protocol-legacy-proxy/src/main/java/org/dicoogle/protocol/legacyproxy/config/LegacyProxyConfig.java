@@ -12,7 +12,11 @@ import reactor.netty.http.client.HttpClient;
 
 @Configuration
 @EnableConfigurationProperties(LegacyProxyProperties.class)
-@ConditionalOnProperty(prefix = "dicoogle.legacy-proxy", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(
+    prefix = "dicoogle.legacy-proxy",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 public class LegacyProxyConfig {
 
   private final LegacyProxyProperties properties;

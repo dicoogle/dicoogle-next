@@ -6,8 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "dicoogle.legacy-proxy")
 public class LegacyProxyProperties {
 
-  private boolean enabled = false;
-  private String baseUrl;
+  private boolean enabled = true;
+  private String baseUrl = "http://localhost:8081";
   private Duration timeout = Duration.ofSeconds(30);
   private final Auth auth = new Auth();
 
