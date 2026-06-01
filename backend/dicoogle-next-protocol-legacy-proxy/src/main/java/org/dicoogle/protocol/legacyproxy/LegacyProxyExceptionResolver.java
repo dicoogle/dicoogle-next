@@ -28,7 +28,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * and this resolver only activates as a last resort.
  */
 @Component
-@ConditionalOnProperty(prefix = "app.legacy-proxy", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "dicoogle.legacy-proxy", name = "enabled", havingValue = "true")
 public class LegacyProxyExceptionResolver implements HandlerExceptionResolver, Ordered {
 
   private static final Logger log = LoggerFactory.getLogger(LegacyProxyExceptionResolver.class);
