@@ -22,7 +22,11 @@ import org.springframework.web.util.UriComponentsBuilder;
  * <p>Handles token injection and automatic re-authentication on 401.
  */
 @Service
-@ConditionalOnProperty(prefix = "dicoogle.legacy-proxy", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(
+    prefix = "dicoogle.legacy-proxy",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 public class LegacyProxyService {
 
   private static final Logger log = LoggerFactory.getLogger(LegacyProxyService.class);

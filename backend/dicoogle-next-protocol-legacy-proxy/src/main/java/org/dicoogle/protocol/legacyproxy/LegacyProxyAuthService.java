@@ -21,7 +21,11 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
  * re-authenticates automatically if a 401 is encountered during proxying.
  */
 @Service
-@ConditionalOnProperty(prefix = "dicoogle.legacy-proxy", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(
+    prefix = "dicoogle.legacy-proxy",
+    name = "enabled",
+    havingValue = "true",
+    matchIfMissing = true)
 public class LegacyProxyAuthService {
 
   private static final Logger log = LoggerFactory.getLogger(LegacyProxyAuthService.class);
