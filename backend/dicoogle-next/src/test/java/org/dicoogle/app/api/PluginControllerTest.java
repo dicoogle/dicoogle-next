@@ -1,6 +1,6 @@
 package org.dicoogle.app.api;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -27,7 +27,7 @@ class PluginControllerTest {
   @Test
   void pluginStatusListsLoadedPlugins() throws Exception {
     mockMvc
-        .perform(get("/system/plugins").with(httpBasic("developer", "developer")))
+        .perform(get("/system/plugins").with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[?(@.id=='storage-file-ro')]").exists())
         .andExpect(jsonPath("$[?(@.id=='query-file-rw')]").exists())

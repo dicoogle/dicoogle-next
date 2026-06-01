@@ -34,7 +34,7 @@ app:
       enabled: false
   users:
     seed:
-      username: developer
-      password: developer
+      username: dicoogle
+      password: dicoogle
   security:
     docs-enabled: false

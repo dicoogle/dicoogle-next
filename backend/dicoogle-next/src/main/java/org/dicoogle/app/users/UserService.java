@@ -64,6 +64,23 @@ public class UserService implements UserDetailsService {
     return Collections.unmodifiableList(cached.get());
   }
 
+  public UserSettings findByUsername(String username) {
+    for (UserSettings user : cached.get()) {
+      if (user.getUsername().equals(username)) {
+        return user;
+      }
+    }
+    return null;
+  }
+
+  public boolean authenticate(String username, String password) {
+    UserSettings user = findByUsername(username);
+    if (user == null || !user.isEnabled()) {
+      return false;
+    }
+    return passwordEncoder.matches(password, user.getPasswordHash());
+  }
+
   public synchronized UserSettings createUser(String username, String password, boolean admin) {
     if (username == null || username.isBlank()) {
       throw new IllegalArgumentException("username must not be empty");
