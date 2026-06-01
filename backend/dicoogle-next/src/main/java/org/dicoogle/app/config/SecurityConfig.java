@@ -7,14 +7,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -37,6 +32,12 @@ public class SecurityConfig {
                   requests
                       .requestMatchers(HttpMethod.GET, "/system/ping")
                       .permitAll()
+                      .requestMatchers(HttpMethod.GET, "/login")
+                      .permitAll()
+                      .requestMatchers(HttpMethod.POST, "/login")
+                      .permitAll()
+                      .requestMatchers(HttpMethod.POST, "/logout")
+                      .authenticated()
                       .requestMatchers(HttpMethod.GET, "/system/index/status")
                       .authenticated()
                       .requestMatchers(HttpMethod.POST, "/system/index/reindex")
@@ -59,6 +60,9 @@ public class SecurityConfig {
                       .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/info")
                       .permitAll();
                   requests.requestMatchers(HttpMethod.GET, "/dicom-web/**").authenticated();
+                  requests.requestMatchers(HttpMethod.GET, "/user").hasRole("ADMIN");
+                  requests.requestMatchers(HttpMethod.POST, "/user").hasRole("ADMIN");
+                  requests.requestMatchers(HttpMethod.DELETE, "/user/**").hasRole("ADMIN");
                   if (properties.isDocsEnabled()) {
                     requests.requestMatchers(DOCS_ENDPOINTS).permitAll();
                   }
@@ -85,26 +89,6 @@ public class SecurityConfig {
     var source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);
     return source;
-  }
-
-  @Bean
-  UserDetailsService userDetailsService(
-      PasswordEncoder passwordEncoder, SecurityProperties properties) {
-    String username = properties.getBasicAuth().getUsername();
-    String password = properties.getBasicAuth().getPassword();
-
-    if (!StringUtils.hasText(username) || !StringUtils.hasText(password)) {
-      throw new IllegalStateException(
-          "Missing basic auth credentials. Configure app.security.basic-auth.username and "
-              + "app.security.basic-auth.password for the active profile.");
-    }
-
-    UserDetails developer =
-        User.withUsername(username)
-            .password(passwordEncoder.encode(password))
-            .roles("DEVELOPER")
-            .build();
-    return new InMemoryUserDetailsManager(developer);
   }
 
   @Bean
