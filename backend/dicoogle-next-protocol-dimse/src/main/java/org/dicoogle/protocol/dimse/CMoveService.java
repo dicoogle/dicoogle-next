@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import org.dcm4che3.data.Attributes;
@@ -32,7 +31,7 @@ public class CMoveService {
   private final Set<String> supportedLevels;
   private final int maxResults;
   private final List<String> dimProviders;
-  private final Map<String, DimseCMoveProperties.Destination> destinations;
+  private final DimseCMoveProperties moveProperties;
   private final MeterRegistry meterRegistry;
   private final LegacyProxyService legacyProxyService;
   private final LegacyProxyProperties legacyProxyProperties;
@@ -55,7 +54,7 @@ public class CMoveService {
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     this.maxResults = properties.getMaxResults();
     this.dimProviders = dimseProperties.getDimProviders();
-    this.destinations = Map.copyOf(properties.getDestinations());
+    this.moveProperties = properties;
     this.meterRegistry = meterRegistry;
     this.legacyProxyService = legacyProxyService;
   }
@@ -153,7 +152,8 @@ public class CMoveService {
       throw new DicomServiceException(
           Status.MoveDestinationUnknown, "Move Destination is required");
     }
-    DimseCMoveProperties.Destination destination = destinations.get(moveDestinationAet);
+    DimseCMoveProperties.Destination destination =
+        moveProperties.getDestinations().get(moveDestinationAet);
     if (destination == null || destination.getHost() == null || destination.getHost().isBlank()) {
       throw new DicomServiceException(
           Status.MoveDestinationUnknown, "Unknown move destination: " + moveDestinationAet);
@@ -170,7 +170,7 @@ public class CMoveService {
     if (moveDestinationAet == null || moveDestinationAet.isBlank()) {
       return false;
     }
-    return destinations.containsKey(moveDestinationAet);
+    return moveProperties.getDestinations().containsKey(moveDestinationAet);
   }
 
   private void validateIdentifierByLevel(Attributes keys, String level)
