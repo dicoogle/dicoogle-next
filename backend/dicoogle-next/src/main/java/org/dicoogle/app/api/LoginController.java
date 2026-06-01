@@ -2,10 +2,10 @@ package org.dicoogle.app.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.Map;
 import org.dicoogle.app.auth.TokenService;
 import org.dicoogle.app.users.UserService;
-import org.dicoogle.app.users.UserSettings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,17 +33,7 @@ public class LoginController {
           .body(Map.of("success", false, "error", "invalid credentials"));
     }
     String token = tokenService.createToken(username);
-    UserSettings user = userService.findByUsername(username);
-    return ResponseEntity.ok(
-        Map.of(
-            "success",
-            true,
-            "token",
-            token,
-            "user",
-            username,
-            "admin",
-            user != null && user.isAdmin()));
+    return ResponseEntity.ok(Map.of("success", true, "token", token));
   }
 
   @GetMapping("/login")
@@ -56,14 +46,12 @@ public class LoginController {
         auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     return ResponseEntity.ok(
         Map.of(
-            "success",
-            true,
             "user",
             auth.getName(),
             "admin",
             admin,
             "roles",
-            auth.getAuthorities().stream().map(Object::toString).toList()));
+            admin ? List.of("admin") : List.of("user")));
   }
 
   @PostMapping("/logout")
