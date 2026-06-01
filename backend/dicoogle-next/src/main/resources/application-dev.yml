@@ -44,5 +44,5 @@ app:
     docs-enabled: true
   users:
     seed:
-      username: developer
-      password: developer
+      username: dicoogle
+      password: dicoogle

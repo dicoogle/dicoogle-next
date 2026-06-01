@@ -1,6 +1,6 @@
 package org.dicoogle.app.api;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,7 +39,7 @@ class QueryIndexControllerTest {
   @Test
   void indexStatusReturnsOkForAuthenticatedUser() throws Exception {
     mockMvc
-        .perform(get("/system/index/status").with(httpBasic("developer", "developer")))
+        .perform(get("/system/index/status").with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk());
   }
 
@@ -51,7 +51,7 @@ class QueryIndexControllerTest {
   @Test
   void reindexReturnsOkForAuthenticatedUser() throws Exception {
     mockMvc
-        .perform(post("/system/index/reindex").with(httpBasic("developer", "developer")))
+        .perform(post("/system/index/reindex").with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk());
   }
 
@@ -79,7 +79,7 @@ class QueryIndexControllerTest {
     mockMvc
         .perform(
             post("/system/index/index")
-                .with(httpBasic("developer", "developer"))
+                .with(user("dicoogle").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
         .andExpect(status().isBadRequest());
@@ -99,7 +99,7 @@ class QueryIndexControllerTest {
     mockMvc
         .perform(
             post("/system/index/index")
-                .with(httpBasic("developer", "developer"))
+                .with(user("dicoogle").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
         .andExpect(status().isOk());

@@ -1,6 +1,6 @@
 package org.dicoogle.app.api;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -36,9 +36,9 @@ class SystemControllerTest {
   }
 
   @Test
-  void statusAllowsBasicAuthentication() throws Exception {
+  void statusAllowsAuthentication() throws Exception {
     mockMvc
-        .perform(get("/system/status").with(httpBasic("developer", "developer")))
+        .perform(get("/system/status").with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.name").value("dicoogle-next"))
         .andExpect(jsonPath("$.dimseTransferConfigSource").exists());
@@ -47,7 +47,7 @@ class SystemControllerTest {
   @Test
   void unsupportedMethodReturnsProblemDetails() throws Exception {
     mockMvc
-        .perform(post("/system/ping").with(httpBasic("developer", "developer")))
+        .perform(post("/system/ping").with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isMethodNotAllowed())
         .andExpect(content().contentType("application/problem+json"))
         .andExpect(jsonPath("$.title").value("Method not allowed"))

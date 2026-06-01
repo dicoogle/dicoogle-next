@@ -1,6 +1,6 @@
 package org.dicoogle.app.api;
 
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -50,7 +50,7 @@ class DicomwebControllerTest {
     mockMvc
         .perform(
             get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/series/1.2.826.0.1.3680043.2.1125.3/instances/1.2.826.0.1.3680043.2.1125.1")
-                .with(httpBasic("developer", "developer")))
+                .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/dicom"));
   }
@@ -60,7 +60,7 @@ class DicomwebControllerTest {
     mockMvc
         .perform(
             get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/series/1.2.826.0.1.3680043.2.1125.3/instances/1.2.826.0.1.3680043.2.1125.1/metadata")
-                .with(httpBasic("developer", "developer")))
+                .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/dicom+json"))
         .andExpect(jsonPath("$.00100020.vr").value("LO"))
@@ -76,7 +76,7 @@ class DicomwebControllerTest {
     mockMvc
         .perform(
             get("/dicom-web/studies/1.2.3/series/4.5.6/instances/7.8.9")
-                .with(httpBasic("developer", "developer")))
+                .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isNotFound())
         .andExpect(content().contentType("application/problem+json"))
         .andExpect(jsonPath("$.status").value(404))
@@ -91,7 +91,7 @@ class DicomwebControllerTest {
             get("/dicom-web/studies")
                 .queryParam("PatientName", "FELIX")
                 .queryParam("limit", "10")
-                .with(httpBasic("developer", "developer")))
+                .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/dicom+json"));
   }
@@ -102,7 +102,7 @@ class DicomwebControllerTest {
         .perform(
             get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/series")
                 .queryParam("Modality", "OT")
-                .with(httpBasic("developer", "developer")))
+                .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/dicom+json"));
   }
@@ -113,7 +113,7 @@ class DicomwebControllerTest {
         .perform(
             get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/series/1.2.826.0.1.3680043.2.1125.3/instances")
                 .queryParam("SOPInstanceUID", "1.2.826.0.1.3680043.2.1125.1")
-                .with(httpBasic("developer", "developer")))
+                .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/dicom+json"));
   }
@@ -124,7 +124,7 @@ class DicomwebControllerTest {
         .perform(
             get("/dicom-web/studies")
                 .queryParam("limit", "abc")
-                .with(httpBasic("developer", "developer")))
+                .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isBadRequest());
   }
 
