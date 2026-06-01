@@ -103,7 +103,17 @@ public class LegacyProxyService {
   }
 
   private String buildUri(HttpServletRequest request) {
-    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(request.getRequestURI());
+    String rawPath = request.getRequestURI();
+    String contextPath = request.getContextPath();
+    String path = rawPath;
+    if (contextPath != null && !contextPath.isBlank() && rawPath.startsWith(contextPath)) {
+      path = rawPath.substring(contextPath.length());
+      if (path.isEmpty()) {
+        path = "/";
+      }
+    }
+
+    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(path);
     String queryString = request.getQueryString();
     if (queryString != null) {
       builder.query(queryString);
