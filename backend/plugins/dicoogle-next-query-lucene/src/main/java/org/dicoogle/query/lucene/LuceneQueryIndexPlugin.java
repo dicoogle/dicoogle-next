@@ -45,6 +45,7 @@ import org.dcm4che3.io.DicomInputStream;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryIndexMaintenance;
+import org.dicoogle.sdk.query.QueryIndexSettings;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
@@ -60,7 +61,8 @@ public class LuceneQueryIndexPlugin
         QueryService,
         QueryMoveService,
         QueryIndexStorageLocator,
-        QueryIndexMaintenance {
+        QueryIndexMaintenance,
+        QueryIndexSettings {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LuceneQueryIndexPlugin.class);
   private static final PluginMetadata METADATA =
@@ -100,6 +102,30 @@ public class LuceneQueryIndexPlugin
   @Override
   public String indexId() {
     return "lucene";
+  }
+
+  // -------------------------------------------------------------------------
+  // QueryIndexSettings
+  // -------------------------------------------------------------------------
+
+  @Override
+  public String getIndexPath() {
+    return properties.getRootDir();
+  }
+
+  @Override
+  public void setIndexPath(String path) {
+    properties.setRootDir(path);
+  }
+
+  @Override
+  public boolean isWatchEnabled() {
+    return properties.isWatchStorage();
+  }
+
+  @Override
+  public void setWatchEnabled(boolean watch) {
+    properties.setWatchStorage(watch);
   }
 
   @Override

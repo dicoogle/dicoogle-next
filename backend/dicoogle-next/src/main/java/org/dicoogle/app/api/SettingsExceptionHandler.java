@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
     basePackageClasses = {
       AETitleController.class,
       DicomServicesController.class,
+      IndexSettingsController.class,
       StorageDestinationsController.class,
       TransferOptionsController.class
     })
