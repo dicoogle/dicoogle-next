@@ -109,6 +109,43 @@ public class DimseTransferCapabilityService {
     return toResponse(saved);
   }
 
+  public TransferCapabilityListResponse applyLegacyToggle(
+      String sopClassUid, String option, boolean value, String actor) {
+    if (!"enabled".equalsIgnoreCase(option)) {
+      throw new IllegalArgumentException("option must be 'enabled'");
+    }
+    validateUid(sopClassUid, "SOP Class UID");
+
+    DimseTransferCapabilityStore.StoredCapabilities current = store.load();
+    List<DimseCStoreProperties.AcceptedTransferCapability> updated =
+        new ArrayList<>(current.capabilities());
+
+    boolean changed = false;
+    if (value) {
+      boolean exists =
+          updated.stream().anyMatch(capability -> sopClassUid.equals(capability.getSopClassUid()));
+      if (!exists) {
+        updated.add(
+            new DimseCStoreProperties.AcceptedTransferCapability(
+                sopClassUid, List.of("1.2.840.10008.1.2")));
+        changed = true;
+      }
+    } else {
+      int before = updated.size();
+      updated.removeIf(capability -> sopClassUid.equals(capability.getSopClassUid()));
+      changed = before != updated.size();
+    }
+
+    if (!changed) {
+      return toResponse(current);
+    }
+
+    DimseTransferCapabilityStore.StoredCapabilities saved =
+        saveWithConflictMapping(normalizeCapabilities(updated), current.version(), actor);
+    apply(saved);
+    return toResponse(saved);
+  }
+
   @Scheduled(fixedDelayString = "${app.dimse.cstore.config.sync-interval-ms:5000}")
   public void refreshFromStore() {
     if (properties.getSource() != DimseTransferCapabilityConfigProperties.Source.JDBC) {

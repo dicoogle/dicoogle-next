@@ -33,6 +33,9 @@ springdoc:
     tags-sorter: alpha
 
 app:
+  runtime-settings:
+    store: yaml
+    path: ./data/runtime-settings.yml
   users:
     path: ./data/users.yml
   security:
