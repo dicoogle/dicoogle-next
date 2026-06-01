@@ -23,9 +23,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * configured legacy Dicoogle instance, effectively making dicoogle-next a superset of legacy
  * Dicoogle for any paths not yet implemented.
  *
- * <p>Ordering is set to {@link Ordered#LOWEST_PRECEDENCE} so that all other exception resolvers
- * (e.g. {@code ResponseEntityExceptionHandler}, {@code DefaultHandlerExceptionResolver}) run first
- * and this resolver only activates as a last resort.
+ * <p>Ordering is set to {@link Ordered#HIGHEST_PRECEDENCE} so that this resolver runs before any
+ * {@code @ExceptionHandler} catch-all (e.g. the one in {@code ApiExceptionHandler}) and can
+ * intercept {@link NoResourceFoundException} before it gets turned into a generic 500 response.
  */
 @Component
 @ConditionalOnProperty(prefix = "dicoogle.legacy-proxy", name = "enabled", havingValue = "true")
@@ -41,7 +41,7 @@ public class LegacyProxyExceptionResolver implements HandlerExceptionResolver, O
 
   @Override
   public int getOrder() {
-    return Ordered.LOWEST_PRECEDENCE;
+    return Ordered.HIGHEST_PRECEDENCE;
   }
 
   /**
