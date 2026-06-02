@@ -2,15 +2,20 @@ package org.dicoogle.app.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.net.URI;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexPathItem;
 import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexPathRequest;
-import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexReindexItem;
 import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexStatusItem;
+import org.dicoogle.app.service.IndexTaskService;
 import org.dicoogle.app.service.QueryIndexMaintenanceService;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
+import org.dicoogle.sdk.query.QueryIndexMaintenance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -29,16 +34,19 @@ public class QueryIndexController {
   private static final Logger log = LoggerFactory.getLogger(QueryIndexController.class);
 
   private final QueryIndexMaintenanceService service;
+  private final IndexTaskService taskService;
   private final LegacyProxyService legacyProxyService;
   private final LegacyProxyProperties legacyProxyProperties;
 
   public QueryIndexController(
       QueryIndexMaintenanceService service,
+      IndexTaskService taskService,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           LegacyProxyService legacyProxyService,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
           LegacyProxyProperties legacyProxyProperties) {
     this.service = service;
+    this.taskService = taskService;
     this.legacyProxyService = legacyProxyService;
     this.legacyProxyProperties = legacyProxyProperties;
   }
@@ -69,7 +77,7 @@ public class QueryIndexController {
 
   @PostMapping("/reindex")
   @Operation(
-      summary = "Trigger query index reindex",
+      summary = "Trigger query index reindex (async task)",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> reindex() {
     if (shouldFallbackToLegacy()) {
@@ -79,15 +87,17 @@ public class QueryIndexController {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
     }
-    return ResponseEntity.ok(
-        service.reindexAll().stream()
-            .map(it -> new QueryIndexReindexItem(it.pluginId(), it.indexedDocuments()))
-            .toList());
+    if (!service.hasIndexes()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
+    }
+    String taskUid = taskService.submitReindexAll(service.getAllPlugins());
+    return ResponseEntity.ok(Map.of("taskUid", taskUid));
   }
 
   @PostMapping("/index")
   @Operation(
-      summary = "Index file/directory URIs",
+      summary = "Index file/directory URIs (async task)",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> index(@RequestBody QueryIndexPathRequest request) {
     if (shouldFallbackToLegacy()) {
@@ -97,33 +107,86 @@ public class QueryIndexController {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
     }
-    try {
-      return ResponseEntity.ok(
-          service.indexPaths(request.uris(), request.pluginId()).stream()
-              .map(it -> new QueryIndexPathItem(it.pluginId(), it.affectedItems()))
-              .toList());
-    } catch (IllegalArgumentException ex) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-  }
-
-  @PostMapping("/unindex")
-  @Operation(
-      summary = "Unindex file/directory URIs",
-      security = @SecurityRequirement(name = "bearerAuth"))
-  public ResponseEntity<?> unindex(@RequestBody QueryIndexPathRequest request) {
     if (!service.hasIndexes()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
     }
-    try {
-      return ResponseEntity.ok(
-          service.unindexPaths(request.uris(), request.pluginId()).stream()
-              .map(it -> new QueryIndexPathItem(it.pluginId(), it.affectedItems()))
-              .toList());
-    } catch (IllegalArgumentException ex) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage());
+    if (request.uris() == null || request.uris().isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one URI is required");
     }
+    List<URI> uris = parseUris(request.uris());
+    QueryIndexMaintenance plugin = resolvePlugin(request.pluginId());
+    String taskUid = taskService.submitIndexPaths(plugin, uris);
+    return ResponseEntity.ok(Map.of("taskUid", taskUid));
+  }
+
+  @PostMapping("/unindex")
+  @Operation(
+      summary = "Unindex file/directory URIs (async task)",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  public ResponseEntity<?> unindex(@RequestBody QueryIndexPathRequest request) {
+    if (shouldFallbackToLegacy()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED, "Unindex is not supported in legacy fallback mode");
+    }
+    if (!service.hasIndexes()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
+    }
+    if (request.uris() == null || request.uris().isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one URI is required");
+    }
+    List<URI> uris = parseUris(request.uris());
+    QueryIndexMaintenance plugin = resolvePlugin(request.pluginId());
+    String taskUid = taskService.submitUnindexPaths(plugin, uris);
+    return ResponseEntity.ok(Map.of("taskUid", taskUid));
+  }
+
+  private QueryIndexMaintenance resolvePlugin(String pluginId) {
+    if (!service.hasIndexes()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
+    }
+    if (pluginId == null || pluginId.isBlank()) {
+      return service.getAllPlugins().getFirst();
+    }
+    return service.getPlugin(pluginId);
+  }
+
+  private List<URI> parseUris(List<String> rawUris) {
+    if (rawUris == null || rawUris.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one URI is required");
+    }
+    List<URI> uris = new ArrayList<>(rawUris.size());
+    for (String raw : rawUris) {
+      if (raw == null || raw.isBlank()) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "URI values must not be blank");
+      }
+      uris.add(parseUriOrPath(raw.trim()));
+    }
+    return uris;
+  }
+
+  private URI parseUriOrPath(String raw) {
+    try {
+      URI uri = URI.create(raw);
+      if (uri.getScheme() != null && !uri.getScheme().isBlank() && !looksLikeWindowsPath(raw)) {
+        return uri;
+      }
+    } catch (IllegalArgumentException ignored) {
+    }
+    try {
+      return Path.of(raw).toAbsolutePath().normalize().toUri();
+    } catch (InvalidPathException ex) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid URI/path: " + raw);
+    }
+  }
+
+  private boolean looksLikeWindowsPath(String value) {
+    return value.length() >= 3
+        && Character.isLetter(value.charAt(0))
+        && value.charAt(1) == ':'
+        && (value.charAt(2) == '\\' || value.charAt(2) == '/');
   }
 
   @SuppressWarnings("unchecked")

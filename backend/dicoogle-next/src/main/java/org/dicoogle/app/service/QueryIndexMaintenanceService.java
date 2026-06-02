@@ -116,6 +116,15 @@ public class QueryIndexMaintenanceService {
         && (value.charAt(2) == '\\' || value.charAt(2) == '/');
   }
 
+  public QueryIndexMaintenance getPlugin(String pluginId) {
+    List<QueryIndexMaintenance> selected = selectTargets(pluginId);
+    return selected.getFirst();
+  }
+
+  public List<QueryIndexMaintenance> getAllPlugins() {
+    return plugins;
+  }
+
   private List<QueryIndexMaintenance> selectTargets(String pluginId) {
     if (pluginId == null || pluginId.isBlank()) {
       return plugins;
