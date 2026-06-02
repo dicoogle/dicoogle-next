@@ -1,0 +1,14 @@
+node_modules/
+src/
+public/
+package.json
+package-lock.json
+tsconfig.json
+tsconfig.node.json
+vite.config.ts
+vite-plugins/
+postcss.config.js
+.eslintrc.cjs
+README.md
+data/
+docs/
