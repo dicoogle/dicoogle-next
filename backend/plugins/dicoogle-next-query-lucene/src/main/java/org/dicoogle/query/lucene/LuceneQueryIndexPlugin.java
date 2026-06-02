@@ -91,7 +91,7 @@ public class LuceneQueryIndexPlugin
     BooleanQuery.setMaxClauseCount(Math.max(128, properties.getMaxBooleanClauses()));
     this.directory = FSDirectory.open(indexDir);
     this.writer = new IndexWriter(directory, new IndexWriterConfig(new StandardAnalyzer()));
-    this.watcher = new LuceneStorageWatcher(storageRoot, this, properties.isWatchStorage());
+    this.watcher = new LuceneStorageWatcher(storageRoot, this);
   }
 
   @Override
@@ -124,8 +124,13 @@ public class LuceneQueryIndexPlugin
   }
 
   @Override
-  public void setWatchEnabled(boolean watch) {
+  public synchronized void setWatchEnabled(boolean watch) {
     properties.setWatchStorage(watch);
+    if (watch) {
+      watcher.start();
+    } else {
+      watcher.stop();
+    }
   }
 
   @Override

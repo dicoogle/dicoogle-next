@@ -19,19 +19,17 @@ final class LuceneStorageWatcher {
 
   private final Path root;
   private final LuceneQueryIndexPlugin index;
-  private final boolean enabled;
   private Thread worker;
   private WatchService watchService;
   private volatile boolean running;
 
-  LuceneStorageWatcher(Path root, LuceneQueryIndexPlugin index, boolean enabled) {
+  LuceneStorageWatcher(Path root, LuceneQueryIndexPlugin index) {
     this.root = root;
     this.index = index;
-    this.enabled = enabled;
   }
 
-  void start() {
-    if (!enabled || running) {
+  synchronized void start() {
+    if (running) {
       return;
     }
     try {
