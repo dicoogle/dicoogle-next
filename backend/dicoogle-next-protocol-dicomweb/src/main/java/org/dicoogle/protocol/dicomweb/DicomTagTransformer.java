@@ -6,30 +6,40 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.ElementDictionary;
+import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 
 /**
  * Transforms DICOM data into UI-friendly JSON shapes.
  *
- * <p>Uses dcm4che's {@link ElementDictionary} for the canonical tag→keyword mapping, giving full
- * coverage of all DICOM PS3.6 standard data elements without any hardcoded dictionary.
+ * <p>
+ * Uses dcm4che's {@link ElementDictionary} for the canonical tag→keyword
+ * mapping, giving full
+ * coverage of all DICOM PS3.6 standard data elements without any hardcoded
+ * dictionary.
  *
- * <p>Two output modes:
+ * <p>
+ * Two output modes:
  *
  * <ol>
- *   <li>{@link #transformResultArray(String)} — converts QIDO-RS hex-tag JSON to a flat keyword
- *       JSON array (for {@code /DICOMWeb/Studies}, {@code /Series}, {@code /Instances}).
- *   <li>{@link #toDumpResponse(Attributes)} — converts a fully parsed dcm4che {@link Attributes}
- *       object to a flat keyword→value JSON object (for {@code /dump}).
+ * <li>{@link #transformResultArray(String)} — converts QIDO-RS hex-tag JSON to
+ * a flat keyword
+ * JSON array (for {@code /DICOMWeb/Studies}, {@code /Series},
+ * {@code /Instances}).
+ * <li>{@link #toDumpResponse(Attributes)} — converts a fully parsed dcm4che
+ * {@link Attributes}
+ * object to a flat keyword→value JSON object (for {@code /dump}).
  * </ol>
  *
- * <p>Example input for {@code transformResultArray} (QIDO-RS standard):
+ * <p>
+ * Example input for {@code transformResultArray} (QIDO-RS standard):
  *
  * <pre>{@code
  * { "00100010": { "vr": "PN", "Value": [{ "Alphabetic": "FELIX" }] } }
  * }</pre>
  *
- * <p>Example output:
+ * <p>
+ * Example output:
  *
  * <pre>{@code
  * { "PatientName": "FELIX" }
@@ -38,18 +48,20 @@ import org.dcm4che3.data.VR;
 public final class DicomTagTransformer {
 
   /** DICOM tag for pixel data — always excluded from dump output. */
-  private static final int TAG_PIXEL_DATA = 0x7FE00010;
+  private static final int TAG_PIXEL_DATA = Tag.PixelData;
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
-  private DicomTagTransformer() {}
+  private DicomTagTransformer() {
+  }
 
   // ---------------------------------------------------------------------------
   // QIDO-RS hex-tag JSON → flat keyword JSON
   // ---------------------------------------------------------------------------
 
   /**
-   * Transforms a DICOM JSON array string (list of QIDO-RS results) into a flat keyword JSON array
+   * Transforms a DICOM JSON array string (list of QIDO-RS results) into a flat
+   * keyword JSON array
    * string compatible with the legacy Dicoogle UI.
    *
    * @param dicomJson a JSON array of DICOM PS3.18 objects (hex-tag keyed)
@@ -83,8 +95,10 @@ public final class DicomTagTransformer {
   }
 
   /**
-   * Resolves a DICOM hex tag string (e.g. {@code "00100010"}) to its DICOM keyword (e.g. {@code
-   * "PatientName"}) using dcm4che's {@link ElementDictionary}. Falls back to the uppercase hex tag
+   * Resolves a DICOM hex tag string (e.g. {@code "00100010"}) to its DICOM
+   * keyword (e.g. {@code
+   * "PatientName"}) using dcm4che's {@link ElementDictionary}. Falls back to the
+   * uppercase hex tag
    * for unknown/private tags.
    */
   static String resolveKeyword(String hexTag) {
@@ -98,7 +112,8 @@ public final class DicomTagTransformer {
   }
 
   /**
-   * Extracts a scalar string value from a DICOM tag node. Handles PN (PersonName with Alphabetic
+   * Extracts a scalar string value from a DICOM tag node. Handles PN (PersonName
+   * with Alphabetic
    * component), and all other scalar VRs (DA, TM, UI, LO, SH, CS, IS, DS, etc.).
    */
   static String extractValue(JsonNode tagNode) {
@@ -120,23 +135,27 @@ public final class DicomTagTransformer {
   // ---------------------------------------------------------------------------
 
   /**
-   * Converts a fully parsed dcm4che {@link Attributes} object into a flat JSON object suitable for
+   * Converts a fully parsed dcm4che {@link Attributes} object into a flat JSON
+   * object suitable for
    * the {@code /dump} endpoint.
    *
-   * <p>Every tag present in the dataset is emitted. The key is the DICOM keyword (e.g. {@code
+   * <p>Every tag present in the dataset is emitted. The key is the DICOM keyword
+   * (e.g. {@code
    * "PatientName"}) when available from the standard dictionary via {@link
-   * ElementDictionary#keywordOf}, or the zero-padded uppercase hex tag (e.g. {@code "00091010"})
-   * for private/unknown tags. Sequence (SQ) tags and pixel data ({@code 7FE00010}) are always
+   * ElementDictionary#keywordOf}, or the zero-padded uppercase hex tag (e.g.
+   * {@code "00091010"})
+   * for private/unknown tags. Sequence (SQ) tags and pixel data ({@code
+   * 7FE00010}) are always
    * excluded.
    *
    * <p>Example output:
    *
    * <pre>{@code
    * {
-   *   "SOPInstanceUID": "1.2.3...",
-   *   "PatientName": "FELIX",
-   *   "Modality": "MR",
-   *   ...
+   * "SOPInstanceUID": "1.2.3...",
+   * "PatientName": "FELIX",
+   * "Modality": "MR",
+   * ...
    * }
    * }</pre>
    *
