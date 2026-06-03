@@ -145,10 +145,14 @@ public class CFindService {
 
     for (QueryService plugin : plugins) {
       try {
-        List<Attributes> matches = plugin.query(request);
+        List<QueryService.QueryResult> matches = plugin.query(request);
         if (matches != null) {
           List<Attributes> limited =
-              matches.size() <= maxResults ? matches : matches.subList(0, maxResults);
+              matches.size() <= maxResults
+                  ? matches.stream().map(QueryService.QueryResult::attributes).toList()
+                  : matches.subList(0, maxResults).stream()
+                      .map(QueryService.QueryResult::attributes)
+                      .toList();
           increment("dicoogle.cfind.success", null);
           meterRegistry
               .counter("dicoogle.cfind.matches", "level", normalizedLevel)

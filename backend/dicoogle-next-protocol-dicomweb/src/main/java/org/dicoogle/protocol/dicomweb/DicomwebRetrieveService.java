@@ -201,10 +201,6 @@ public class DicomwebRetrieveService {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED, "No query plugin is configured for /dump requests");
     }
-    if (queryLocators.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.NOT_IMPLEMENTED, "No query index locator is configured for /dump requests");
-    }
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, QueryRetrieveLevel.IMAGE.name());
@@ -226,23 +222,11 @@ public class DicomwebRetrieveService {
 
     for (QueryService queryPlugin : queryPlugins) {
       try {
-        List<Attributes> results = queryPlugin.query(request);
+        List<QueryService.QueryResult> results = queryPlugin.query(request);
         if (results == null || results.isEmpty()) {
           continue;
         }
-        Attributes match = results.get(0);
-        String studyUid = match.getString(Tag.StudyInstanceUID, null);
-        String seriesUid = match.getString(Tag.SeriesInstanceUID, null);
-        if (studyUid == null || seriesUid == null) {
-          continue;
-        }
-
-        for (QueryIndexStorageLocator locator : queryLocators) {
-          var location = locator.locateInstance(studyUid, seriesUid, sopInstanceUid);
-          if (location.isPresent()) {
-            return readMetadata(location.get());
-          }
-        }
+        return results.getFirst().attributes();
       } catch (IOException ex) {
         throw new ResponseStatusException(
             HttpStatus.INTERNAL_SERVER_ERROR, "Failed to query for /dump lookup", ex);

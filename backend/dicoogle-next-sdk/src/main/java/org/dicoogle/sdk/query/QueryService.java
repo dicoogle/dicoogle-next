@@ -1,6 +1,7 @@
 package org.dicoogle.sdk.query;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -64,15 +65,24 @@ public interface QueryService extends QueryIndexPlugin {
       BooleanSupplier cancelRequested) {}
 
   /**
-   * Executes a query and returns the matching DICOM datasets.
+   * A single query result pairing the matched DICOM attributes with the storage URI from which they
+   * were read.
    *
-   * <p>Each returned {@link Attributes} object should contain at least the requested return keys
-   * for the given {@link QueryRetrieveLevel}. Implementations must not return {@code null}; an
-   * empty list indicates no matches.
+   * @param attributes the DICOM attributes of the matched instance
+   * @param storageUri the storage location from which the instance can be retrieved
+   */
+  record QueryResult(Attributes attributes, URI storageUri) {}
+
+  /**
+   * Executes a query and returns the matching results.
+   *
+   * <p>Each returned {@link QueryResult} contains the DICOM attributes (at least the requested
+   * return keys for the given {@link QueryRetrieveLevel}) plus the corresponding storage URI.
+   * Implementations must not return {@code null}; an empty list indicates no matches.
    *
    * @param request the query parameters
-   * @return a list of matching DICOM attribute sets; never {@code null}
+   * @return a list of matching results; never {@code null}
    * @throws IOException if a recoverable I/O error occurs during query execution
    */
-  List<Attributes> query(QueryRequest request) throws IOException;
+  List<QueryResult> query(QueryRequest request) throws IOException;
 }

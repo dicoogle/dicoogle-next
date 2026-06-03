@@ -322,8 +322,8 @@ class DimseCFindSCPIntegrationTest {
     }
 
     @Override
-    public List<Attributes> query(QueryRequest request) throws IOException {
-      List<Attributes> out = new ArrayList<>();
+    public List<QueryResult> query(QueryRequest request) throws IOException {
+      List<QueryResult> out = new ArrayList<>();
       BooleanSupplier cancelRequested = request.cancelRequested();
       List<Path> files =
           Files.walk(root)
@@ -341,7 +341,7 @@ class DimseCFindSCPIntegrationTest {
           if (!matches(attrs, request)) {
             continue;
           }
-          out.add(attrs);
+          out.add(new QueryResult(attrs, file.toUri()));
         }
       }
       return out;
