@@ -23,6 +23,8 @@ import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A combined index/query plugin backed by any {@link ReadableStoragePlugin}.
@@ -44,6 +46,7 @@ import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
 public class FileQueryIndexPlugin
     implements StorageIngestEventListener, QueryService, QueryMoveService {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(FileQueryIndexPlugin.class);
   private static final PluginMetadata METADATA =
       new PluginMetadata("query-file-rw", "Filesystem DICOM Query/Index", "0.1.0", "query-index");
   private static final Pattern KEYWORD_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+:[^\\s]+");
@@ -56,17 +59,19 @@ public class FileQueryIndexPlugin
    */
   private static final Pattern PN_SEPARATOR = Pattern.compile("[\\^=]+");
 
+  private record IndexEntry(URI location, Attributes attributes) {}
+
   private final ReadableStoragePlugin storagePlugin;
 
   /**
-   * In-memory index: maps studyInstanceUid -> seriesInstanceUid -> sopInstanceUid -> URI. Backed by
-   * {@link java.util.concurrent.ConcurrentHashMap} at every level for thread-safe writes from the
-   * ingest callbacks.
+   * In-memory index: maps studyInstanceUid -> seriesInstanceUid -> sopInstanceUid -> {@link
+   * IndexEntry}. Backed by {@link java.util.concurrent.ConcurrentHashMap} at every level for
+   * thread-safe writes from the ingest callbacks.
    */
   private final java.util.concurrent.ConcurrentHashMap<
           String,
           java.util.concurrent.ConcurrentHashMap<
-              String, java.util.concurrent.ConcurrentHashMap<String, URI>>>
+              String, java.util.concurrent.ConcurrentHashMap<String, IndexEntry>>>
       index = new java.util.concurrent.ConcurrentHashMap<>();
 
   public FileQueryIndexPlugin(ReadableStoragePlugin storagePlugin) {
@@ -88,12 +93,17 @@ public class FileQueryIndexPlugin
 
   @Override
   public void onIngestSuccess(StorageIngestSuccessEvent event) {
-    index
-        .computeIfAbsent(
-            event.studyInstanceUid(), k -> new java.util.concurrent.ConcurrentHashMap<>())
-        .computeIfAbsent(
-            event.seriesInstanceUid(), k -> new java.util.concurrent.ConcurrentHashMap<>())
-        .put(event.sopInstanceUid(), event.location());
+    try {
+      Attributes attrs = readDataset(event.location());
+      index
+          .computeIfAbsent(
+              event.studyInstanceUid(), k -> new java.util.concurrent.ConcurrentHashMap<>())
+          .computeIfAbsent(
+              event.seriesInstanceUid(), k -> new java.util.concurrent.ConcurrentHashMap<>())
+          .put(event.sopInstanceUid(), new IndexEntry(event.location(), attrs));
+    } catch (Exception ex) {
+      LOGGER.warn("Failed to index ingested object at {}: {}", event.location(), ex.getMessage());
+    }
   }
 
   // onIngestFailure is a no-op; the default empty implementation is sufficient.
@@ -104,8 +114,8 @@ public class FileQueryIndexPlugin
 
   @Override
   public List<QueryResult> query(QueryRequest request) throws IOException {
-    List<URI> uris = resolveUrisFromIndex(request.level(), request.keys());
-    if (uris.isEmpty()) {
+    List<IndexEntry> entries = resolveIndexEntries(request.level(), request.keys());
+    if (entries.isEmpty()) {
       return List.of();
     }
 
@@ -115,14 +125,14 @@ public class FileQueryIndexPlugin
         request.freeText() == null ? null : request.freeText().toLowerCase(Locale.ROOT);
     Map<String, String> filters = request.keywordFilters();
 
-    for (URI uri : uris) {
-      if (!seen.add(uri.toString())) {
+    for (IndexEntry entry : entries) {
+      if (!seen.add(entry.location().toString())) {
         continue;
       }
       if (request.cancelRequested() != null && request.cancelRequested().getAsBoolean()) {
         break;
       }
-      Attributes attrs = readDataset(uri);
+      Attributes attrs = entry.attributes();
       if (!matchesFreeText(attrs, freeText)) {
         continue;
       }
@@ -132,7 +142,7 @@ public class FileQueryIndexPlugin
       if (!matchesDicomKeys(attrs, request.keys(), request)) {
         continue;
       }
-      out.add(new QueryResult(filterByLevel(attrs, request.level()), uri));
+      out.add(new QueryResult(filterByLevel(attrs, request.level()), entry.location()));
     }
 
     return out;
@@ -145,22 +155,22 @@ public class FileQueryIndexPlugin
   @Override
   public List<QueryMoveService.MoveCandidate> resolve(QueryMoveService.MoveRequest request)
       throws IOException {
-    List<URI> uris = resolveUrisFromIndex(request.level(), request.keys());
-    if (uris.isEmpty()) {
+    List<IndexEntry> entries = resolveIndexEntries(request.level(), request.keys());
+    if (entries.isEmpty()) {
       return List.of();
     }
 
     Set<String> seen = new LinkedHashSet<>();
     List<QueryMoveService.MoveCandidate> out = new ArrayList<>();
 
-    for (URI uri : uris) {
-      if (!seen.add(uri.toString())) {
+    for (IndexEntry entry : entries) {
+      if (!seen.add(entry.location().toString())) {
         continue;
       }
       if (request.cancelRequested() != null && request.cancelRequested().getAsBoolean()) {
         break;
       }
-      Attributes attrs = readDataset(uri);
+      Attributes attrs = entry.attributes();
       if (!matchesDicomKeys(
           attrs,
           request.keys(),
@@ -183,7 +193,7 @@ public class FileQueryIndexPlugin
       if (!hasText(sopClassUid) || !hasText(sopInstanceUid)) {
         continue;
       }
-      out.add(new QueryMoveService.MoveCandidate(sopClassUid, sopInstanceUid, uri));
+      out.add(new QueryMoveService.MoveCandidate(sopClassUid, sopInstanceUid, entry.location()));
     }
 
     return out;
@@ -199,7 +209,7 @@ public class FileQueryIndexPlugin
    * <p>Queries that do not qualify with at least a StudyInstanceUID return an empty list;
    * full-archive scans are intentionally not supported.
    */
-  private List<URI> resolveUrisFromIndex(QueryRetrieveLevel level, Attributes keys) {
+  private List<IndexEntry> resolveIndexEntries(QueryRetrieveLevel level, Attributes keys) {
     String studyUid = keys.getString(Tag.StudyInstanceUID, null);
     String seriesUid = keys.getString(Tag.SeriesInstanceUID, null);
     String sopUid = keys.getString(Tag.SOPInstanceUID, null);
@@ -211,8 +221,8 @@ public class FileQueryIndexPlugin
       var seriesMap = index.getOrDefault(studyUid, new java.util.concurrent.ConcurrentHashMap<>());
       var sopMap =
           seriesMap.getOrDefault(seriesUid, new java.util.concurrent.ConcurrentHashMap<>());
-      URI uri = sopMap.get(sopUid);
-      return uri != null ? List.of(uri) : List.of();
+      IndexEntry entry = sopMap.get(sopUid);
+      return entry != null ? List.of(entry) : List.of();
     }
 
     if (level == QueryRetrieveLevel.SERIES && hasText(studyUid) && hasText(seriesUid)) {
@@ -226,9 +236,9 @@ public class FileQueryIndexPlugin
       if (seriesMap == null) {
         return List.of();
       }
-      List<URI> uris = new ArrayList<>();
-      seriesMap.values().forEach(sopMap -> uris.addAll(sopMap.values()));
-      return uris;
+      List<IndexEntry> entries = new ArrayList<>();
+      seriesMap.values().forEach(sopMap -> entries.addAll(sopMap.values()));
+      return entries;
     }
 
     // No qualifying UIDs supplied — full-archive scan is not supported.

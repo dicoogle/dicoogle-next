@@ -2,7 +2,6 @@ package org.dicoogle.protocol.dicomweb;
 
 import jakarta.json.Json;
 import jakarta.json.stream.JsonGenerator;
-import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -17,12 +16,11 @@ import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.json.JSONWriter;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
 import org.dicoogle.sdk.query.QueryService;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class DicomwebQidoService {
@@ -31,10 +29,10 @@ public class DicomwebQidoService {
   private static final Set<String> RESERVED_PARAMS =
       Set.of("fuzzymatching", "limit", "offset", "includefield");
 
-  private final List<QueryService> plugins;
+  private final QueryRouter router;
 
-  public DicomwebQidoService(List<QueryService> plugins) {
-    this.plugins = List.copyOf(plugins);
+  public DicomwebQidoService(QueryRouter router) {
+    this.router = router;
   }
 
   public String searchStudies(MultiValueMap<String, String> queryParams) {
@@ -57,11 +55,6 @@ public class DicomwebQidoService {
       String pathStudyUid,
       String pathSeriesUid,
       MultiValueMap<String, String> queryParams) {
-    if (plugins.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.NOT_IMPLEMENTED, "No query plugin is configured for QIDO-RS requests");
-    }
-
     ParsedQuery query = parseQuery(level, pathStudyUid, pathSeriesUid, queryParams);
     QueryService.QueryRequest request =
         new QueryService.QueryRequest(
@@ -78,6 +71,9 @@ public class DicomwebQidoService {
             () -> false);
 
     List<Attributes> raw = runQuery(request);
+    if (raw == null || raw.isEmpty()) {
+      return toDicomJson(List.of());
+    }
     List<Attributes> deduplicated = deduplicateByLevel(raw, level);
     List<Attributes> projected =
         applyIncludeFieldProjection(deduplicated, level, query.includeFields());
@@ -86,18 +82,11 @@ public class DicomwebQidoService {
   }
 
   private List<Attributes> runQuery(QueryService.QueryRequest request) {
-    for (QueryService plugin : plugins) {
-      try {
-        List<QueryService.QueryResult> result = plugin.query(request);
-        if (result != null) {
-          return result.stream().map(QueryService.QueryResult::attributes).toList();
-        }
-      } catch (IOException ex) {
-        throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to execute QIDO-RS query", ex);
-      }
+    List<QueryService.QueryResult> results = router.queryAll(request);
+    if (results == null || results.isEmpty()) {
+      return List.of();
     }
-    return List.of();
+    return results.stream().map(QueryService.QueryResult::attributes).toList();
   }
 
   private ParsedQuery parseQuery(

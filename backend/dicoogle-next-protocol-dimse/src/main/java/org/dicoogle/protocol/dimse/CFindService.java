@@ -2,7 +2,6 @@ package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,6 +17,7 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
 import org.dicoogle.sdk.query.QueryService;
@@ -30,24 +30,27 @@ public class CFindService {
   private static final Pattern KEYWORD_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+:[^\\s]+");
   private static final Logger LOGGER = LoggerFactory.getLogger(CFindService.class);
 
-  private final List<QueryService> plugins;
+  private final QueryRouter router;
   private final List<DimseAccessPolicy<QueryService.QueryRequest>> accessPolicies;
   private final Set<String> supportedLevels;
   private final int maxResults;
+  private final List<String> dimProviders;
   private final MeterRegistry meterRegistry;
 
   public CFindService(
-      List<QueryService> plugins,
+      QueryRouter router,
       List<DimseAccessPolicy<QueryService.QueryRequest>> accessPolicies,
       DimseCFindProperties properties,
+      DimseProperties dimseProperties,
       MeterRegistry meterRegistry) {
-    this.plugins = List.copyOf(plugins);
+    this.router = router;
     this.accessPolicies = List.copyOf(accessPolicies);
     this.supportedLevels =
         properties.getSupportedQueryLevels().stream()
             .map(level -> level.toUpperCase(Locale.ROOT))
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     this.maxResults = properties.getMaxResults();
+    this.dimProviders = dimseProperties.getDimProviders();
     this.meterRegistry = meterRegistry;
   }
 
@@ -95,12 +98,6 @@ public class CFindService {
 
     validateIdentifier(keys, queryOptions);
 
-    if (plugins.isEmpty()) {
-      increment("dicoogle.cfind.failure", "no-query-plugin");
-      throw new DicomServiceException(
-          Status.UnableToProcess, "No DIMSE query plugin is configured");
-    }
-
     String rawPatientName = keys.getString(Tag.PatientName, null);
     String freeText = extractFreeText(rawPatientName);
     Map<String, String> keywordFilters = extractKeywordFilters(rawPatientName);
@@ -143,33 +140,27 @@ public class CFindService {
         freeText,
         keywordFilters.keySet());
 
-    for (QueryService plugin : plugins) {
-      try {
-        List<QueryService.QueryResult> matches = plugin.query(request);
-        if (matches != null) {
-          List<Attributes> limited =
-              matches.size() <= maxResults
-                  ? matches.stream().map(QueryService.QueryResult::attributes).toList()
-                  : matches.subList(0, maxResults).stream()
-                      .map(QueryService.QueryResult::attributes)
-                      .toList();
-          increment("dicoogle.cfind.success", null);
-          meterRegistry
-              .counter("dicoogle.cfind.matches", "level", normalizedLevel)
-              .increment(limited.size());
-          recordLatency("success", normalizedLevel, startNs);
-          return limited;
-        }
-      } catch (IOException ex) {
-        increment("dicoogle.cfind.failure", "plugin-io");
-        recordLatency("failure", normalizedLevel, startNs);
-        throw new DicomServiceException(Status.UnableToProcess, ex.getMessage());
-      }
+    // Query via router — parallel dispatch to all DIM providers
+    List<QueryService.QueryResult> all = router.query(request, dimProviders);
+    if (all.isEmpty()) {
+      increment("dicoogle.cfind.success", null);
+      recordLatency("success", normalizedLevel, startNs);
+      return List.of();
     }
 
+    List<Attributes> limited =
+        all.size() <= maxResults
+            ? all.stream().map(QueryService.QueryResult::attributes).toList()
+            : all.subList(0, maxResults).stream()
+                .map(QueryService.QueryResult::attributes)
+                .toList();
+
     increment("dicoogle.cfind.success", null);
+    meterRegistry
+        .counter("dicoogle.cfind.matches", "level", normalizedLevel)
+        .increment(limited.size());
     recordLatency("success", normalizedLevel, startNs);
-    return List.of();
+    return limited;
   }
 
   private String requestedKeyTags(Attributes keys) {

@@ -32,6 +32,7 @@ import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.net.pdu.AAssociateRQ;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryService;
@@ -149,19 +150,21 @@ class DimseCFindSCPIntegrationTest {
 
   private void startServer(Path root, int port) {
     WritableStoragePlugin storage = new InMemoryStoragePlugin(root);
+    QueryRouter router =
+        new QueryRouter(List.of(new IntegrationFindPlugin(root)), List.of(), 4, 1000);
     CStoreService cStoreService = new CStoreService(new StorageRouter(List.of(storage)));
+    DimseProperties dimProps = new DimseProperties();
+    dimProps.setDimProviders(List.of());
     CFindService cFindService =
         new CFindService(
-            List.of(new IntegrationFindPlugin(root)),
-            List.of(),
-            new DimseCFindProperties(),
-            new SimpleMeterRegistry());
+            router, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry());
     CMoveService cMoveService =
         new CMoveService(
-            List.of(),
+            new QueryRouter(List.of(), List.of(), 4, 1000),
             List.of(),
             new DimseCFindProperties(),
             new DimseCMoveProperties(),
+            dimProps,
             new SimpleMeterRegistry());
 
     DimseCStoreProperties properties = new DimseCStoreProperties();

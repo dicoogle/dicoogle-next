@@ -1,9 +1,6 @@
 package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import java.io.IOException;
-import java.net.URI;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -14,6 +11,7 @@ import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
@@ -23,26 +21,29 @@ public class CMoveService {
 
   static final String STUDY_ROOT_MOVE_UID = "1.2.840.10008.5.1.4.1.2.2.2";
 
-  private final List<QueryMoveService> plugins;
+  private final QueryRouter router;
   private final List<DimseAccessPolicy<QueryMoveService.MoveRequest>> accessPolicies;
   private final Set<String> supportedLevels;
   private final int maxResults;
+  private final List<String> dimProviders;
   private final Map<String, DimseCMoveProperties.Destination> destinations;
   private final MeterRegistry meterRegistry;
 
   public CMoveService(
-      List<QueryMoveService> plugins,
+      QueryRouter router,
       List<DimseAccessPolicy<QueryMoveService.MoveRequest>> accessPolicies,
       DimseCFindProperties cfindProperties,
       DimseCMoveProperties properties,
+      DimseProperties dimseProperties,
       MeterRegistry meterRegistry) {
-    this.plugins = List.copyOf(plugins);
+    this.router = router;
     this.accessPolicies = List.copyOf(accessPolicies);
     this.supportedLevels =
         cfindProperties.getSupportedQueryLevels().stream()
             .map(level -> level.toUpperCase(Locale.ROOT))
             .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     this.maxResults = properties.getMaxResults();
+    this.dimProviders = dimseProperties.getDimProviders();
     this.destinations = Map.copyOf(properties.getDestinations());
     this.meterRegistry = meterRegistry;
   }
@@ -83,10 +84,6 @@ public class CMoveService {
           Status.MoveDestinationUnknown, "Unknown move destination: " + moveDestinationAet);
     }
 
-    if (plugins.isEmpty()) {
-      throw new DicomServiceException(Status.UnableToProcess, "No DIMSE move plugin is configured");
-    }
-
     QueryRetrieveLevel level;
     try {
       level = QueryRetrieveLevel.valueOf(normalizedLevel);
@@ -113,33 +110,10 @@ public class CMoveService {
       }
     }
 
-    List<QueryMoveService.MoveCandidate> merged = new ArrayList<>();
-    Set<String> seen = new LinkedHashSet<>();
-    for (QueryMoveService plugin : plugins) {
-      List<QueryMoveService.MoveCandidate> candidates;
-      try {
-        candidates = plugin.resolve(request);
-      } catch (IOException ex) {
-        throw new DicomServiceException(Status.UnableToProcess, ex.getMessage());
-      }
-      if (candidates == null || candidates.isEmpty()) {
-        continue;
-      }
-      for (QueryMoveService.MoveCandidate candidate : candidates) {
-        if (candidate == null || candidate.location() == null) {
-          continue;
-        }
-        if (!isValidCandidate(candidate)) {
-          continue;
-        }
-        if (!seen.add(unique(candidate))) {
-          continue;
-        }
-        merged.add(candidate);
-        if (merged.size() >= maxResults) {
-          return merged;
-        }
-      }
+    // Resolve via router — parallel dispatch to all DIM providers, dedup
+    List<QueryMoveService.MoveCandidate> merged = router.resolve(request, dimProviders);
+    if (merged.size() > maxResults) {
+      merged = merged.subList(0, maxResults);
     }
     return merged;
   }
@@ -170,21 +144,6 @@ public class CMoveService {
     return destinations.containsKey(moveDestinationAet);
   }
 
-  private boolean isValidCandidate(QueryMoveService.MoveCandidate candidate) {
-    return hasText(candidate.sopClassUid())
-        && hasText(candidate.sopInstanceUid())
-        && hasText(candidate.location().getScheme());
-  }
-
-  private boolean hasText(String value) {
-    return value != null && !value.isBlank();
-  }
-
-  private String unique(QueryMoveService.MoveCandidate candidate) {
-    URI location = candidate.location();
-    return candidate.sopClassUid() + "|" + candidate.sopInstanceUid() + "|" + location;
-  }
-
   private void validateIdentifierByLevel(Attributes keys, String level)
       throws DicomServiceException {
     String studyUid = keys.getString(Tag.StudyInstanceUID, null);
@@ -206,5 +165,9 @@ public class CMoveService {
           Status.IdentifierDoesNotMatchSOPClass,
           "StudyInstanceUID, SeriesInstanceUID and SOPInstanceUID are required for QueryRetrieveLevel=IMAGE");
     }
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
   }
 }
