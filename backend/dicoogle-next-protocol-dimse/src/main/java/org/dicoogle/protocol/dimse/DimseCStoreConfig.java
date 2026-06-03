@@ -2,6 +2,7 @@ package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
@@ -18,7 +19,8 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties({
   DimseCStoreProperties.class,
   DimseCFindProperties.class,
-  DimseCMoveProperties.class
+  DimseCMoveProperties.class,
+  DimseProperties.class
 })
 public class DimseCStoreConfig {
 
@@ -32,22 +34,30 @@ public class DimseCStoreConfig {
 
   @Bean
   CFindService cFindService(
-      List<QueryService> queryPlugins,
+      QueryRouter queryRouter,
       List<DimseAccessPolicy<QueryService.QueryRequest>> cfindAccessPolicies,
-      DimseCFindProperties properties,
+      DimseCFindProperties cfindProperties,
+      DimseProperties dimseProperties,
       MeterRegistry meterRegistry) {
-    return new CFindService(queryPlugins, cfindAccessPolicies, properties, meterRegistry);
+    return new CFindService(
+        queryRouter, cfindAccessPolicies, cfindProperties, dimseProperties, meterRegistry);
   }
 
   @Bean
   CMoveService cMoveService(
-      List<QueryMoveService> movePlugins,
+      QueryRouter queryRouter,
       List<DimseAccessPolicy<QueryMoveService.MoveRequest>> cmoveAccessPolicies,
       DimseCFindProperties cfindProperties,
-      DimseCMoveProperties properties,
+      DimseCMoveProperties cmoveProperties,
+      DimseProperties dimseProperties,
       MeterRegistry meterRegistry) {
     return new CMoveService(
-        movePlugins, cmoveAccessPolicies, cfindProperties, properties, meterRegistry);
+        queryRouter,
+        cmoveAccessPolicies,
+        cfindProperties,
+        cmoveProperties,
+        dimseProperties,
+        meterRegistry);
   }
 
   @Bean

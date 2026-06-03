@@ -68,7 +68,13 @@ public interface QueryService extends QueryIndexPlugin {
    * A single query result pairing the matched DICOM attributes with the storage URI from which they
    * were read.
    *
-   * @param attributes the DICOM attributes of the matched instance
+   * <p>The {@code attributes} map may be <em>partial</em>: it contains only the DICOM fields that
+   * the index plugin chose to store at index time (typically the fields needed for C-FIND matching
+   * and the most common return keys). Consumers MUST NOT assume the Attributes represent a complete
+   * DICOM dataset. For full dataset retrieval, use the {@code storageUri} to read the original
+   * DICOM file from the storage backend.
+   *
+   * @param attributes the DICOM attributes of the matched instance (may be partial)
    * @param storageUri the storage location from which the instance can be retrieved
    */
   record QueryResult(Attributes attributes, URI storageUri) {}

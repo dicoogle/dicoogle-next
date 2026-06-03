@@ -5,8 +5,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import org.dicoogle.core.plugins.PluginRegistry;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryIndexPlugin;
+import org.dicoogle.sdk.query.QueryMoveService;
+import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.storage.filero.FileReadOnlyStoragePlugin;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +21,9 @@ import org.springframework.context.annotation.Primary;
 @Configuration
 @EnableConfigurationProperties(PluginRuntimeProperties.class)
 public class PluginRuntimeConfig {
+
+  private static final int DEFAULT_QUERY_THREAD_POOL = 4;
+  private static final int DEFAULT_MAX_RESULTS = 1000;
 
   @Bean
   @Primary
@@ -84,5 +90,11 @@ public class PluginRuntimeConfig {
   PluginRuntimeHealthIndicator pluginRuntimeHealthIndicator(
       ActiveStoragePlugins activeStoragePlugins, PluginRuntimeProperties runtimeProperties) {
     return new PluginRuntimeHealthIndicator(activeStoragePlugins.plugins(), runtimeProperties);
+  }
+
+  @Bean
+  QueryRouter queryRouter(List<QueryService> queryServices, List<QueryMoveService> moveServices) {
+    return new QueryRouter(
+        queryServices, moveServices, DEFAULT_QUERY_THREAD_POOL, DEFAULT_MAX_RESULTS);
   }
 }

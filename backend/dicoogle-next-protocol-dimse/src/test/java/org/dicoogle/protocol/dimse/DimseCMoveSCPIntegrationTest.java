@@ -33,6 +33,7 @@ import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.PresentationContext;
 import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceRegistry;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.query.file.FileQueryIndexPlugin;
 import org.dicoogle.storage.filerw.FileReadWriteStoragePlugin;
@@ -201,9 +202,14 @@ class DimseCMoveSCPIntegrationTest {
     queryPlugin = new FileQueryIndexPlugin(storage);
 
     CStoreService cStoreService = new CStoreService(storageRouter);
+
+    DimseProperties dimProps = new DimseProperties();
+    dimProps.setDimProviders(List.of());
+
+    QueryRouter findRouter = new QueryRouter(List.of(queryPlugin), List.of(), 4, 1000);
     CFindService cFindService =
         new CFindService(
-            List.of(queryPlugin), List.of(), new DimseCFindProperties(), new SimpleMeterRegistry());
+            findRouter, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry());
 
     DimseCMoveProperties moveProperties = new DimseCMoveProperties();
     DimseCMoveProperties.Destination destination = new DimseCMoveProperties.Destination();
@@ -212,12 +218,14 @@ class DimseCMoveSCPIntegrationTest {
     destination.setAeTitle("DEST");
     moveProperties.setDestinations(java.util.Map.of("DEST", destination));
 
+    QueryRouter moveRouter = new QueryRouter(List.of(), List.of(queryPlugin), 4, 1000);
     CMoveService cMoveService =
         new CMoveService(
-            List.of(queryPlugin),
+            moveRouter,
             List.of(),
             new DimseCFindProperties(),
             moveProperties,
+            dimProps,
             new SimpleMeterRegistry());
 
     DimseCStoreProperties cStoreProperties = new DimseCStoreProperties();

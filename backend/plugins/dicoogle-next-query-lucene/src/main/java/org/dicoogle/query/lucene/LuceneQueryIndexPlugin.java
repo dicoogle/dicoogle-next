@@ -179,21 +179,22 @@ public class LuceneQueryIndexPlugin
       return List.of();
     }
 
-    List<URI> uris = resolveLocations(buildQuery(request), properties.getSearchLimit());
+    List<Document> docs = resolveDocuments(buildQuery(request), properties.getSearchLimit());
     Set<String> seen = new LinkedHashSet<>();
     List<QueryResult> out = new ArrayList<>();
     String freeText =
         request.freeText() == null ? null : request.freeText().toLowerCase(Locale.ROOT);
     Map<String, String> filters = request.keywordFilters();
 
-    for (URI uri : uris) {
-      if (!seen.add(uri.toString())) {
+    for (Document doc : docs) {
+      String loc = doc.get(LuceneIndexerFields.LOCATION);
+      if (loc == null || !seen.add(loc)) {
         continue;
       }
       if (request.cancelRequested() != null && request.cancelRequested().getAsBoolean()) {
         break;
       }
-      Attributes attrs = readDataset(uri);
+      Attributes attrs = documentToAttributes(doc);
       if (!matchesFreeText(attrs, freeText)) {
         continue;
       }
@@ -203,7 +204,7 @@ public class LuceneQueryIndexPlugin
       if (!matchesDicomKeys(attrs, request.keys(), request)) {
         continue;
       }
-      out.add(new QueryResult(filterByLevel(attrs, request.level()), uri));
+      out.add(new QueryResult(filterByLevel(attrs, request.level()), URI.create(loc)));
     }
 
     return out;
@@ -212,19 +213,20 @@ public class LuceneQueryIndexPlugin
   @Override
   public List<QueryMoveService.MoveCandidate> resolve(QueryMoveService.MoveRequest request)
       throws IOException {
-    List<URI> uris = resolveLocations(buildMoveQuery(request), properties.getSearchLimit());
+    List<Document> docs = resolveDocuments(buildMoveQuery(request), properties.getSearchLimit());
     Set<String> seen = new LinkedHashSet<>();
     List<QueryMoveService.MoveCandidate> out = new ArrayList<>();
 
-    for (URI uri : uris) {
-      if (!seen.add(uri.toString())) {
+    for (Document doc : docs) {
+      String loc = doc.get(LuceneIndexerFields.LOCATION);
+      if (loc == null || !seen.add(loc)) {
         continue;
       }
       if (request.cancelRequested() != null && request.cancelRequested().getAsBoolean()) {
         break;
       }
 
-      Attributes attrs = readDataset(uri);
+      Attributes attrs = documentToAttributes(doc);
       if (!matchesDicomKeys(
           attrs,
           request.keys(),
@@ -247,7 +249,7 @@ public class LuceneQueryIndexPlugin
       if (!hasText(sopClassUid) || !hasText(sopInstanceUid)) {
         continue;
       }
-      out.add(new QueryMoveService.MoveCandidate(sopClassUid, sopInstanceUid, uri));
+      out.add(new QueryMoveService.MoveCandidate(sopClassUid, sopInstanceUid, URI.create(loc)));
     }
 
     return out;
@@ -411,35 +413,46 @@ public class LuceneQueryIndexPlugin
     Document doc = new Document();
     doc.add(new StringField(LuceneIndexerFields.KEY, location.toString(), Field.Store.NO));
     doc.add(
-        new StringField(LuceneIndexerFields.STUDY_INSTANCE_UID, studyInstanceUid, Field.Store.NO));
+        new StringField(LuceneIndexerFields.STUDY_INSTANCE_UID, studyInstanceUid, Field.Store.YES));
     doc.add(
         new StringField(
-            LuceneIndexerFields.SERIES_INSTANCE_UID, seriesInstanceUid, Field.Store.NO));
-    doc.add(new StringField(LuceneIndexerFields.SOP_INSTANCE_UID, sopInstanceUid, Field.Store.NO));
-    doc.add(new StringField(LuceneIndexerFields.SOP_CLASS_UID, sopClassUid, Field.Store.NO));
-    doc.add(new StringField(LuceneIndexerFields.PATIENT_ID, patientId, Field.Store.NO));
-    doc.add(new StringField(LuceneIndexerFields.MODALITY, modality, Field.Store.NO));
-    doc.add(new StringField(LuceneIndexerFields.ACCESSION_NUMBER, accessionNumber, Field.Store.NO));
-    doc.add(new StringField(LuceneIndexerFields.STUDY_DATE, studyDate, Field.Store.NO));
-    doc.add(new StringField(LuceneIndexerFields.STUDY_TIME, studyTime, Field.Store.NO));
+            LuceneIndexerFields.SERIES_INSTANCE_UID, seriesInstanceUid, Field.Store.YES));
+    doc.add(new StringField(LuceneIndexerFields.SOP_INSTANCE_UID, sopInstanceUid, Field.Store.YES));
+    doc.add(new StringField(LuceneIndexerFields.SOP_CLASS_UID, sopClassUid, Field.Store.YES));
+    doc.add(new StringField(LuceneIndexerFields.PATIENT_ID, patientId, Field.Store.YES));
+    doc.add(new StringField(LuceneIndexerFields.MODALITY, modality, Field.Store.YES));
+    doc.add(
+        new StringField(LuceneIndexerFields.ACCESSION_NUMBER, accessionNumber, Field.Store.YES));
+    doc.add(new StringField(LuceneIndexerFields.STUDY_DATE, studyDate, Field.Store.YES));
+    doc.add(new StringField(LuceneIndexerFields.STUDY_TIME, studyTime, Field.Store.YES));
     doc.add(
         new StringField(
-            LuceneIndexerFields.ACQUISITION_DATE_TIME, acquisitionDateTime, Field.Store.NO));
+            LuceneIndexerFields.ACQUISITION_DATE_TIME, acquisitionDateTime, Field.Store.YES));
     doc.add(
         new StringField(
             LuceneIndexerFields.PATIENT_NAME_NORMALIZED,
             LuceneValueNormalizer.normalizeForFuzzy(patientName),
-            Field.Store.NO));
+            Field.Store.YES));
     doc.add(new StringField(LuceneIndexerFields.LOCATION, location.toString(), Field.Store.YES));
     doc.add(
         new StoredField(
             LuceneIndexerFields.STORAGE_SCHEME, LuceneValueNormalizer.nullToEmpty(scheme)));
+    doc.add(
+        new StringField(
+            LuceneIndexerFields.STUDY_DESCRIPTION,
+            LuceneValueNormalizer.nullToEmpty(studyDescription),
+            Field.Store.YES));
+    doc.add(
+        new StringField(
+            LuceneIndexerFields.SERIES_DESCRIPTION,
+            LuceneValueNormalizer.nullToEmpty(seriesDescription),
+            Field.Store.YES));
 
     doc.add(
         new TextField(
             LuceneIndexerFields.PATIENT_NAME,
             LuceneValueNormalizer.nullToEmpty(patientName),
-            Field.Store.NO));
+            Field.Store.YES));
     doc.add(
         new TextField(
             LuceneIndexerFields.ALL_TEXT,
@@ -479,6 +492,25 @@ public class LuceneQueryIndexPlugin
           continue;
         }
         out.add(URI.create(location));
+      }
+    }
+    return out;
+  }
+
+  private List<Document> resolveDocuments(Query query, int limit) throws IOException {
+    List<Document> out = new ArrayList<>();
+    try (DirectoryReader reader = DirectoryReader.open(writer)) {
+      if (reader.numDocs() == 0) {
+        return out;
+      }
+      IndexSearcher searcher = new IndexSearcher(reader);
+      TopDocs topDocs = searcher.search(query, Math.max(1, limit));
+      for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+        Document doc = searcher.doc(scoreDoc.doc);
+        if (!hasText(doc.get(LuceneIndexerFields.LOCATION))) {
+          continue;
+        }
+        out.add(doc);
       }
     }
     return out;
@@ -849,6 +881,35 @@ public class LuceneQueryIndexPlugin
     }
     if (defaultValue != null) {
       dst.setString(tag, vr, defaultValue);
+    }
+  }
+
+  private Attributes documentToAttributes(Document doc) {
+    Attributes attrs = new Attributes();
+    setIfPresent(
+        attrs, Tag.StudyInstanceUID, VR.UI, doc.get(LuceneIndexerFields.STUDY_INSTANCE_UID));
+    setIfPresent(
+        attrs, Tag.SeriesInstanceUID, VR.UI, doc.get(LuceneIndexerFields.SERIES_INSTANCE_UID));
+    setIfPresent(attrs, Tag.SOPInstanceUID, VR.UI, doc.get(LuceneIndexerFields.SOP_INSTANCE_UID));
+    setIfPresent(attrs, Tag.SOPClassUID, VR.UI, doc.get(LuceneIndexerFields.SOP_CLASS_UID));
+    setIfPresent(attrs, Tag.PatientID, VR.LO, doc.get(LuceneIndexerFields.PATIENT_ID));
+    setIfPresent(attrs, Tag.PatientName, VR.PN, doc.get(LuceneIndexerFields.PATIENT_NAME));
+    setIfPresent(attrs, Tag.Modality, VR.CS, doc.get(LuceneIndexerFields.MODALITY));
+    setIfPresent(attrs, Tag.AccessionNumber, VR.SH, doc.get(LuceneIndexerFields.ACCESSION_NUMBER));
+    setIfPresent(attrs, Tag.StudyDate, VR.DA, doc.get(LuceneIndexerFields.STUDY_DATE));
+    setIfPresent(attrs, Tag.StudyTime, VR.TM, doc.get(LuceneIndexerFields.STUDY_TIME));
+    setIfPresent(
+        attrs, Tag.AcquisitionDateTime, VR.DT, doc.get(LuceneIndexerFields.ACQUISITION_DATE_TIME));
+    setIfPresent(
+        attrs, Tag.StudyDescription, VR.LO, doc.get(LuceneIndexerFields.STUDY_DESCRIPTION));
+    setIfPresent(
+        attrs, Tag.SeriesDescription, VR.LO, doc.get(LuceneIndexerFields.SERIES_DESCRIPTION));
+    return attrs;
+  }
+
+  private void setIfPresent(Attributes attrs, int tag, VR vr, String value) {
+    if (value != null && !value.isBlank()) {
+      attrs.setString(tag, vr, value);
     }
   }
 }
