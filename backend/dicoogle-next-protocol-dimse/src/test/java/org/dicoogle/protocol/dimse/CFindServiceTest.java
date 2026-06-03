@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Set;
 import org.dcm4che3.data.Attributes;
@@ -173,12 +174,12 @@ class CFindServiceTest {
     }
 
     @Override
-    public List<Attributes> query(QueryRequest request) throws IOException {
+    public List<QueryResult> query(QueryRequest request) throws IOException {
       Attributes a = new Attributes();
       a.setString(
           Tag.StudyInstanceUID, VR.UI, request.keys().getString(Tag.StudyInstanceUID, "1.2.3"));
       a.setString(Tag.QueryRetrieveLevel, VR.CS, request.level().name());
-      return List.of(a);
+      return List.of(new QueryResult(a, URI.create("file:///dummy")));
     }
   }
 
@@ -190,12 +191,14 @@ class CFindServiceTest {
     }
 
     @Override
-    public List<Attributes> query(QueryRequest request) throws IOException {
+    public List<QueryResult> query(QueryRequest request) throws IOException {
       Attributes a1 = new Attributes();
       a1.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
       Attributes a2 = new Attributes();
       a2.setString(Tag.StudyInstanceUID, VR.UI, "1.2.4");
-      return List.of(a1, a2);
+      return List.of(
+          new QueryResult(a1, URI.create("file:///dummy")),
+          new QueryResult(a2, URI.create("file:///dummy")));
     }
   }
 }
