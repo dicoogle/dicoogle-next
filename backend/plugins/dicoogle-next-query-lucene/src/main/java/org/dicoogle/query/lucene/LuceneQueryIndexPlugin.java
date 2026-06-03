@@ -288,11 +288,6 @@ public class LuceneQueryIndexPlugin
     return resolveLocations(builder.build(), properties.getSearchLimit());
   }
 
-  @Override
-  public List<URI> listAllInstances() throws IOException {
-    return resolveLocations(new MatchAllDocsQuery(), properties.getSearchLimit());
-  }
-
   boolean indexPath(Path path) {
     try {
       indexUri(path.toUri(), "file");
