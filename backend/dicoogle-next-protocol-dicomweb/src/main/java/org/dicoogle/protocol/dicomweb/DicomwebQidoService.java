@@ -88,9 +88,9 @@ public class DicomwebQidoService {
   private List<Attributes> runQuery(QueryService.QueryRequest request) {
     for (QueryService plugin : plugins) {
       try {
-        List<Attributes> result = plugin.query(request);
+        List<QueryService.QueryResult> result = plugin.query(request);
         if (result != null) {
-          return result;
+          return result.stream().map(QueryService.QueryResult::attributes).toList();
         }
       } catch (IOException ex) {
         throw new ResponseStatusException(

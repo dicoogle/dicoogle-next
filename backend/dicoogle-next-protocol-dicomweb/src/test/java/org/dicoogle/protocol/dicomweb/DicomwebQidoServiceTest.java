@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import jakarta.json.Json;
 import jakarta.json.JsonArray;
 import java.io.StringReader;
+import java.net.URI;
 import java.util.List;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -90,8 +91,8 @@ class DicomwebQidoServiceTest {
     }
 
     @Override
-    public List<Attributes> query(QueryRequest request) {
-      return values;
+    public List<QueryResult> query(QueryRequest request) {
+      return values.stream().map(a -> new QueryResult(a, URI.create("file:///dummy"))).toList();
     }
   }
 }

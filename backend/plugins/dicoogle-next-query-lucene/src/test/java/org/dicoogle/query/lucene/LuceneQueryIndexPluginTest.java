@@ -2,6 +2,7 @@ package org.dicoogle.query.lucene;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -78,8 +79,9 @@ class LuceneQueryIndexPluginTest {
             false,
             () -> false);
 
-    List<Attributes> findResult = plugin.query(findRequest);
+    List<QueryService.QueryResult> findResult = plugin.query(findRequest);
     assertFalse(findResult.isEmpty());
+    assertNotNull(findResult.getFirst().storageUri());
 
     var moveRequest =
         new QueryMoveService.MoveRequest(

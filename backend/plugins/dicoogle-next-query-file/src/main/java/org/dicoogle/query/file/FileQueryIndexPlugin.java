@@ -103,14 +103,14 @@ public class FileQueryIndexPlugin
   // -------------------------------------------------------------------------
 
   @Override
-  public List<Attributes> query(QueryRequest request) throws IOException {
+  public List<QueryResult> query(QueryRequest request) throws IOException {
     List<URI> uris = resolveUrisFromIndex(request.level(), request.keys());
     if (uris.isEmpty()) {
       return List.of();
     }
 
     Set<String> seen = new LinkedHashSet<>();
-    List<Attributes> out = new ArrayList<>();
+    List<QueryResult> out = new ArrayList<>();
     String freeText =
         request.freeText() == null ? null : request.freeText().toLowerCase(Locale.ROOT);
     Map<String, String> filters = request.keywordFilters();
@@ -132,7 +132,7 @@ public class FileQueryIndexPlugin
       if (!matchesDicomKeys(attrs, request.keys(), request)) {
         continue;
       }
-      out.add(filterByLevel(attrs, request.level()));
+      out.add(new QueryResult(filterByLevel(attrs, request.level()), uri));
     }
 
     return out;
