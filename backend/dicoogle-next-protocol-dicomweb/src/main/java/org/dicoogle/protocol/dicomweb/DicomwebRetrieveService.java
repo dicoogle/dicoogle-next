@@ -18,6 +18,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.json.JSONWriter;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
@@ -40,7 +41,7 @@ public class DicomwebRetrieveService {
 
   private final List<QueryIndexStorageLocator> queryLocators;
   private final List<DicomInstanceLocator> fallbackLocators;
-  private final List<QueryService> queryPlugins;
+  private final QueryRouter router;
   private final StorageRouter storageRouter;
   private final List<StorageRetrieveEventListener> retrieveEventListeners;
   private final MeterRegistry meterRegistry;
@@ -49,13 +50,13 @@ public class DicomwebRetrieveService {
   public DicomwebRetrieveService(
       List<QueryIndexStorageLocator> queryLocators,
       List<DicomInstanceLocator> fallbackLocators,
+      QueryRouter router,
       StorageRouter storageRouter,
       List<StorageRetrieveEventListener> retrieveEventListeners,
-      MeterRegistry meterRegistry,
-      List<QueryService> queryPlugins) {
+      MeterRegistry meterRegistry) {
     this.queryLocators = List.copyOf(queryLocators);
     this.fallbackLocators = List.copyOf(fallbackLocators);
-    this.queryPlugins = List.copyOf(queryPlugins);
+    this.router = router;
     this.storageRouter = storageRouter;
     this.retrieveEventListeners = List.copyOf(retrieveEventListeners);
     this.meterRegistry = meterRegistry;
@@ -184,23 +185,9 @@ public class DicomwebRetrieveService {
    * Locates a DICOM instance by SOPInstanceUID alone and returns its fully parsed {@link
    * Attributes}. Used by the {@code /dump} endpoint which receives only the SOP UID from the
    * client.
-   *
-   * <p>Scans all registered {@link QueryIndexStorageLocator} plugins. For each locator, all indexed
-   * instances are iterated until one whose {@code SOPInstanceUID} attribute matches is found. The
-   * first match wins.
-   *
-   * @param sopInstanceUid the SOPInstanceUID to look up
-   * @return the fully parsed {@link Attributes} of the matching instance
-   * @throws ResponseStatusException 404 if no instance with the given UID is found
-   * @throws ResponseStatusException 501 if no query locators are configured
    */
   public Attributes instanceAttributes(String sopInstanceUid) {
     LOGGER.info("dump request: sopUID={}", sopInstanceUid);
-
-    if (queryPlugins.isEmpty()) {
-      throw new ResponseStatusException(
-          HttpStatus.NOT_IMPLEMENTED, "No query plugin is configured for /dump requests");
-    }
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, QueryRetrieveLevel.IMAGE.name());
@@ -220,25 +207,17 @@ public class DicomwebRetrieveService {
             false,
             () -> false);
 
-    for (QueryService queryPlugin : queryPlugins) {
-      try {
-        List<QueryService.QueryResult> results = queryPlugin.query(request);
-        if (results == null || results.isEmpty()) {
-          continue;
-        }
-        return results.getFirst().attributes();
-      } catch (IOException ex) {
-        throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to query for /dump lookup", ex);
-      }
+    List<QueryService.QueryResult> results = router.queryAll(request);
+    if (results == null || results.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "No instance found with SOPInstanceUID: " + sopInstanceUid);
     }
-
-    throw new ResponseStatusException(
-        HttpStatus.NOT_FOUND, "No instance found with SOPInstanceUID: " + sopInstanceUid);
+    return results.getFirst().attributes();
   }
 
   private LocatedInstance locate(
       String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
+    // QueryIndexStorageLocator lookup — sequential for now (typically one plugin)
     for (QueryIndexStorageLocator plugin : queryLocators) {
       try {
         var location = plugin.locateInstance(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
@@ -254,6 +233,7 @@ public class DicomwebRetrieveService {
       }
     }
 
+    // Fallback locators
     for (DicomInstanceLocator plugin : fallbackLocators) {
       try {
         var location = plugin.locateInstance(studyInstanceUid, seriesInstanceUid, sopInstanceUid);

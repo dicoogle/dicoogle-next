@@ -14,6 +14,7 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryService;
@@ -21,13 +22,20 @@ import org.junit.jupiter.api.Test;
 
 class CFindServiceTest {
 
+  private static DimseProperties emptyDim() {
+    DimseProperties p = new DimseProperties();
+    p.setDimProviders(List.of());
+    return p;
+  }
+
   @Test
   void failsWhenQueryLevelMissing() {
     CFindService service =
         new CFindService(
-            List.of(new DummyFindPlugin()),
+            router(new DummyFindPlugin()),
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
+            emptyDim(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
 
@@ -42,9 +50,10 @@ class CFindServiceTest {
   void supportsFreeTextAndLevel() throws Exception {
     CFindService service =
         new CFindService(
-            List.of(new DummyFindPlugin()),
+            router(new DummyFindPlugin()),
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
+            emptyDim(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -62,9 +71,10 @@ class CFindServiceTest {
   void rejectsDateTimeRangeWithoutNegotiation() {
     CFindService service =
         new CFindService(
-            List.of(new DummyFindPlugin()),
+            router(new DummyFindPlugin()),
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
+            emptyDim(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -83,9 +93,10 @@ class CFindServiceTest {
   void rejectsInvalidRangeSyntax() {
     CFindService service =
         new CFindService(
-            List.of(new DummyFindPlugin()),
+            router(new DummyFindPlugin()),
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
+            emptyDim(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -104,9 +115,10 @@ class CFindServiceTest {
   void acceptsDateTimeRangeWithNegotiation() throws Exception {
     CFindService service =
         new CFindService(
-            List.of(new DummyFindPlugin()),
+            router(new DummyFindPlugin()),
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
+            emptyDim(),
             new SimpleMeterRegistry());
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -130,9 +142,10 @@ class CFindServiceTest {
     properties.setMaxResults(1);
     CFindService service =
         new CFindService(
-            List.of(new MultiResultFindPlugin()),
+            router(new MultiResultFindPlugin()),
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             properties,
+            emptyDim(),
             new SimpleMeterRegistry());
 
     Attributes keys = new Attributes();
@@ -149,9 +162,10 @@ class CFindServiceTest {
         request -> DimseAccessPolicy.Decision.deny("denied by policy");
     CFindService service =
         new CFindService(
-            List.of(new DummyFindPlugin()),
+            router(new DummyFindPlugin()),
             List.of(denyPolicy),
             new DimseCFindProperties(),
+            emptyDim(),
             new SimpleMeterRegistry());
 
     Attributes keys = new Attributes();
@@ -164,6 +178,10 @@ class CFindServiceTest {
                 service.find(
                     "1.2.840.10008.5.1.4.1.2.2.1", keys, "CALLING", "CALLED", 99, Set.of(), null));
     assertEquals(Status.UnableToProcess, ex.getStatus());
+  }
+
+  private static QueryRouter router(QueryService... plugins) {
+    return new QueryRouter(List.of(plugins), List.of(), 2, 1000);
   }
 
   private static final class DummyFindPlugin implements QueryService {

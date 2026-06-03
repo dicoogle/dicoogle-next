@@ -16,10 +16,10 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomOutputStream;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
-import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.service.StorageRetrieveEventListener;
 import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
@@ -31,6 +31,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 class DicomwebRetrieveServiceTest {
 
+  private static QueryRouter emptyRouter() {
+    return new QueryRouter(List.of(), List.of(), 4, 1000);
+  }
+
   @Test
   void retrievesInstanceAndMetadata() {
     byte[] dicom = createValidDicom();
@@ -39,10 +43,10 @@ class DicomwebRetrieveServiceTest {
         new DicomwebRetrieveService(
             List.of(plugin),
             List.of(plugin),
+            emptyRouter(),
             new StorageRouter(List.of(plugin)),
             List.<StorageRetrieveEventListener>of(),
-            new SimpleMeterRegistry(),
-            List.<QueryService>of());
+            new SimpleMeterRegistry());
 
     byte[] retrieved =
         service.retrieveInstance(
@@ -69,10 +73,10 @@ class DicomwebRetrieveServiceTest {
         new DicomwebRetrieveService(
             List.<QueryIndexStorageLocator>of(),
             List.of(new EmptyHierarchicalStoragePlugin()),
+            emptyRouter(),
             new StorageRouter(List.of()),
             List.<StorageRetrieveEventListener>of(),
-            new SimpleMeterRegistry(),
-            List.<QueryService>of());
+            new SimpleMeterRegistry());
 
     ResponseStatusException ex =
         assertThrows(
@@ -90,10 +94,10 @@ class DicomwebRetrieveServiceTest {
         new DicomwebRetrieveService(
             List.<QueryIndexStorageLocator>of(),
             List.of(fallback),
+            emptyRouter(),
             new StorageRouter(List.of(fallback)),
             List.<StorageRetrieveEventListener>of(),
-            new SimpleMeterRegistry(),
-            List.<QueryService>of());
+            new SimpleMeterRegistry());
 
     ResponseStatusException ex =
         assertThrows(

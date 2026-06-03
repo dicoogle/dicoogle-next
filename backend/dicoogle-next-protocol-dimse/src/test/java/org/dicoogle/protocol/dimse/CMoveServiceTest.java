@@ -12,6 +12,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
+import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryMoveService;
@@ -19,14 +20,21 @@ import org.junit.jupiter.api.Test;
 
 class CMoveServiceTest {
 
+  private static DimseProperties emptyDim() {
+    DimseProperties p = new DimseProperties();
+    p.setDimProviders(List.of());
+    return p;
+  }
+
   @Test
   void rejectsUnknownDestination() {
     CMoveService service =
         new CMoveService(
-            List.of(new DummyMovePlugin()),
+            router(new DummyMovePlugin()),
             List.of(),
             new DimseCFindProperties(),
             new DimseCMoveProperties(),
+            emptyDim(),
             new SimpleMeterRegistry());
 
     Attributes keys = new Attributes();
@@ -54,10 +62,11 @@ class CMoveServiceTest {
     properties.setDestinations(java.util.Map.of("DEST", destination("127.0.0.1", 11113, "DEST")));
     CMoveService service =
         new CMoveService(
-            List.of(new DummyMovePlugin()),
+            router(new DummyMovePlugin()),
             List.of(),
             new DimseCFindProperties(),
             properties,
+            emptyDim(),
             new SimpleMeterRegistry());
 
     DicomServiceException ex =
@@ -83,10 +92,11 @@ class CMoveServiceTest {
 
     CMoveService service =
         new CMoveService(
-            List.of(new MultiMovePlugin()),
+            router(new MultiMovePlugin()),
             List.of(),
             new DimseCFindProperties(),
             properties,
+            emptyDim(),
             new SimpleMeterRegistry());
 
     Attributes keys = new Attributes();
@@ -106,10 +116,11 @@ class CMoveServiceTest {
 
     CMoveService service =
         new CMoveService(
-            List.of(new DummyMovePlugin()),
+            router(new DummyMovePlugin()),
             List.of(),
             new DimseCFindProperties(),
             properties,
+            emptyDim(),
             new SimpleMeterRegistry());
 
     Attributes keys = new Attributes();
@@ -137,10 +148,11 @@ class CMoveServiceTest {
 
     CMoveService service =
         new CMoveService(
-            List.of(new DummyMovePlugin()),
+            router(new DummyMovePlugin()),
             List.of(),
             new DimseCFindProperties(),
             properties,
+            emptyDim(),
             new SimpleMeterRegistry());
 
     Attributes keys = new Attributes();
@@ -172,10 +184,11 @@ class CMoveServiceTest {
 
     CMoveService service =
         new CMoveService(
-            List.of(new DummyMovePlugin()),
+            router(new DummyMovePlugin()),
             List.of(deny),
             new DimseCFindProperties(),
             properties,
+            emptyDim(),
             new SimpleMeterRegistry());
 
     Attributes keys = new Attributes();
@@ -203,6 +216,10 @@ class CMoveServiceTest {
     d.setPort(port);
     d.setAeTitle(ae);
     return d;
+  }
+
+  private static QueryRouter router(QueryMoveService... plugins) {
+    return new QueryRouter(List.of(), List.of(plugins), 2, 1000);
   }
 
   private static final class DummyMovePlugin implements QueryMoveService {

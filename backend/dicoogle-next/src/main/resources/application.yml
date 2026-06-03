@@ -37,6 +37,7 @@ app:
     docs-enabled: false
     allowed-origins: []
   dimse:
+    dim-providers: []
     cfind:
       max-results: 1000
       supported-query-levels:
