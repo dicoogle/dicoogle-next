@@ -111,28 +111,6 @@ public class FileReadOnlyStoragePlugin
     return results;
   }
 
-  @Override
-  public List<URI> listAllInstances() throws IOException {
-    List<URI> results = new ArrayList<>();
-    if (!Files.exists(rootDirectory)) {
-      return results;
-    }
-    try (var patientDirs = Files.list(rootDirectory)) {
-      for (Path patientDir : patientDirs.filter(Files::isDirectory).toList()) {
-        try (var studyDirs = Files.list(patientDir)) {
-          for (Path studyDir : studyDirs.filter(Files::isDirectory).toList()) {
-            try (var seriesDirs = Files.list(studyDir)) {
-              for (Path seriesDir : seriesDirs.filter(Files::isDirectory).toList()) {
-                collectDicomFiles(seriesDir, results);
-              }
-            }
-          }
-        }
-      }
-    }
-    return results;
-  }
-
   private String safeSegment(String value) {
     if (value == null || value.isBlank()) {
       return "UNKNOWN";

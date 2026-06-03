@@ -53,12 +53,4 @@ public interface QueryIndexStorageLocator extends QueryIndexPlugin {
    */
   List<URI> listSeriesInstances(String studyInstanceUid, String seriesInstanceUid)
       throws IOException;
-
-  /**
-   * Returns the storage URIs for all indexed instances.
-   *
-   * @return an unordered list of all instance URIs; empty if none are indexed
-   * @throws IOException if a recoverable I/O error occurs during lookup
-   */
-  List<URI> listAllInstances() throws IOException;
 }

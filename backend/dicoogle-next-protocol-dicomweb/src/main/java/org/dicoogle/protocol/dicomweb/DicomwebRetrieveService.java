@@ -12,12 +12,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
+import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.json.JSONWriter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
+import org.dicoogle.sdk.query.QueryRetrieveLevel;
+import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.service.StorageRetrieveEventListener;
 import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.StorageRetrieveFailureEvent;
@@ -36,6 +40,7 @@ public class DicomwebRetrieveService {
 
   private final List<QueryIndexStorageLocator> queryLocators;
   private final List<DicomInstanceLocator> fallbackLocators;
+  private final List<QueryService> queryPlugins;
   private final StorageRouter storageRouter;
   private final List<StorageRetrieveEventListener> retrieveEventListeners;
   private final MeterRegistry meterRegistry;
@@ -46,9 +51,11 @@ public class DicomwebRetrieveService {
       List<DicomInstanceLocator> fallbackLocators,
       StorageRouter storageRouter,
       List<StorageRetrieveEventListener> retrieveEventListeners,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      List<QueryService> queryPlugins) {
     this.queryLocators = List.copyOf(queryLocators);
     this.fallbackLocators = List.copyOf(fallbackLocators);
+    this.queryPlugins = List.copyOf(queryPlugins);
     this.storageRouter = storageRouter;
     this.retrieveEventListeners = List.copyOf(retrieveEventListeners);
     this.meterRegistry = meterRegistry;
@@ -190,31 +197,55 @@ public class DicomwebRetrieveService {
   public Attributes instanceAttributes(String sopInstanceUid) {
     LOGGER.info("dump request: sopUID={}", sopInstanceUid);
 
+    if (queryPlugins.isEmpty()) {
+      throw new ResponseStatusException(
+          HttpStatus.NOT_IMPLEMENTED, "No query plugin is configured for /dump requests");
+    }
     if (queryLocators.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED, "No query index locator is configured for /dump requests");
     }
 
-    Collection<String> seen = new LinkedHashSet<>();
+    Attributes keys = new Attributes();
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, QueryRetrieveLevel.IMAGE.name());
+    keys.setString(Tag.SOPInstanceUID, VR.UI, sopInstanceUid);
 
-    for (QueryIndexStorageLocator plugin : queryLocators) {
-      List<URI> allLocations;
+    QueryService.QueryRequest request =
+        new QueryService.QueryRequest(
+            QueryService.InformationModel.STUDY_ROOT,
+            QueryRetrieveLevel.IMAGE,
+            "DICOOGLE",
+            "DICOOGLE",
+            0,
+            keys,
+            null,
+            Map.of(),
+            false,
+            false,
+            () -> false);
+
+    for (QueryService queryPlugin : queryPlugins) {
       try {
-        allLocations = plugin.listAllInstances();
-      } catch (IOException ex) {
-        throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to list instances for /dump lookup", ex);
-      }
-
-      for (URI location : allLocations) {
-        if (!seen.add(location.toString())) {
+        List<Attributes> results = queryPlugin.query(request);
+        if (results == null || results.isEmpty()) {
           continue;
         }
-        Attributes attrs = readMetadata(location);
-        String sop = attrs.getString(Tag.SOPInstanceUID, null);
-        if (sopInstanceUid.equals(sop)) {
-          return attrs;
+        Attributes match = results.get(0);
+        String studyUid = match.getString(Tag.StudyInstanceUID, null);
+        String seriesUid = match.getString(Tag.SeriesInstanceUID, null);
+        if (studyUid == null || seriesUid == null) {
+          continue;
         }
+
+        for (QueryIndexStorageLocator locator : queryLocators) {
+          var location = locator.locateInstance(studyUid, seriesUid, sopInstanceUid);
+          if (location.isPresent()) {
+            return readMetadata(location.get());
+          }
+        }
+      } catch (IOException ex) {
+        throw new ResponseStatusException(
+            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to query for /dump lookup", ex);
       }
     }
 

@@ -19,6 +19,7 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
+import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.service.StorageRetrieveEventListener;
 import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
@@ -40,7 +41,8 @@ class DicomwebRetrieveServiceTest {
             List.of(plugin),
             new StorageRouter(List.of(plugin)),
             List.<StorageRetrieveEventListener>of(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            List.<QueryService>of());
 
     byte[] retrieved =
         service.retrieveInstance(
@@ -69,7 +71,8 @@ class DicomwebRetrieveServiceTest {
             List.of(new EmptyHierarchicalStoragePlugin()),
             new StorageRouter(List.of()),
             List.<StorageRetrieveEventListener>of(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            List.<QueryService>of());
 
     ResponseStatusException ex =
         assertThrows(
@@ -89,7 +92,8 @@ class DicomwebRetrieveServiceTest {
             List.of(fallback),
             new StorageRouter(List.of(fallback)),
             List.<StorageRetrieveEventListener>of(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            List.<QueryService>of());
 
     ResponseStatusException ex =
         assertThrows(
@@ -175,11 +179,6 @@ class DicomwebRetrieveServiceTest {
 
     @Override
     public List<URI> listSeriesInstances(String studyInstanceUid, String seriesInstanceUid) {
-      return List.of(LOCATION);
-    }
-
-    @Override
-    public List<URI> listAllInstances() {
       return List.of(LOCATION);
     }
   }
