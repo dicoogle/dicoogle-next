@@ -185,7 +185,8 @@ public class FileQueryIndexPlugin
               Map.of(),
               false,
               false,
-              request.cancelRequested()))) {
+              request.cancelRequested(),
+              null))) {
         continue;
       }
       String sopClassUid = attrs.getString(Tag.SOPClassUID, null);

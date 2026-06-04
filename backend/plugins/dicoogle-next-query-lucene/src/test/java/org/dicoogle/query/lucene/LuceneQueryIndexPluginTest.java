@@ -77,7 +77,8 @@ class LuceneQueryIndexPluginTest {
             java.util.Map.of("modality", "MR"),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
 
     List<QueryService.QueryResult> findResult = plugin.query(findRequest);
     assertFalse(findResult.isEmpty());

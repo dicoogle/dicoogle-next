@@ -23,9 +23,9 @@ import org.slf4j.LoggerFactory;
  * Central dispatcher for DICOM queries and move-resolution requests.
  *
  * <p>Matches the legacy {@code PluginController.query(holder, querySources, query, params)}
- * pattern: the caller provides a list of <em>query plugin names</em> (e.g. {@code
- * ["query-lucene"]}), and the router looks up each plugin by name, dispatches queries to all of
- * them in parallel, and merges the deduplicated results.
+ * pattern: the caller provides a list of <em>query plugin names</em> (e.g. {@code ["lucene"]}), and
+ * the router looks up each plugin by name, dispatches queries to all of them in parallel, and
+ * merges the deduplicated results.
  *
  * <p>Storage providers are <em>not</em> selected here. Each {@link QueryService} returns a {@link
  * QueryService.QueryResult} whose {@code storageUri()} carries the storage URI. The URI scheme

@@ -91,7 +91,7 @@ class QueryIndexControllerTest {
         """
         {
           "uris": ["%s"],
-            "pluginId": "query-lucene"
+            "pluginId": "lucene"
         }
         """
             .formatted(testDataRoot.toString().replace("\\", "\\\\"));
