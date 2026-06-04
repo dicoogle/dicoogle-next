@@ -50,6 +50,9 @@ public interface QueryService extends QueryIndexPlugin {
    * @param dateTimeMatchingEnabled whether extended datetime matching should be applied
    * @param cancelRequested a supplier that returns {@code true} once the caller has issued a
    *     C-CANCEL or equivalent; implementations should poll this and return early if set
+   * @param rawQuery an optional raw Lucene query string that bypasses structured matching; when
+   *     set, the implementation should parse and apply it directly (e.g. via {@code
+   *     QueryParser.parse(rawQuery)}). Ignored if {@code null}.
    */
   record QueryRequest(
       InformationModel informationModel,
@@ -62,7 +65,8 @@ public interface QueryService extends QueryIndexPlugin {
       Map<String, String> keywordFilters,
       boolean fuzzyMatchingEnabled,
       boolean dateTimeMatchingEnabled,
-      BooleanSupplier cancelRequested) {}
+      BooleanSupplier cancelRequested,
+      String rawQuery) {}
 
   /**
    * A single query result pairing the matched DICOM attributes with the storage URI from which they

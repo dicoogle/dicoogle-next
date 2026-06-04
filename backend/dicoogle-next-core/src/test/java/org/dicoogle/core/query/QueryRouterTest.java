@@ -39,7 +39,8 @@ class QueryRouterTest {
           Map.of(),
           false,
           false,
-          () -> false);
+          () -> false,
+          null);
 
   private static Attributes attrs(String study, String series, String sop) {
     Attributes a = new Attributes();

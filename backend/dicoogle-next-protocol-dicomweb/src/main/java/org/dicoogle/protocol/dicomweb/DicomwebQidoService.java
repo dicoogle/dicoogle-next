@@ -27,7 +27,7 @@ public class DicomwebQidoService {
 
   private static final Pattern KEYWORD_PATTERN = Pattern.compile("[A-Za-z0-9_.-]+:[^\\s]+");
   private static final Set<String> RESERVED_PARAMS =
-      Set.of("fuzzymatching", "limit", "offset", "includefield");
+      Set.of("fuzzymatching", "limit", "offset", "includefield", "provider", "_rawquery");
 
   private final QueryRouter router;
 
@@ -36,25 +36,30 @@ public class DicomwebQidoService {
   }
 
   public String searchStudies(MultiValueMap<String, String> queryParams) {
-    return search(QueryRetrieveLevel.STUDY, null, null, queryParams);
+    return searchStudies(queryParams, null);
+  }
+
+  public String searchStudies(MultiValueMap<String, String> queryParams, String provider) {
+    return search(QueryRetrieveLevel.STUDY, null, null, queryParams, provider);
   }
 
   public String searchSeries(String studyInstanceUid, MultiValueMap<String, String> queryParams) {
-    return search(QueryRetrieveLevel.SERIES, studyInstanceUid, null, queryParams);
+    return search(QueryRetrieveLevel.SERIES, studyInstanceUid, null, queryParams, null);
   }
 
   public String searchInstances(
       String studyInstanceUid,
       String seriesInstanceUid,
       MultiValueMap<String, String> queryParams) {
-    return search(QueryRetrieveLevel.IMAGE, studyInstanceUid, seriesInstanceUid, queryParams);
+    return search(QueryRetrieveLevel.IMAGE, studyInstanceUid, seriesInstanceUid, queryParams, null);
   }
 
   private String search(
       QueryRetrieveLevel level,
       String pathStudyUid,
       String pathSeriesUid,
-      MultiValueMap<String, String> queryParams) {
+      MultiValueMap<String, String> queryParams,
+      String provider) {
     ParsedQuery query = parseQuery(level, pathStudyUid, pathSeriesUid, queryParams);
     QueryService.QueryRequest request =
         new QueryService.QueryRequest(
@@ -68,9 +73,10 @@ public class DicomwebQidoService {
             query.keywordFilters(),
             query.fuzzyMatchingEnabled(),
             false,
-            () -> false);
+            () -> false,
+            query.rawQuery());
 
-    List<Attributes> raw = runQuery(request);
+    List<Attributes> raw = runQuery(request, provider);
     if (raw == null || raw.isEmpty()) {
       return toDicomJson(List.of());
     }
@@ -81,8 +87,18 @@ public class DicomwebQidoService {
     return toDicomJson(paged);
   }
 
-  private List<Attributes> runQuery(QueryService.QueryRequest request) {
-    List<QueryService.QueryResult> results = router.queryAll(request);
+  private List<Attributes> runQuery(QueryService.QueryRequest request, String provider) {
+    List<QueryService.QueryResult> results;
+    if (provider != null && !provider.isBlank()) {
+      List<String> names =
+          java.util.Arrays.stream(provider.split(","))
+              .map(String::trim)
+              .filter(n -> !n.isEmpty())
+              .toList();
+      results = router.query(request, names);
+    } else {
+      results = router.queryAll(request);
+    }
     if (results == null || results.isEmpty()) {
       return List.of();
     }
@@ -145,8 +161,10 @@ public class DicomwebQidoService {
       keys.setString(Tag.PatientName, VR.PN, freeText);
     }
 
+    String rawQuery = firstValue(queryParams, "_rawQuery");
+
     return new ParsedQuery(
-        keys, freeText, keywordFilters, fuzzyEnabled, limit, offset, includeFields);
+        keys, freeText, keywordFilters, fuzzyEnabled, limit, offset, includeFields, rawQuery);
   }
 
   private IncludeFields parseIncludeFields(List<String> rawIncludeValues) {
@@ -375,7 +393,8 @@ public class DicomwebQidoService {
       boolean fuzzyMatchingEnabled,
       int limit,
       int offset,
-      IncludeFields includeFields) {}
+      IncludeFields includeFields,
+      String rawQuery) {}
 
   private record IncludeFields(boolean includeAll, Set<Integer> tags) {
     static IncludeFields none() {

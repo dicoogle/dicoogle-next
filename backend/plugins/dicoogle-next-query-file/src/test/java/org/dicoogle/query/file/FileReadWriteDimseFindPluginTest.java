@@ -81,7 +81,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of("modality", "MR"),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
 
     assertFalse(plugin.query(request).isEmpty());
   }
@@ -109,7 +110,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of("StudyDate", "20240101"),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
 
     assertEquals(1, plugin.query(request).size());
   }
@@ -142,7 +144,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
 
     assertEquals(1, plugin.query(request).size());
   }
@@ -176,7 +179,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
 
     assertEquals(1, plugin.query(request).size());
   }
@@ -215,7 +219,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
     assertEquals(0, plugin.query(requestNoDateTimeNegotiation).size());
 
     var requestWithDateTimeNegotiation =
@@ -230,7 +235,9 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             false,
             true,
-            () -> false);
+            () -> false,
+            null);
+
     assertEquals(1, plugin.query(requestWithDateTimeNegotiation).size());
   }
 
@@ -261,7 +268,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
     assertEquals(0, plugin.query(requestWithoutFuzzy).size());
 
     var requestWithFuzzy =
@@ -276,7 +284,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             true,
             false,
-            () -> false);
+            () -> false,
+            null);
     assertEquals(1, plugin.query(requestWithFuzzy).size());
   }
 
@@ -310,7 +319,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
     assertEquals(1, plugin.query(request).size());
   }
 
@@ -340,7 +350,8 @@ class FileQueryIndexPluginTest {
             java.util.Map.of(),
             false,
             false,
-            () -> true);
+            () -> true,
+            null);
 
     assertEquals(0, plugin.query(request).size());
   }

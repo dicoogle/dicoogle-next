@@ -205,7 +205,8 @@ public class DicomwebRetrieveService {
             Map.of(),
             false,
             false,
-            () -> false);
+            () -> false,
+            null);
 
     List<QueryService.QueryResult> results = router.queryAll(request);
     if (results == null || results.isEmpty()) {
