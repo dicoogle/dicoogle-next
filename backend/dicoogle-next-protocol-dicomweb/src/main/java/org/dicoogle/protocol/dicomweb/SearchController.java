@@ -67,7 +67,8 @@ public class SearchController {
       @RequestParam(value = "dim", required = false, defaultValue = "false") boolean dim) {
 
     MultiValueMap<String, String> qidoParams = buildQidoParams(query, keyword);
-    String dicomJson = qidoService.searchStudies(qidoParams);
+    qidoParams.add("_rawQuery", query);
+    String dicomJson = qidoService.searchStudies(qidoParams, provider);
     String body = buildSearchResponse(dicomJson);
 
     return ResponseEntity.ok().contentType(APPLICATION_JSON_UTF8).body(body);

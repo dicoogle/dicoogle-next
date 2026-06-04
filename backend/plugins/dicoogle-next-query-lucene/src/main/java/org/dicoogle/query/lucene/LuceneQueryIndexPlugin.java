@@ -33,6 +33,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.WildcardQuery;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.dcm4che3.data.Attributes;
@@ -63,7 +64,7 @@ public class LuceneQueryIndexPlugin
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LuceneQueryIndexPlugin.class);
   private static final PluginMetadata METADATA =
-      new PluginMetadata("query-lucene", "Lucene Query/Index", "0.1.0", "query-index");
+      new PluginMetadata("lucene", "Lucene Query/Index", "0.1.0", "query-index");
 
   private final StorageRouter storageRouter;
   private final LuceneQueryProperties properties;
@@ -98,7 +99,7 @@ public class LuceneQueryIndexPlugin
 
   @Override
   public String indexId() {
-    return "query-lucene";
+    return "lucene";
   }
 
   @Override
@@ -186,6 +187,8 @@ public class LuceneQueryIndexPlugin
         request.freeText() == null ? null : request.freeText().toLowerCase(Locale.ROOT);
     Map<String, String> filters = request.keywordFilters();
 
+    boolean hasRawQuery = hasText(request.rawQuery());
+
     for (Document doc : docs) {
       String loc = doc.get(LuceneIndexerFields.LOCATION);
       if (loc == null || !seen.add(loc)) {
@@ -195,14 +198,16 @@ public class LuceneQueryIndexPlugin
         break;
       }
       Attributes attrs = documentToAttributes(doc);
-      if (!matchesFreeText(attrs, freeText)) {
-        continue;
-      }
-      if (!matchesKeywordFilters(attrs, filters, request)) {
-        continue;
-      }
-      if (!matchesDicomKeys(attrs, request.keys(), request)) {
-        continue;
+      if (!hasRawQuery) {
+        if (!matchesFreeText(attrs, freeText)) {
+          continue;
+        }
+        if (!matchesKeywordFilters(attrs, filters, request)) {
+          continue;
+        }
+        if (!matchesDicomKeys(attrs, request.keys(), request)) {
+          continue;
+        }
       }
       out.add(new QueryResult(filterByLevel(attrs, request.level()), URI.create(loc)));
     }
@@ -241,7 +246,8 @@ public class LuceneQueryIndexPlugin
               Map.of(),
               false,
               false,
-              request.cancelRequested()))) {
+              request.cancelRequested(),
+              null))) {
         continue;
       }
       String sopClassUid = attrs.getString(Tag.SOPClassUID, null);
@@ -516,7 +522,43 @@ public class LuceneQueryIndexPlugin
     return out;
   }
 
+  private static final Pattern FIELD_QUERY_PATTERN =
+      Pattern.compile("(?<=^|\\s)([A-Za-z][A-Za-z0-9]*):");
+
+  private String remapRawQuery(String rawQuery) {
+    if (rawQuery == null || rawQuery.isBlank()) {
+      return rawQuery;
+    }
+    StringBuffer sb = new StringBuffer(rawQuery.length() + 16);
+    java.util.regex.Matcher m = FIELD_QUERY_PATTERN.matcher(rawQuery);
+    while (m.find()) {
+      String keyword = m.group(1);
+      String mapped = mappedField(keyword);
+      if (mapped != null) {
+        m.appendReplacement(sb, mapped + ":");
+      }
+    }
+    m.appendTail(sb);
+    return sb.toString();
+  }
+
   private Query buildQuery(QueryRequest request) {
+    String rawQuery = request.rawQuery();
+    if (hasText(rawQuery)) {
+      BooleanQuery.Builder builder = new BooleanQuery.Builder();
+      addLevelFilters(builder, request.level(), request.keys());
+
+      String trimmed = rawQuery.trim();
+      if ("*:*".equals(trimmed)) {
+        builder.add(new MatchAllDocsQuery(), BooleanClause.Occur.MUST);
+      } else {
+        buildRawTerms(builder, trimmed);
+      }
+
+      BooleanQuery query = builder.build();
+      return query.clauses().isEmpty() ? new MatchAllDocsQuery() : query;
+    }
+
     BooleanQuery.Builder builder = new BooleanQuery.Builder();
     addLevelFilters(builder, request.level(), request.keys());
 
@@ -533,6 +575,65 @@ public class LuceneQueryIndexPlugin
 
     BooleanQuery query = builder.build();
     return query.clauses().isEmpty() ? new MatchAllDocsQuery() : query;
+  }
+
+  private void buildRawTerms(BooleanQuery.Builder builder, String query) {
+    String[] tokens = query.split("\\s+");
+    StringBuilder freeText = new StringBuilder();
+
+    for (String token : tokens) {
+      if ("AND".equalsIgnoreCase(token)
+          || "OR".equalsIgnoreCase(token)
+          || "NOT".equalsIgnoreCase(token)) {
+        if (freeText.length() > 0) freeText.append(' ');
+        freeText.append(token.toUpperCase(Locale.ROOT));
+        continue;
+      }
+
+      int colon = token.indexOf(':');
+      if (colon > 0) {
+        String field = token.substring(0, colon);
+        String value = token.substring(colon + 1);
+        String mapped = mappedField(field);
+        if (mapped != null) {
+          addFieldTerm(builder, mapped, value);
+          continue;
+        }
+      }
+
+      if (freeText.length() > 0) freeText.append(' ');
+      freeText.append(token);
+    }
+
+    if (freeText.length() > 0) {
+      try {
+        QueryParser parser = new QueryParser(LuceneIndexerFields.ALL_TEXT, new StandardAnalyzer());
+        parser.setAllowLeadingWildcard(true);
+        builder.add(parser.parse(freeText.toString()), BooleanClause.Occur.MUST);
+      } catch (ParseException ex) {
+        builder.add(new MatchAllDocsQuery(), BooleanClause.Occur.FILTER);
+      }
+    }
+  }
+
+  private void addFieldTerm(BooleanQuery.Builder builder, String field, String value) {
+    boolean isTextField = LuceneIndexerFields.PATIENT_NAME.equals(field);
+    boolean hasWildcard = value.indexOf('*') >= 0 || value.indexOf('?') >= 0;
+    if (isTextField) {
+      try {
+        QueryParser parser = new QueryParser(field, new StandardAnalyzer());
+        parser.setAllowLeadingWildcard(true);
+        builder.add(parser.parse(value), BooleanClause.Occur.MUST);
+      } catch (ParseException ex) {
+        // skip malformed clause
+      }
+      return;
+    }
+    if (hasWildcard) {
+      builder.add(new WildcardQuery(new Term(field, value)), BooleanClause.Occur.MUST);
+      return;
+    }
+    builder.add(new TermQuery(new Term(field, value)), BooleanClause.Occur.MUST);
   }
 
   private Query buildMoveQuery(QueryMoveService.MoveRequest request) {
@@ -604,10 +705,13 @@ public class LuceneQueryIndexPlugin
       case "sopinstanceuid" -> LuceneIndexerFields.SOP_INSTANCE_UID;
       case "sopclassuid" -> LuceneIndexerFields.SOP_CLASS_UID;
       case "patientid" -> LuceneIndexerFields.PATIENT_ID;
+      case "patientname" -> LuceneIndexerFields.PATIENT_NAME;
       case "modality" -> LuceneIndexerFields.MODALITY;
       case "accessionnumber" -> LuceneIndexerFields.ACCESSION_NUMBER;
       case "studydate" -> LuceneIndexerFields.STUDY_DATE;
       case "studytime" -> LuceneIndexerFields.STUDY_TIME;
+      case "studydescription" -> LuceneIndexerFields.STUDY_DESCRIPTION;
+      case "seriesdescription" -> LuceneIndexerFields.SERIES_DESCRIPTION;
       case "acquisitiondatetime" -> LuceneIndexerFields.ACQUISITION_DATE_TIME;
       default -> null;
     };
@@ -856,20 +960,6 @@ public class LuceneQueryIndexPlugin
     copyIfPresent(src, out, Tag.RequestingPhysician, VR.PN, null);
     copyIfPresent(src, out, Tag.ProtocolName, VR.LO, null);
     copyIfPresent(src, out, Tag.BodyPartThickness, VR.DS, null);
-
-    if (level == QueryRetrieveLevel.STUDY) {
-      Attributes studyOnly = new Attributes();
-      studyOnly.addAll(out);
-      studyOnly.setNull(Tag.SeriesInstanceUID, VR.UI);
-      studyOnly.setNull(Tag.SOPInstanceUID, VR.UI);
-      return studyOnly;
-    }
-    if (level == QueryRetrieveLevel.SERIES) {
-      Attributes seriesOnly = new Attributes();
-      seriesOnly.addAll(out);
-      seriesOnly.setNull(Tag.SOPInstanceUID, VR.UI);
-      return seriesOnly;
-    }
     return out;
   }
 

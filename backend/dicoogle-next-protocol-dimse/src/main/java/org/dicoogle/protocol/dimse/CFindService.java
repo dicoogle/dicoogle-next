@@ -121,7 +121,8 @@ public class CFindService {
             keywordFilters,
             queryOptions.contains(QueryOption.FUZZY),
             queryOptions.contains(QueryOption.DATETIME),
-            cancelRequested == null ? () -> false : cancelRequested);
+            cancelRequested == null ? () -> false : cancelRequested,
+            null);
 
     for (DimseAccessPolicy<QueryService.QueryRequest> policy : accessPolicies) {
       DimseAccessPolicy.Decision decision = policy.evaluate(request);
