@@ -3,6 +3,7 @@ package org.dicoogle.protocol.dicomweb;
 import jakarta.json.Json;
 import jakarta.json.stream.JsonGenerator;
 import java.io.StringWriter;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -40,21 +41,27 @@ public class DicomwebQidoService {
   }
 
   public String searchStudies(MultiValueMap<String, String> queryParams, String provider) {
+    return search(QueryRetrieveLevel.STUDY, null, null, queryParams, provider).dicomJson();
+  }
+
+  public SearchResultSet searchStudiesWithUris(
+      MultiValueMap<String, String> queryParams, String provider) {
     return search(QueryRetrieveLevel.STUDY, null, null, queryParams, provider);
   }
 
   public String searchSeries(String studyInstanceUid, MultiValueMap<String, String> queryParams) {
-    return search(QueryRetrieveLevel.SERIES, studyInstanceUid, null, queryParams, null);
+    return search(QueryRetrieveLevel.SERIES, studyInstanceUid, null, queryParams, null).dicomJson();
   }
 
   public String searchInstances(
       String studyInstanceUid,
       String seriesInstanceUid,
       MultiValueMap<String, String> queryParams) {
-    return search(QueryRetrieveLevel.IMAGE, studyInstanceUid, seriesInstanceUid, queryParams, null);
+    return search(QueryRetrieveLevel.IMAGE, studyInstanceUid, seriesInstanceUid, queryParams, null)
+        .dicomJson();
   }
 
-  private String search(
+  private SearchResultSet search(
       QueryRetrieveLevel level,
       String pathStudyUid,
       String pathSeriesUid,
@@ -76,18 +83,20 @@ public class DicomwebQidoService {
             () -> false,
             query.rawQuery());
 
-    List<Attributes> raw = runQuery(request, provider);
+    List<AttrsWithUri> raw = runQuery(request, provider);
     if (raw == null || raw.isEmpty()) {
-      return toDicomJson(List.of());
+      return new SearchResultSet(toDicomJson(List.of()), List.of());
     }
-    List<Attributes> deduplicated = deduplicateByLevel(raw, level);
-    List<Attributes> projected =
+    List<AttrsWithUri> deduplicated = deduplicateByLevel(raw, level);
+    List<AttrsWithUri> projected =
         applyIncludeFieldProjection(deduplicated, level, query.includeFields());
-    List<Attributes> paged = paginate(projected, query.offset(), query.limit());
-    return toDicomJson(paged);
+    List<AttrsWithUri> paged = paginate(projected, query.offset(), query.limit());
+    String dicomJson = toDicomJson(paged.stream().map(AttrsWithUri::attrs).toList());
+    List<URI> uris = paged.stream().map(AttrsWithUri::uri).toList();
+    return new SearchResultSet(dicomJson, uris);
   }
 
-  private List<Attributes> runQuery(QueryService.QueryRequest request, String provider) {
+  private List<AttrsWithUri> runQuery(QueryService.QueryRequest request, String provider) {
     List<QueryService.QueryResult> results;
     if (provider != null && !provider.isBlank()) {
       List<String> names =
@@ -102,7 +111,7 @@ public class DicomwebQidoService {
     if (results == null || results.isEmpty()) {
       return List.of();
     }
-    return results.stream().map(QueryService.QueryResult::attributes).toList();
+    return results.stream().map(r -> new AttrsWithUri(r.attributes(), r.storageUri())).toList();
   }
 
   private ParsedQuery parseQuery(
@@ -197,14 +206,15 @@ public class DicomwebQidoService {
     return new IncludeFields(all, tags);
   }
 
-  private List<Attributes> deduplicateByLevel(List<Attributes> values, QueryRetrieveLevel level) {
-    Map<String, Attributes> byKey = new LinkedHashMap<>();
-    for (Attributes attrs : values) {
-      String key = dedupKey(attrs, level);
+  private List<AttrsWithUri> deduplicateByLevel(
+      List<AttrsWithUri> values, QueryRetrieveLevel level) {
+    Map<String, AttrsWithUri> byKey = new LinkedHashMap<>();
+    for (AttrsWithUri item : values) {
+      String key = dedupKey(item.attrs(), level);
       if (key == null) {
         key = "row-" + byKey.size();
       }
-      byKey.putIfAbsent(key, attrs);
+      byKey.putIfAbsent(key, item);
     }
     return List.copyOf(byKey.values());
   }
@@ -222,23 +232,23 @@ public class DicomwebQidoService {
     };
   }
 
-  private List<Attributes> applyIncludeFieldProjection(
-      List<Attributes> values, QueryRetrieveLevel level, IncludeFields includeFields) {
+  private List<AttrsWithUri> applyIncludeFieldProjection(
+      List<AttrsWithUri> values, QueryRetrieveLevel level, IncludeFields includeFields) {
     if (includeFields.includeAll() || includeFields.tags().isEmpty()) {
       return values;
     }
 
     Set<Integer> required = requiredTags(level);
-    List<Attributes> out = new ArrayList<>(values.size());
-    for (Attributes src : values) {
+    List<AttrsWithUri> out = new ArrayList<>(values.size());
+    for (AttrsWithUri item : values) {
       Attributes dst = new Attributes();
       for (int tag : includeFields.tags()) {
-        copyTagIfPresent(src, dst, tag);
+        copyTagIfPresent(item.attrs(), dst, tag);
       }
       for (int tag : required) {
-        copyTagIfPresent(src, dst, tag);
+        copyTagIfPresent(item.attrs(), dst, tag);
       }
-      out.add(dst);
+      out.add(new AttrsWithUri(dst, item.uri()));
     }
     return out;
   }
@@ -259,7 +269,7 @@ public class DicomwebQidoService {
     }
   }
 
-  private List<Attributes> paginate(List<Attributes> values, int offset, int limit) {
+  private List<AttrsWithUri> paginate(List<AttrsWithUri> values, int offset, int limit) {
     if (offset >= values.size()) {
       return List.of();
     }
@@ -385,6 +395,10 @@ public class DicomwebQidoService {
     }
     return output.toString();
   }
+
+  record SearchResultSet(String dicomJson, List<URI> storageUris) {}
+
+  private record AttrsWithUri(Attributes attrs, URI uri) {}
 
   private record ParsedQuery(
       Attributes keys,
