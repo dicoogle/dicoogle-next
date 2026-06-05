@@ -1,5 +1,9 @@
 package org.dicoogle.protocol.dicomweb;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -32,6 +36,8 @@ public class DicoogleApiController {
 
   private static final MediaType APPLICATION_JSON_UTF8 =
       MediaType.parseMediaType("application/json;charset=UTF-8");
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final DicomwebQidoService qidoService;
   private final DicomwebRetrieveService retrieveService;
@@ -86,45 +92,55 @@ public class DicoogleApiController {
   // ---------------------------------------------------------------------------
 
   /**
-   * Returns all DICOM attributes of a single instance identified by its SOPInstanceUID, as a flat
-   * keyword→value JSON object.
+   * Returns all DICOM attributes of a single instance, wrapped in the legacy envelope.
    *
-   * <p>Matches the legacy Dicoogle endpoint exactly: {@code GET /dump?uid=<SOPInstanceUID>}.
-   *
-   * <p>Example:
-   *
-   * <pre>
-   * GET /dump?uid=1.2.840.113745.101000.1008000.38446.6272.7138759
-   * </pre>
-   *
-   * <p>Response:
+   * <p>Matches the legacy {@code DumpServlet} response exactly:
    *
    * <pre>{@code
    * {
-   *   "SOPInstanceUID": "1.2.840...",
-   *   "PatientName":    "FELIX",
-   *   "Modality":       "MR",
-   *   ...
+   *   "results": {
+   *     "uri": "file:///path/to/file.dcm",
+   *     "fields": { "SOPInstanceUID": "...", "PatientName": "...", ... }
+   *   },
+   *   "elapsedTime": 42
    * }
    * }</pre>
    *
-   * <p>Sequence tags (SQ) and pixel data are excluded. Private/unknown tags appear as their
-   * zero-padded uppercase hex tag (e.g. {@code "00091010"}).
+   * <p>Sequence tags (SQ) and pixel data are excluded from {@code fields}. Accepts an optional
+   * {@code provider} parameter to restrict the query to a specific index plugin.
    *
    * @param sopInstanceUid the SOPInstanceUID of the instance to dump
-   * @return 200 with flat keyword JSON, 400 if uid is missing, 404 if not found
+   * @param provider optional query provider name
+   * @return 200 with legacy envelope, 400 if uid is missing, 404 if not found
    */
   @GetMapping(value = "/dump", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> dumpInstance(
-      @RequestParam(value = "uid", required = false) String sopInstanceUid) {
+      @RequestParam(value = "uid", required = false) String sopInstanceUid,
+      @RequestParam(value = "provider", required = false) String provider) {
     if (sopInstanceUid == null || sopInstanceUid.isBlank()) {
       throw new ResponseStatusException(
           HttpStatus.BAD_REQUEST, "Query parameter 'uid' (SOPInstanceUID) is required");
     }
     LOGGER.info("dump request: uid={}", sopInstanceUid);
-    var attrs = retrieveService.instanceAttributes(sopInstanceUid);
-    return ResponseEntity.ok()
-        .contentType(APPLICATION_JSON_UTF8)
-        .body(DicomTagTransformer.toDumpResponse(attrs));
+
+    long start = System.nanoTime();
+    var result = retrieveService.dumpResult(sopInstanceUid, provider);
+    long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+
+    try {
+      ObjectNode response = MAPPER.createObjectNode();
+      ObjectNode results = MAPPER.createObjectNode();
+      results.put("uri", result.storageUri().toString());
+      JsonNode fields = MAPPER.readTree(DicomTagTransformer.toDumpResponse(result.attributes()));
+      results.set("fields", fields);
+      response.set("results", results);
+      response.put("elapsedTime", elapsedMs);
+
+      return ResponseEntity.ok()
+          .contentType(APPLICATION_JSON_UTF8)
+          .body(MAPPER.writeValueAsString(response));
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to build dump response", e);
+    }
   }
 }

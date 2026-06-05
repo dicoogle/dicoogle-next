@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.net.URI;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -68,8 +71,13 @@ public class SearchController {
 
     MultiValueMap<String, String> qidoParams = buildQidoParams(query, keyword);
     qidoParams.add("_rawQuery", query);
-    String dicomJson = qidoService.searchStudies(qidoParams, provider);
-    String body = buildSearchResponse(dicomJson);
+
+    long start = System.nanoTime();
+    DicomwebQidoService.SearchResultSet resultSet =
+        qidoService.searchStudiesWithUris(qidoParams, provider);
+    long elapsedNanos = System.nanoTime() - start;
+
+    String body = buildLegacySearchResponse(resultSet, elapsedNanos);
 
     return ResponseEntity.ok().contentType(APPLICATION_JSON_UTF8).body(body);
   }
@@ -127,26 +135,38 @@ public class SearchController {
   }
 
   /**
-   * Wraps a DICOM JSON array string into the legacy search response shape:
+   * Builds a legacy-compatible search response:
    *
-   * <pre>{"numResults": N, "results": [...]}</pre>
+   * <pre>
+   * {"results": [{"uri": "file:///...", "fields": {...}}, ...], "elapsedTime": N, "numResults": N}
+   * </pre>
    */
-  private String buildSearchResponse(String dicomJson) {
+  private String buildLegacySearchResponse(
+      DicomwebQidoService.SearchResultSet resultSet, long elapsedNanos) {
     try {
-      String keywordJson = DicomTagTransformer.transformResultArray(dicomJson);
+      String keywordJson = DicomTagTransformer.transformResultArray(resultSet.dicomJson());
       JsonNode results = MAPPER.readTree(keywordJson);
 
-      // Flatten: for each result, ensure required fields are present (null-safe)
-      ArrayNode normalised = MAPPER.createArrayNode();
+      long elapsedMs = TimeUnit.NANOSECONDS.toMillis(elapsedNanos);
+      List<URI> uris = resultSet.storageUris();
+
+      ArrayNode resultsArray = MAPPER.createArrayNode();
       if (results.isArray()) {
-        for (JsonNode item : results) {
-          normalised.add(normaliseResult((ObjectNode) item));
+        for (int i = 0; i < results.size(); i++) {
+          ObjectNode fields = normaliseResult((ObjectNode) results.get(i));
+
+          ObjectNode entry = MAPPER.createObjectNode();
+          String uri = i < uris.size() ? uris.get(i).toString() : null;
+          entry.put("uri", uri);
+          entry.set("fields", fields);
+          resultsArray.add(entry);
         }
       }
 
       ObjectNode response = MAPPER.createObjectNode();
-      response.put("numResults", normalised.size());
-      response.set("results", normalised);
+      response.set("results", resultsArray);
+      response.put("elapsedTime", elapsedMs);
+      response.put("numResults", resultsArray.size());
       return MAPPER.writeValueAsString(response);
     } catch (Exception e) {
       throw new RuntimeException("Failed to build search response", e);
