@@ -182,11 +182,15 @@ public class DicomwebRetrieveService {
   }
 
   /**
-   * Locates a DICOM instance by SOPInstanceUID alone and returns its fully parsed {@link
-   * Attributes}. Used by the {@code /dump} endpoint which receives only the SOP UID from the
-   * client.
+   * Locates a DICOM instance by SOPInstanceUID and returns its {@link QueryService.QueryResult}
+   * (attributes + storage URI). Used by the {@code /dump} endpoint.
+   *
+   * @param sopInstanceUid the SOP Instance UID to look up
+   * @param provider an optional query provider name; if null/blank all providers are queried
+   * @return the matching {@link QueryResult}
+   * @throws ResponseStatusException 404 if not found, 500 on I/O error
    */
-  public Attributes instanceAttributes(String sopInstanceUid) {
+  public QueryService.QueryResult dumpResult(String sopInstanceUid, String provider) {
     LOGGER.info("dump request: sopUID={}", sopInstanceUid);
 
     Attributes keys = new Attributes();
@@ -208,12 +212,17 @@ public class DicomwebRetrieveService {
             () -> false,
             null);
 
-    List<QueryService.QueryResult> results = router.queryAll(request);
+    List<QueryService.QueryResult> results;
+    if (provider != null && !provider.isBlank()) {
+      results = router.query(request, List.of(provider));
+    } else {
+      results = router.queryAll(request);
+    }
     if (results == null || results.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "No instance found with SOPInstanceUID: " + sopInstanceUid);
     }
-    return results.getFirst().attributes();
+    return results.getFirst();
   }
 
   private LocatedInstance locate(
