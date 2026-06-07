@@ -58,21 +58,38 @@ public class DicomServicesController {
   @GetMapping("/query")
   @Operation(
       summary = "Get C-FIND service state",
+      description = "C-FIND runs on the same DIMSE server as C-STORE; returns the same status",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> getQuery() {
-    return ResponseEntity.ok(new ServiceStatusResponse(false, 0, false, null));
+    RuntimeSettings.DimseCStoreSettings cstore =
+        settingsService.getCurrent().getDimse().getCstore();
+    return ResponseEntity.ok(
+        new ServiceStatusResponse(
+            settingsService.isCStoreRunning(),
+            cstore.getPort(),
+            cstore.isEnabled(),
+            cstore.getBindAddress()));
   }
 
   @PostMapping("/query")
   @Operation(
       summary = "Update C-FIND service state",
+      description =
+          "C-FIND runs on the same DIMSE server as C-STORE; starts/stops the shared server",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> updateQuery(
       @RequestParam(required = false) Integer port,
       @RequestParam(required = false) Boolean autostart,
       @RequestParam(required = false) Boolean running,
       @RequestParam(required = false) String hostname) {
-    return ResponseEntity.ok(new ServiceStatusResponse(false, 0, false, null));
+    RuntimeSettings updated = settingsService.updateCStore(port, hostname, autostart, running);
+    RuntimeSettings.DimseCStoreSettings cstore = updated.getDimse().getCstore();
+    return ResponseEntity.ok(
+        new ServiceStatusResponse(
+            settingsService.isCStoreRunning(),
+            cstore.getPort(),
+            cstore.isEnabled(),
+            cstore.getBindAddress()));
   }
 
   private record ServiceStatusResponse(
