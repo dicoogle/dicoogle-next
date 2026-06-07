@@ -22,14 +22,14 @@ public class AETitleController {
   }
 
   @GetMapping
-  @Operation(summary = "Get AE title", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Get AE title", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, String>> getAeTitle() {
     String aeTitle = settingsService.getCurrent().getDimse().getCstore().getAeTitle();
     return ResponseEntity.ok(Map.of("aetitle", aeTitle));
   }
 
   @PutMapping
-  @Operation(summary = "Update AE title", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Update AE title", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, Boolean>> updateAeTitle(
       @RequestParam("aetitle") String aeTitle) {
     settingsService.updateAETitle(aeTitle);

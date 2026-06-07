@@ -23,7 +23,7 @@ public class TransferOptionsController {
   @GetMapping
   @Operation(
       summary = "List transfer capabilities",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> list() {
     return ResponseEntity.ok(service.getCurrent());
   }
@@ -31,7 +31,7 @@ public class TransferOptionsController {
   @PostMapping
   @Operation(
       summary = "Update transfer capability",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> update(
       @RequestParam("uid") String sopClassUid,
       @RequestParam("option") String option,
