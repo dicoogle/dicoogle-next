@@ -190,6 +190,20 @@ public class DicomwebRetrieveService {
    * @return the matching {@link QueryResult}
    * @throws ResponseStatusException 404 if not found, 500 on I/O error
    */
+  public byte[] retrieveInstanceBySopUid(String sopInstanceUid, String provider) {
+    LOGGER.info("retrieve by sopUID={}", sopInstanceUid);
+    var result = dumpResult(sopInstanceUid, provider);
+    URI uri = result.storageUri();
+    try (var stream = storageRouter.requireReadable(uri.getScheme()).openForRead(uri)) {
+      return stream.readAllBytes();
+    } catch (IOException ex) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "Failed to read DICOM instance from storage provider",
+          ex);
+    }
+  }
+
   public QueryService.QueryResult dumpResult(String sopInstanceUid, String provider) {
     LOGGER.info("dump request: sopUID={}", sopInstanceUid);
 
