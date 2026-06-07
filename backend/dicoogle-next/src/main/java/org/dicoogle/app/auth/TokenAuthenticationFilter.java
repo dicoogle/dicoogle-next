@@ -27,8 +27,13 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
       throws ServletException, IOException {
 
     String header = request.getHeader("Authorization");
+    String token = null;
     if (header != null && !header.isBlank()) {
-      String token = header.startsWith("Bearer ") ? header.substring(7) : header;
+      token = header.startsWith("Bearer ") ? header.substring(7) : header;
+    } else {
+      token = request.getParameter("token");
+    }
+    if (token != null && !token.isBlank()) {
       TokenEntry entry = tokenService.validateToken(token);
       if (entry != null) {
         try {
