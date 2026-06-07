@@ -34,6 +34,7 @@ public class SecurityConfig {
     http.csrf(AbstractHttpConfigurer::disable)
         .cors(Customizer.withDefaults())
         .anonymous(AbstractHttpConfigurer::disable)
+        .logout(AbstractHttpConfigurer::disable)
         .exceptionHandling(
             e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
         .addFilterAfter(tokenAuthFilter, SecurityContextHolderFilter.class)

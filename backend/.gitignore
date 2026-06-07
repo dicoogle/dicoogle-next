@@ -200,6 +200,7 @@ README.html
 .idea
 .exercism
 data/*
+dicoogle-next/data/*
 
 *.md
 !README.md
