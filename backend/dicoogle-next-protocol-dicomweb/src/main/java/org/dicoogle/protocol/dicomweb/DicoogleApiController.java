@@ -3,7 +3,6 @@ package org.dicoogle.protocol.dicomweb;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,14 +144,14 @@ public class DicoogleApiController {
     }
   }
 
-  /** Returns the file URI for a given SOPInstanceUID, matching the legacy file lookup endpoint. */
-  @GetMapping(value = "/legacy/file", produces = MediaType.APPLICATION_JSON_VALUE)
-  public ResponseEntity<Map<String, Object>> legacyFile(
+  /** Serves raw DICOM bytes for a given SOPInstanceUID. Used by Cornerstone's wadouri loader. */
+  @GetMapping("/legacy/file")
+  public ResponseEntity<byte[]> legacyFile(
       @RequestParam("uid") String sopInstanceUid,
       @RequestParam(value = "provider", required = false) String provider) {
     LOGGER.info("legacy/file request: uid={}", sopInstanceUid);
-    var result = retrieveService.dumpResult(sopInstanceUid, provider);
-    return ResponseEntity.ok(Map.of("uri", result.storageUri().toString()));
+    byte[] bytes = retrieveService.retrieveInstanceBySopUid(sopInstanceUid, provider);
+    return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).body(bytes);
   }
 
   /** Returns DICOM instance bytes for thumbnail/image rendering. */

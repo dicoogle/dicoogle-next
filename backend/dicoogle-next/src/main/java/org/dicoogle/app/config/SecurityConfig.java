@@ -43,6 +43,8 @@ public class SecurityConfig {
               requests
                   .requestMatchers(HttpMethod.GET, "/ext/version")
                   .permitAll()
+                  .requestMatchers(HttpMethod.GET, "/dic2png")
+                  .permitAll()
                   .requestMatchers(HttpMethod.GET, "/system/ping")
                   .permitAll()
                   .requestMatchers(HttpMethod.GET, "/login")
