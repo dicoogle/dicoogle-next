@@ -172,6 +172,10 @@ public class SearchController {
 
     if (keyword) {
       // Keyword mode: expect "Key:Value" pairs separated by spaces
+      // "*:*" is a wildcard meaning "return all" — treat as empty filter
+      if ("*:*".equals(query.trim())) {
+        return params;
+      }
       for (String token : query.trim().split("\\s+")) {
         int colon = token.indexOf(':');
         if (colon > 0 && colon < token.length() - 1) {

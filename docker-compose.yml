@@ -11,6 +11,7 @@ services:
       SPRING_PROFILES_ACTIVE: dev
     volumes:
       - dicoogle-data:/app/data
+      - /home/jotalma13/FELIX:/home/jotalma13/FELIX
 
   frontend:
     build:
