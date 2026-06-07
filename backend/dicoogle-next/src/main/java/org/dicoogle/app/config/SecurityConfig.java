@@ -41,6 +41,8 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             requests -> {
               requests
+                  .requestMatchers(HttpMethod.GET, "/ext/version")
+                  .permitAll()
                   .requestMatchers(HttpMethod.GET, "/system/ping")
                   .permitAll()
                   .requestMatchers(HttpMethod.GET, "/login")

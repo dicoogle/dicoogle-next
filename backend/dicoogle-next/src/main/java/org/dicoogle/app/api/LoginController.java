@@ -62,8 +62,9 @@ public class LoginController {
   @Operation(summary = "Invalidate the current bearer token")
   public ResponseEntity<Map<String, Object>> logout(HttpServletRequest request) {
     String header = request.getHeader("Authorization");
-    if (header != null && header.startsWith("Bearer ")) {
-      tokenService.revokeToken(header.substring(7));
+    if (header != null && !header.isBlank()) {
+      String token = header.startsWith("Bearer ") ? header.substring(7) : header;
+      tokenService.revokeToken(token);
     }
     return ResponseEntity.ok(Map.of("success", true));
   }

@@ -2,6 +2,8 @@ package org.dicoogle.app.api;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+  private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
   ProblemDetail handleValidationException(
@@ -96,6 +99,7 @@ public class ApiExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   ProblemDetail handleGenericException(Exception exception, HttpServletRequest request) {
+    log.error("Unhandled exception for request: {}", request.getRequestURI(), exception);
     ProblemDetail problem =
         ProblemDetail.forStatusAndDetail(
             HttpStatus.INTERNAL_SERVER_ERROR,

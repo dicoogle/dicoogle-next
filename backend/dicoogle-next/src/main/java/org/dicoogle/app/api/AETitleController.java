@@ -6,6 +6,7 @@ import java.util.Map;
 import org.dicoogle.app.settings.RuntimeSettingsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,5 +35,35 @@ public class AETitleController {
       @RequestParam("aetitle") String aeTitle) {
     settingsService.updateAETitle(aeTitle);
     return ResponseEntity.ok(Map.of("success", true));
+  }
+
+  @GetMapping("/query")
+  @Operation(
+      summary = "Get DICOM query (C-FIND) service settings",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  public ResponseEntity<Map<String, Object>> getQuerySettings() {
+    Map<String, Object> settings = new java.util.LinkedHashMap<>();
+    settings.put("isRunning", false);
+    settings.put("port", 0);
+    settings.put("autostart", false);
+    settings.put("hostname", "");
+    return ResponseEntity.ok(settings);
+  }
+
+  @PostMapping("/query")
+  @Operation(
+      summary = "Update DICOM query (C-FIND) service settings",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  public ResponseEntity<Map<String, Object>> updateQuerySettings(
+      @RequestParam(required = false) Integer port,
+      @RequestParam(required = false) Boolean autostart,
+      @RequestParam(required = false) Boolean running,
+      @RequestParam(required = false) String hostname) {
+    Map<String, Object> settings = new java.util.LinkedHashMap<>();
+    settings.put("isRunning", false);
+    settings.put("port", 0);
+    settings.put("autostart", false);
+    settings.put("hostname", "");
+    return ResponseEntity.ok(settings);
   }
 }
