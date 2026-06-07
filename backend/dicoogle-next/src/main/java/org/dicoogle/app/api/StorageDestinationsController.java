@@ -2,7 +2,9 @@ package org.dicoogle.app.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.dicoogle.app.settings.RuntimeSettings;
 import org.dicoogle.app.settings.RuntimeSettingsService;
@@ -27,9 +29,20 @@ public class StorageDestinationsController {
   @Operation(
       summary = "List move destinations",
       security = @SecurityRequirement(name = "bearerAuth"))
-  public ResponseEntity<Collection<RuntimeSettings.MoveDestinationSetting>> list() {
-    return ResponseEntity.ok(
-        settingsService.getCurrent().getDimse().getMoveDestinations().values());
+  public ResponseEntity<Collection<Map<String, Object>>> list() {
+    Collection<RuntimeSettings.MoveDestinationSetting> values =
+        settingsService.getCurrent().getDimse().getMoveDestinations().values();
+    var result = new ArrayList<Map<String, Object>>(values.size());
+    for (RuntimeSettings.MoveDestinationSetting dest : values) {
+      Map<String, Object> map = new LinkedHashMap<>();
+      map.put("AETitle", dest.getAeTitle());
+      map.put("ipAddrs", dest.getHost());
+      map.put("port", dest.getPort());
+      map.put("description", dest.getDescription());
+      map.put("isPublic", dest.isPublic());
+      result.add(map);
+    }
+    return ResponseEntity.ok(result);
   }
 
   @PostMapping
