@@ -33,7 +33,7 @@ public class IndexSettingsController {
   @GetMapping
   @Operation(
       summary = "Get all index settings",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> getAll() {
     if (indexSettings == null) {
       return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
@@ -45,7 +45,7 @@ public class IndexSettingsController {
   }
 
   @GetMapping("/path")
-  @Operation(summary = "Get index path", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Get index path", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> getPath() {
     if (indexSettings == null) {
       return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
@@ -54,7 +54,7 @@ public class IndexSettingsController {
   }
 
   @PutMapping("/path")
-  @Operation(summary = "Update index path", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Update index path", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> updatePath(@RequestParam String path) {
     if (indexSettings == null) {
       return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
@@ -67,7 +67,7 @@ public class IndexSettingsController {
   }
 
   @GetMapping("/watcher")
-  @Operation(summary = "Get watcher state", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Get watcher state", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> getWatcher() {
     if (indexSettings == null) {
       return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
@@ -76,7 +76,7 @@ public class IndexSettingsController {
   }
 
   @PutMapping("/watcher")
-  @Operation(summary = "Update watcher state", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Update watcher state", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> updateWatcher(@RequestParam boolean watcher) {
     if (indexSettings == null) {
       return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();

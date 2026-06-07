@@ -26,7 +26,7 @@ public class StorageDestinationsController {
   @GetMapping
   @Operation(
       summary = "List move destinations",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Collection<RuntimeSettings.MoveDestinationSetting>> list() {
     return ResponseEntity.ok(
         settingsService.getCurrent().getDimse().getMoveDestinations().values());
@@ -35,7 +35,7 @@ public class StorageDestinationsController {
   @PostMapping
   @Operation(
       summary = "Add or remove a move destination",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, Boolean>> update(
       @RequestParam("type") String type,
       @RequestParam("aetitle") String aeTitle,

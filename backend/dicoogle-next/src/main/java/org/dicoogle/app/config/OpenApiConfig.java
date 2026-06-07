@@ -27,8 +27,9 @@ public class OpenApiConfig {
                     "bearerAuth",
                     new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP)
-                        .scheme("basic")
-                        .description("Development basic authentication")))
+                        .scheme("bearer")
+                        .bearerFormat("JWT")
+                        .description("Bearer token authentication (get token from POST /login)")))
         .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
   }
 }

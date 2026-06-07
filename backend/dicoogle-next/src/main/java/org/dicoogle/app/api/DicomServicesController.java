@@ -24,7 +24,7 @@ public class DicomServicesController {
   @GetMapping("/storage")
   @Operation(
       summary = "Get C-STORE service state",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> getStorage() {
     RuntimeSettings.DimseCStoreSettings cstore =
         settingsService.getCurrent().getDimse().getCstore();
@@ -39,7 +39,7 @@ public class DicomServicesController {
   @PostMapping("/storage")
   @Operation(
       summary = "Update C-STORE service state",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> updateStorage(
       @RequestParam(required = false) Integer port,
       @RequestParam(required = false) Boolean autostart,
@@ -58,7 +58,7 @@ public class DicomServicesController {
   @GetMapping("/query")
   @Operation(
       summary = "Get C-FIND service state",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> getQuery() {
     return ResponseEntity.ok(new ServiceStatusResponse(false, 0, false, null));
   }
@@ -66,7 +66,7 @@ public class DicomServicesController {
   @PostMapping("/query")
   @Operation(
       summary = "Update C-FIND service state",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> updateQuery(
       @RequestParam(required = false) Integer port,
       @RequestParam(required = false) Boolean autostart,

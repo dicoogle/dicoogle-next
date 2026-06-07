@@ -23,7 +23,7 @@ public class IndexTaskController {
   }
 
   @GetMapping
-  @Operation(summary = "Get indexing tasks", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Get indexing tasks", security = @SecurityRequirement(name = "bearerAuth"))
   public TaskResults listTasks() {
     return taskService.listTasks();
   }
@@ -31,7 +31,7 @@ public class IndexTaskController {
   @PostMapping
   @Operation(
       summary = "Change an indexing task",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, Object>> changeTask(
       @RequestParam String action, @RequestParam String type, @RequestParam String uid) {
     if (!"delete".equals(action)) {
