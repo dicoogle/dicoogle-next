@@ -2,10 +2,10 @@ package org.dicoogle.app.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import org.dicoogle.app.dto.UserResponse;
 import org.dicoogle.app.users.UserService;
-import org.dicoogle.app.users.UserSettings;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,8 +27,9 @@ public class UserController {
 
   @GetMapping
   @Operation(summary = "List all users", security = @SecurityRequirement(name = "basicAuth"))
-  public ResponseEntity<Collection<UserSettings>> list() {
-    return ResponseEntity.ok(userService.listUsers());
+  public ResponseEntity<Map<String, List<UserResponse>>> list() {
+    List<UserResponse> users = userService.listUsers().stream().map(UserResponse::from).toList();
+    return ResponseEntity.ok(Map.of("users", users));
   }
 
   @PostMapping

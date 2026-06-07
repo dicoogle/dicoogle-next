@@ -33,7 +33,11 @@ public class LoginController {
           .body(Map.of("success", false, "error", "invalid credentials"));
     }
     String token = tokenService.createToken(username);
-    return ResponseEntity.ok(Map.of("success", true, "token", token));
+    var user = userService.findByUsername(username);
+    boolean admin = user != null && user.isAdmin();
+    List<String> roles = admin ? List.of("admin") : List.of();
+    return ResponseEntity.ok(
+        Map.of("user", username, "admin", admin, "roles", roles, "token", token));
   }
 
   @GetMapping("/login")
