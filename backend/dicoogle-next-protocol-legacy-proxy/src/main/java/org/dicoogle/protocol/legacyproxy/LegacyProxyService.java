@@ -1,7 +1,9 @@
 package org.dicoogle.protocol.legacyproxy;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.slf4j.Logger;
@@ -10,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -65,6 +68,53 @@ public class LegacyProxyService {
    */
   public ResponseEntity<byte[]> forward(HttpServletRequest request) {
     return forwardWithToken(request, authService.getToken(), false);
+  }
+
+  /**
+   * Stores raw DICOM bytes on legacy Dicoogle via POST /storage.
+   *
+   * @param dicomBytes the raw DICOM Part 10 bytes to store
+   * @return the URI assigned by legacy storage, or null on failure
+   */
+  public URI postStorage(byte[] dicomBytes) {
+    return postStorageWithToken(dicomBytes, authService.getToken(), false);
+  }
+
+  private URI postStorageWithToken(byte[] dicomBytes, String token, boolean isRetry) {
+    try {
+      String path = "/storage?scheme=file";
+      log.debug("Proxying POST {} to legacy Dicoogle ({} bytes)", path, dicomBytes.length);
+
+      Map<?, ?> response =
+          webClient
+              .method(HttpMethod.POST)
+              .uri(path)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .contentType(MediaType.APPLICATION_OCTET_STREAM)
+              .bodyValue(dicomBytes)
+              .retrieve()
+              .bodyToMono(Map.class)
+              .block(properties.getTimeout());
+
+      if (response != null && response.containsKey("uri")) {
+        return URI.create((String) response.get("uri"));
+      }
+      log.warn("Legacy Dicoogle POST /storage returned no URI: {}", response);
+      return null;
+
+    } catch (WebClientResponseException e) {
+      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return postStorageWithToken(dicomBytes, freshToken, true);
+      }
+      log.error("Legacy Dicoogle POST /storage returned error: HTTP {}", e.getStatusCode());
+      return null;
+
+    } catch (Exception e) {
+      log.error("Failed to proxy POST /storage to legacy Dicoogle", e);
+      return null;
+    }
   }
 
   private ResponseEntity<byte[]> forwardWithToken(
