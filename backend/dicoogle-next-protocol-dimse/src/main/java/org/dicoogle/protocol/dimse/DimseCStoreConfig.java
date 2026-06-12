@@ -4,12 +4,14 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
 import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -28,8 +30,10 @@ public class DimseCStoreConfig {
   CStoreService cStoreService(
       StorageRouter storageRouter,
       List<StorageIngestEventListener> storageIngestEventListeners,
-      MeterRegistry meterRegistry) {
-    return new CStoreService(storageRouter, storageIngestEventListeners, meterRegistry);
+      MeterRegistry meterRegistry,
+      @Autowired(required = false) LegacyProxyService legacyProxyService) {
+    return new CStoreService(
+        storageRouter, storageIngestEventListeners, meterRegistry, legacyProxyService);
   }
 
   @Bean

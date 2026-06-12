@@ -5,6 +5,7 @@ import io.micrometer.core.instrument.Timer;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
@@ -16,6 +17,7 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.dicoogle.core.storage.NoWritableStoragePluginException;
 import org.dicoogle.core.storage.StoragePluginNotFoundException;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
 import org.dicoogle.sdk.storage.StorageIngestFailureEvent;
 import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
@@ -30,22 +32,32 @@ public class CStoreService {
   private final StorageRouter storageRouter;
   private final List<StorageIngestEventListener> listeners;
   private final MeterRegistry meterRegistry;
+  private final LegacyProxyService legacyProxyService;
 
   public CStoreService(StorageRouter storageRouter) {
-    this(storageRouter, List.of(), null);
+    this(storageRouter, List.of(), null, null);
   }
 
   public CStoreService(StorageRouter storageRouter, List<StorageIngestEventListener> listeners) {
-    this(storageRouter, listeners, null);
+    this(storageRouter, listeners, null, null);
   }
 
   public CStoreService(
       StorageRouter storageRouter,
       List<StorageIngestEventListener> listeners,
       MeterRegistry meterRegistry) {
+    this(storageRouter, listeners, meterRegistry, null);
+  }
+
+  public CStoreService(
+      StorageRouter storageRouter,
+      List<StorageIngestEventListener> listeners,
+      MeterRegistry meterRegistry,
+      LegacyProxyService legacyProxyService) {
     this.storageRouter = Objects.requireNonNull(storageRouter);
     this.listeners = List.copyOf(Objects.requireNonNull(listeners));
     this.meterRegistry = meterRegistry;
+    this.legacyProxyService = legacyProxyService;
   }
 
   public CStoreResult store(CStoreRequest request) {
@@ -135,6 +147,43 @@ public class CStoreService {
       recordOutcome("success", scheme, startNs);
       return result;
     } catch (NoWritableStoragePluginException | StoragePluginNotFoundException ex) {
+      if (legacyProxyService != null) {
+        try {
+          LOGGER.info(
+              "C-STORE no local writable provider, falling back to legacy: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
+              nullSafe(request.callingAet()),
+              nullSafe(request.calledAet()),
+              identifiers.studyInstanceUid(),
+              identifiers.seriesInstanceUid(),
+              identifiers.sopInstanceUid(),
+              scheme);
+          URI legacyUri = legacyProxyService.postStorage(ps310Payload);
+          if (legacyUri != null) {
+            CStoreResult result = CStoreResult.success(identifiers, legacyUri);
+            emitIngestSuccess(
+                request,
+                identifiers,
+                new StoredObject(legacyUri, ps310Payload.length, "application/dicom"),
+                scheme);
+            increment("dicoogle.cstore.success", scheme);
+            recordOutcome("success", scheme, startNs);
+            LOGGER.info(
+                "C-STORE stored via legacy fallback: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
+                nullSafe(request.callingAet()),
+                nullSafe(request.calledAet()),
+                identifiers.studyInstanceUid(),
+                identifiers.seriesInstanceUid(),
+                identifiers.sopInstanceUid(),
+                scheme,
+                legacyUri);
+            return result;
+          }
+          LOGGER.warn("C-STORE legacy fallback returned null URI");
+        } catch (Exception fallbackEx) {
+          LOGGER.error("C-STORE legacy fallback failed", fallbackEx);
+        }
+      }
+
       CStoreResult result = CStoreResult.noWritableProvider(scheme);
       LOGGER.warn(
           "C-STORE rejected (no writable provider): callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
