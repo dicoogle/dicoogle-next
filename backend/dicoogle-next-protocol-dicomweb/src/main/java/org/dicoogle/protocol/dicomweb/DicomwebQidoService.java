@@ -36,6 +36,10 @@ public class DicomwebQidoService {
     this.router = router;
   }
 
+  public boolean hasQueryPlugins() {
+    return !plugins.isEmpty();
+  }
+
   public String searchStudies(MultiValueMap<String, String> queryParams) {
     return searchStudies(queryParams, null);
   }

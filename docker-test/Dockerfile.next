@@ -1,5 +1,0 @@
-FROM eclipse-temurin:21-jre
-WORKDIR /app
-COPY dicoogle-next-0.0.1-SNAPSHOT.jar app.jar
-ENTRYPOINT ["java", "-jar", "app.jar"]
-CMD ["--spring.profiles.active=dev", "--server.port=8082", "--app.dimse.cstore.enabled=true", "--app.dimse.cstore.port=11113", "--app.storage.file-rw.enabled=false", "--app.query.lucene.enabled=false", "--app.query.file.enabled=false", "--app.plugins.startup-validation.require-writable-provider=false", "--dicoogle.legacy-proxy.enabled=true", "--dicoogle.legacy-proxy.base-url=http://legacy:8080", "--dicoogle.legacy-proxy.auth.username=dicoogle", "--dicoogle.legacy-proxy.auth.password=dicoogle", "--app.dimse.cmove.destinations.LEGACYSCP.host=legacy", "--app.dimse.cmove.destinations.LEGACYSCP.port=6666", "--app.dimse.cmove.destinations.LEGACYSCP.ae-title=DICOOGLE"]
