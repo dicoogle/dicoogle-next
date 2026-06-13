@@ -80,6 +80,19 @@ public class LegacyProxyService {
     return postStorageWithToken(dicomBytes, authService.getToken(), false);
   }
 
+  /**
+   * Queries legacy Dicoogle via GET /search.
+   *
+   * @param query the query string (format depends on legacy plugin, typically Lucene syntax)
+   * @param fields extra DICOM fields to return (null uses legacy defaults)
+   * @param maxResults page size
+   * @return the JSON response as a Map with "results", "numResults", "elapsedTime", or null on
+   *     failure
+   */
+  public Map<?, ?> searchQuery(String query, String[] fields, int maxResults) {
+    return searchQueryWithToken(query, fields, maxResults, authService.getToken(), false);
+  }
+
   private URI postStorageWithToken(byte[] dicomBytes, String token, boolean isRetry) {
     try {
       String path = "/storage?scheme=file";
@@ -113,6 +126,50 @@ public class LegacyProxyService {
 
     } catch (Exception e) {
       log.error("Failed to proxy POST /storage to legacy Dicoogle", e);
+      return null;
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<?, ?> searchQueryWithToken(
+      String query, String[] fields, int maxResults, String token, boolean isRetry) {
+    try {
+      UriComponentsBuilder uriBuilder =
+          UriComponentsBuilder.fromPath("/search")
+              .queryParam("query", query)
+              .queryParam("psize", maxResults)
+              .queryParam("expand");
+      if (fields != null && fields.length > 0) {
+        for (String field : fields) {
+          uriBuilder.queryParam("field", field);
+        }
+      }
+      String uri = uriBuilder.build().toUriString();
+
+      log.debug("Proxying GET {} to legacy Dicoogle", uri);
+
+      Map<?, ?> response =
+          webClient
+              .method(HttpMethod.GET)
+              .uri(uri)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .retrieve()
+              .bodyToMono(Map.class)
+              .block(properties.getTimeout());
+
+      return response;
+
+    } catch (WebClientResponseException e) {
+      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return searchQueryWithToken(query, fields, maxResults, freshToken, true);
+      }
+      log.error("Legacy Dicoogle GET /search returned error: HTTP {}", e.getStatusCode());
+      return null;
+
+    } catch (Exception e) {
+      log.error("Failed to proxy GET /search to legacy Dicoogle", e);
       return null;
     }
   }
