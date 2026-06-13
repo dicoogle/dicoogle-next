@@ -1,0 +1,5 @@
+FROM eclipse-temurin:8-jre
+WORKDIR /root
+COPY dicoogle.jar .
+COPY Plugins/ Plugins/
+CMD ["java", "-jar", "dicoogle.jar", "-s"]
