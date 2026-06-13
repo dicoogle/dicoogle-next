@@ -105,7 +105,7 @@ public class CFindService {
 
     validateIdentifier(keys, queryOptions);
 
-    if (router.getQueryPlugins().isEmpty()) {
+    if (router.queryPluginCount() == 0) {
       if (legacyProxyService == null) {
         increment("dicoogle.cfind.failure", "no-query-plugin");
         throw new DicomServiceException(

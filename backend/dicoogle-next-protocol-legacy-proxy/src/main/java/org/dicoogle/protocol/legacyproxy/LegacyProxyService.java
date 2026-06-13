@@ -81,6 +81,17 @@ public class LegacyProxyService {
   }
 
   /**
+   * Fetches a raw DICOM file from legacy Dicoogle via GET /storage?uri=...
+   *
+   * @param fullUri the full storage URI (e.g., "file:///tmp/.../file.dcm") as returned by legacy
+   *     /search
+   * @return the raw DICOM bytes, or null on failure
+   */
+  public byte[] getFile(String fullUri) {
+    return getFileWithToken(fullUri, authService.getToken(), false);
+  }
+
+  /**
    * Queries legacy Dicoogle via GET /search.
    *
    * @param query the query string (format depends on legacy plugin, typically Lucene syntax)
@@ -126,6 +137,45 @@ public class LegacyProxyService {
 
     } catch (Exception e) {
       log.error("Failed to proxy POST /storage to legacy Dicoogle", e);
+      return null;
+    }
+  }
+
+  private byte[] getFileWithToken(String fullUri, String token, boolean isRetry) {
+    try {
+      log.debug("Proxying GET /storage?uri={} to legacy Dicoogle", fullUri);
+
+      java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
+      java.net.URI uri =
+          java.net.URI.create(
+              properties.getBaseUrl()
+                  + "/storage?uri="
+                  + java.net.URLEncoder.encode(fullUri, "UTF-8"));
+
+      java.net.http.HttpRequest request =
+          java.net.http.HttpRequest.newBuilder()
+              .uri(uri)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .GET()
+              .build();
+
+      java.net.http.HttpResponse<byte[]> response =
+          httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+
+      if (response.statusCode() == 401 && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return getFileWithToken(fullUri, freshToken, true);
+      }
+      if (response.statusCode() != 200) {
+        log.error(
+            "Legacy Dicoogle GET /storage?uri=... returned error: HTTP {}", response.statusCode());
+        return null;
+      }
+      return response.body();
+
+    } catch (Exception e) {
+      log.error("Failed to proxy GET /storage to legacy Dicoogle", e);
       return null;
     }
   }

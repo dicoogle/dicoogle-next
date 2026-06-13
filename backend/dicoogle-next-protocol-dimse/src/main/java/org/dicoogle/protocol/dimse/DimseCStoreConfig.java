@@ -55,14 +55,16 @@ public class DimseCStoreConfig {
       DimseCFindProperties cfindProperties,
       DimseCMoveProperties cmoveProperties,
       DimseProperties dimseProperties,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      @Autowired(required = false) LegacyProxyService legacyProxyService) {
     return new CMoveService(
         queryRouter,
         cmoveAccessPolicies,
         cfindProperties,
         cmoveProperties,
         dimseProperties,
-        meterRegistry);
+        meterRegistry,
+        legacyProxyService);
   }
 
   @Bean
@@ -76,7 +78,8 @@ public class DimseCStoreConfig {
       List<DimseAssociationEventListener> associationEventListeners,
       List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies,
       @org.springframework.beans.factory.annotation.Qualifier("primaryStorageScheme")
-          String primaryStorageScheme) {
+          String primaryStorageScheme,
+      @Autowired(required = false) LegacyProxyService legacyProxyService) {
     return new DimseCStoreServer(
         cStoreService,
         cFindService,
@@ -85,6 +88,7 @@ public class DimseCStoreConfig {
         properties,
         primaryStorageScheme,
         associationEventListeners,
-        associationAccessPolicies);
+        associationAccessPolicies,
+        legacyProxyService);
   }
 }

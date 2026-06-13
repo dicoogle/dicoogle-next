@@ -6,9 +6,7 @@ import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
@@ -27,6 +25,7 @@ import org.dcm4che3.net.service.BasicCEchoSCP;
 import org.dcm4che3.net.service.BasicCStoreSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.DicomServiceRegistry;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
 import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
@@ -48,11 +47,12 @@ public class DimseCStoreServer implements SmartLifecycle {
   private final String primaryStorageScheme;
   private final List<DimseAssociationEventListener> associationEventListeners;
   private final List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies;
+  private final LegacyProxyService legacyProxyService;
 
   private volatile boolean running;
   private Device device;
-  private ExecutorService executor;
-  private ScheduledExecutorService scheduler;
+  private java.util.concurrent.ExecutorService executor;
+  private java.util.concurrent.ScheduledExecutorService scheduler;
 
   public DimseCStoreServer(
       CStoreService cStoreService,
@@ -69,7 +69,8 @@ public class DimseCStoreServer implements SmartLifecycle {
         properties,
         primaryStorageScheme,
         List.of(),
-        List.of());
+        List.of(),
+        null);
   }
 
   public DimseCStoreServer(
@@ -81,6 +82,28 @@ public class DimseCStoreServer implements SmartLifecycle {
       String primaryStorageScheme,
       List<DimseAssociationEventListener> associationEventListeners,
       List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies) {
+    this(
+        cStoreService,
+        cFindService,
+        cMoveService,
+        storageRouter,
+        properties,
+        primaryStorageScheme,
+        associationEventListeners,
+        associationAccessPolicies,
+        null);
+  }
+
+  public DimseCStoreServer(
+      CStoreService cStoreService,
+      CFindService cFindService,
+      CMoveService cMoveService,
+      org.dicoogle.core.storage.StorageRouter storageRouter,
+      DimseCStoreProperties properties,
+      String primaryStorageScheme,
+      List<DimseAssociationEventListener> associationEventListeners,
+      List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies,
+      LegacyProxyService legacyProxyService) {
     this.cStoreService = Objects.requireNonNull(cStoreService);
     this.cFindService = Objects.requireNonNull(cFindService);
     this.cMoveService = Objects.requireNonNull(cMoveService);
@@ -92,6 +115,7 @@ public class DimseCStoreServer implements SmartLifecycle {
             : primaryStorageScheme;
     this.associationEventListeners = List.copyOf(associationEventListeners);
     this.associationAccessPolicies = List.copyOf(associationAccessPolicies);
+    this.legacyProxyService = legacyProxyService;
   }
 
   @Override
@@ -124,7 +148,8 @@ public class DimseCStoreServer implements SmartLifecycle {
     DicomServiceRegistry services = new DicomServiceRegistry();
     services.addDicomService(new BasicCEchoSCP());
     services.addDicomService(new DimseCFindSCP(cFindService));
-    services.addDicomService(new DimseCMoveSCP(cMoveService, storageRouter, properties));
+    services.addDicomService(
+        new DimseCMoveSCP(cMoveService, storageRouter, properties, legacyProxyService));
     services.addDicomService(
         new BasicCStoreSCP("*") {
           @Override
