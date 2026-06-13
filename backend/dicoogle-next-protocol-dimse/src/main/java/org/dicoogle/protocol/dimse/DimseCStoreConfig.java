@@ -42,9 +42,10 @@ public class DimseCStoreConfig {
       List<DimseAccessPolicy<QueryService.QueryRequest>> cfindAccessPolicies,
       DimseCFindProperties cfindProperties,
       DimseProperties dimseProperties,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      @Autowired(required = false) LegacyProxyService legacyProxyService) {
     return new CFindService(
-        queryRouter, cfindAccessPolicies, cfindProperties, dimseProperties, meterRegistry);
+        queryRouter, cfindAccessPolicies, cfindProperties, dimseProperties, meterRegistry, legacyProxyService);
   }
 
   @Bean

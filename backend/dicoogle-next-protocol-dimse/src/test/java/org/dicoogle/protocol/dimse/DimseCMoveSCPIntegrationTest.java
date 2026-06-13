@@ -209,7 +209,7 @@ class DimseCMoveSCPIntegrationTest {
     QueryRouter findRouter = new QueryRouter(List.of(queryPlugin), List.of(), 4, 1000);
     CFindService cFindService =
         new CFindService(
-            findRouter, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry());
+            findRouter, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry(), null);
 
     DimseCMoveProperties moveProperties = new DimseCMoveProperties();
     DimseCMoveProperties.Destination destination = new DimseCMoveProperties.Destination();

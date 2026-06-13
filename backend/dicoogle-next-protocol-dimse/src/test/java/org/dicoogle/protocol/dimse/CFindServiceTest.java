@@ -36,7 +36,8 @@ class CFindServiceTest {
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null);
     Attributes keys = new Attributes();
 
     DicomServiceException ex =
@@ -54,7 +55,8 @@ class CFindServiceTest {
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
     keys.setString(Tag.StudyInstanceUID, VR.UI, "1.2.3");
@@ -75,7 +77,8 @@ class CFindServiceTest {
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
     keys.setString(Tag.AcquisitionDateTime, VR.DT, "20240101000000-20241231235959");
@@ -97,7 +100,8 @@ class CFindServiceTest {
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
     keys.setString(Tag.StudyDate, VR.DA, "-");
@@ -119,7 +123,8 @@ class CFindServiceTest {
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             new DimseCFindProperties(),
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
     keys.setString(Tag.AcquisitionDateTime, VR.DT, "20240101000000-20241231235959");
@@ -146,7 +151,8 @@ class CFindServiceTest {
             List.<DimseAccessPolicy<QueryService.QueryRequest>>of(),
             properties,
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null);
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -166,7 +172,8 @@ class CFindServiceTest {
             List.of(denyPolicy),
             new DimseCFindProperties(),
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null);
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
