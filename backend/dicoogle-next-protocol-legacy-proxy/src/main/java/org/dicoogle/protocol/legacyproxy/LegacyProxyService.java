@@ -104,6 +104,16 @@ public class LegacyProxyService {
     return searchQueryWithToken(query, fields, maxResults, authService.getToken(), false);
   }
 
+  /**
+   * Triggers indexing on legacy Dicoogle via POST /management/tasks/index.
+   *
+   * @param uri the URI to index (e.g., "file:///tmp")
+   * @return true if the indexing task was submitted successfully
+   */
+  public boolean postIndex(String uri) {
+    return postIndexWithToken(uri, authService.getToken(), false);
+  }
+
   private URI postStorageWithToken(byte[] dicomBytes, String token, boolean isRetry) {
     try {
       String path = "/storage?scheme=file";
@@ -221,6 +231,44 @@ public class LegacyProxyService {
     } catch (Exception e) {
       log.error("Failed to proxy GET /search to legacy Dicoogle", e);
       return null;
+    }
+  }
+
+  private boolean postIndexWithToken(String uri, String token, boolean isRetry) {
+    try {
+      String path = "/management/tasks/index?uri=" + java.net.URLEncoder.encode(uri, "UTF-8");
+      log.debug("Proxying POST {} to legacy Dicoogle", path);
+
+      Map<?, ?> response =
+          webClient
+              .method(HttpMethod.POST)
+              .uri(path)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .retrieve()
+              .bodyToMono(Map.class)
+              .block(properties.getTimeout());
+
+      if (response != null) {
+        log.info("Legacy index task submitted for uri={}: {}", uri, response);
+        return true;
+      }
+      log.warn("Legacy Dicoogle POST /management/tasks/index returned null for uri={}", uri);
+      return false;
+
+    } catch (WebClientResponseException e) {
+      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return postIndexWithToken(uri, freshToken, true);
+      }
+      log.error(
+          "Legacy Dicoogle POST /management/tasks/index returned error: HTTP {}",
+          e.getStatusCode());
+      return false;
+
+    } catch (Exception e) {
+      log.error("Failed to proxy POST /management/tasks/index to legacy Dicoogle", e);
+      return false;
     }
   }
 
