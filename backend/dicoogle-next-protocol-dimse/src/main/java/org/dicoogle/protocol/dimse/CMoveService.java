@@ -1,6 +1,7 @@
 package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -12,14 +13,18 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.core.query.QueryRouter;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
 import org.dicoogle.sdk.query.QueryService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class CMoveService {
 
   static final String STUDY_ROOT_MOVE_UID = "1.2.840.10008.5.1.4.1.2.2.2";
+  private static final Logger LOGGER = LoggerFactory.getLogger(CMoveService.class);
 
   private final QueryRouter router;
   private final List<DimseAccessPolicy<QueryMoveService.MoveRequest>> accessPolicies;
@@ -28,6 +33,7 @@ public class CMoveService {
   private final List<String> dimProviders;
   private final Map<String, DimseCMoveProperties.Destination> destinations;
   private final MeterRegistry meterRegistry;
+  private final LegacyProxyService legacyProxyService;
 
   public CMoveService(
       QueryRouter router,
@@ -35,7 +41,8 @@ public class CMoveService {
       DimseCFindProperties cfindProperties,
       DimseCMoveProperties properties,
       DimseProperties dimseProperties,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      LegacyProxyService legacyProxyService) {
     this.router = router;
     this.accessPolicies = List.copyOf(accessPolicies);
     this.supportedLevels =
@@ -46,6 +53,7 @@ public class CMoveService {
     this.dimProviders = dimseProperties.getDimProviders();
     this.destinations = Map.copyOf(properties.getDestinations());
     this.meterRegistry = meterRegistry;
+    this.legacyProxyService = legacyProxyService;
   }
 
   public List<QueryMoveService.MoveCandidate> resolve(
@@ -90,6 +98,14 @@ public class CMoveService {
     } catch (IllegalArgumentException ex) {
       throw new DicomServiceException(
           Status.IdentifierDoesNotMatchSOPClass, "Invalid QueryRetrieveLevel");
+    }
+
+    if (router.movePluginCount() == 0) {
+      if (legacyProxyService == null) {
+        throw new DicomServiceException(
+            Status.UnableToProcess, "No DIMSE move plugin is configured");
+      }
+      return fallbackToLegacy(keys, level, normalizedLevel);
     }
 
     QueryMoveService.MoveRequest request =
@@ -169,5 +185,110 @@ public class CMoveService {
 
   private boolean hasText(String value) {
     return value != null && !value.isBlank();
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<QueryMoveService.MoveCandidate> fallbackToLegacy(
+      Attributes keys, QueryRetrieveLevel level, String normalizedLevel)
+      throws DicomServiceException {
+    LOGGER.info("C-MOVE no local move plugin, falling back to legacy: level={}", normalizedLevel);
+
+    String query = buildFreetextQuery(keys);
+    String[] fields = buildLegacyReturnFields(keys);
+
+    Map<?, ?> response = legacyProxyService.searchQuery(query, fields, maxResults);
+    if (response == null) {
+      LOGGER.warn("C-MOVE legacy fallback returned null");
+      return List.of();
+    }
+
+    List<?> resultList = (List<?>) response.get("results");
+    if (resultList == null || resultList.isEmpty()) {
+      LOGGER.info("C-MOVE legacy fallback returned 0 matches");
+      return List.of();
+    }
+
+    List<QueryMoveService.MoveCandidate> candidates = new ArrayList<>();
+    for (Object obj : resultList) {
+      Map<?, ?> entry = (Map<?, ?>) obj;
+      Map<?, ?> fieldsMap = (Map<?, ?>) entry.get("fields");
+      if (fieldsMap == null) {
+        continue;
+      }
+
+      String sopClassUid = null;
+      String sopInstanceUid = null;
+
+      for (Map.Entry<?, ?> f : fieldsMap.entrySet()) {
+        String keyword = (String) f.getKey();
+        if ("SOPClassUID".equals(keyword) || "sopClassUid".equals(keyword)) {
+          sopClassUid = String.valueOf(f.getValue());
+        } else if ("SOPInstanceUID".equals(keyword) || "sopInstanceUid".equals(keyword)) {
+          sopInstanceUid = String.valueOf(f.getValue());
+        }
+      }
+
+      if (sopInstanceUid == null || sopInstanceUid.isBlank()) {
+        continue;
+      }
+      if (sopClassUid == null || sopClassUid.isBlank()) {
+        sopClassUid = "*";
+      }
+
+      String legacyUri = (String) entry.get("uri");
+      java.net.URI location;
+      if (legacyUri != null && !legacyUri.isBlank()) {
+        location = java.net.URI.create("legacy://" + legacyUri);
+      } else {
+        location = java.net.URI.create("legacy://" + sopInstanceUid);
+      }
+      candidates.add(new QueryMoveService.MoveCandidate(sopClassUid, sopInstanceUid, location));
+
+      if (candidates.size() >= maxResults) {
+        break;
+      }
+    }
+
+    LOGGER.info("C-MOVE legacy fallback returned {} candidates", candidates.size());
+    return candidates;
+  }
+
+  private String buildFreetextQuery(Attributes keys) {
+    StringBuilder query = new StringBuilder();
+    for (int tag : keys.tags()) {
+      if (tag == Tag.QueryRetrieveLevel) {
+        continue;
+      }
+      String value = keys.getString(tag, null);
+      if (value != null && !value.isBlank()) {
+        if (!query.isEmpty()) {
+          query.append(' ');
+        }
+        query.append(value);
+      }
+    }
+    return query.isEmpty() ? "*" : query.toString();
+  }
+
+  private String[] buildLegacyReturnFields(Attributes keys) {
+    List<String> fields = new ArrayList<>();
+    for (int tag : keys.tags()) {
+      if (tag == Tag.QueryRetrieveLevel) {
+        continue;
+      }
+      String value = keys.getString(tag, null);
+      if (value == null || value.isBlank()) {
+        String keyword = org.dcm4che3.data.ElementDictionary.keywordOf(tag, null);
+        if (keyword != null) {
+          fields.add(keyword);
+        }
+      }
+    }
+    if (fields.isEmpty()) {
+      return new String[] {
+        "SOPInstanceUID", "SOPClassUID", "StudyInstanceUID", "SeriesInstanceUID"
+      };
+    }
+    return fields.toArray(new String[0]);
   }
 }

@@ -43,6 +43,14 @@ public class QueryRouter {
   private final ExecutorService executor;
   private final int maxResults;
 
+  public int queryPluginCount() {
+    return queryServices.size();
+  }
+
+  public int movePluginCount() {
+    return moveServices.size();
+  }
+
   /** Builds the router from the given plugin collections and configuration. */
   public QueryRouter(
       List<QueryService> queryServices,

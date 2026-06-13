@@ -225,8 +225,7 @@ class DimseCMoveSCPIntegrationTest {
             List.of(),
             new DimseCFindProperties(),
             moveProperties,
-            dimProps,
-            new SimpleMeterRegistry());
+            findRouter, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry(), null);
 
     DimseCStoreProperties cStoreProperties = new DimseCStoreProperties();
     cStoreProperties.setEnabled(true);
