@@ -107,7 +107,7 @@ public class CMoveService {
     boolean hasMovePlugin = router.movePluginCount() > 0;
     boolean useLegacy =
         legacyProxyProperties != null
-            && legacyProxyProperties.shouldUseLegacyForStorageRetrieve(hasMovePlugin);
+            && legacyProxyProperties.shouldUseLegacyForQueryIndex(hasMovePlugin);
 
     if (useLegacy) {
       if (legacyProxyService == null) {
