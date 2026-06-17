@@ -10,6 +10,7 @@ import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexReindexItem;
 import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexStatusItem;
 import org.dicoogle.app.service.QueryIndexMaintenanceService;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
+import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -29,13 +30,23 @@ public class QueryIndexController {
 
   private final QueryIndexMaintenanceService service;
   private final LegacyProxyService legacyProxyService;
+  private final LegacyProxyProperties legacyProxyProperties;
 
   public QueryIndexController(
       QueryIndexMaintenanceService service,
       @org.springframework.beans.factory.annotation.Autowired(required = false)
-          LegacyProxyService legacyProxyService) {
+          LegacyProxyService legacyProxyService,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+          LegacyProxyProperties legacyProxyProperties) {
     this.service = service;
     this.legacyProxyService = legacyProxyService;
+    this.legacyProxyProperties = legacyProxyProperties;
+  }
+
+  private boolean shouldFallbackToLegacy() {
+    boolean hasIndexPlugin = service.hasIndexes();
+    return legacyProxyProperties != null
+        && legacyProxyProperties.shouldUseLegacyForQueryIndex(hasIndexPlugin);
   }
 
   @GetMapping("/status")
@@ -43,7 +54,7 @@ public class QueryIndexController {
       summary = "List query index status",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> status() {
-    if (!service.hasIndexes()) {
+    if (shouldFallbackToLegacy()) {
       if (legacyProxyService != null) {
         return fallbackStatus();
       }
@@ -61,7 +72,7 @@ public class QueryIndexController {
       summary = "Trigger query index reindex",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> reindex() {
-    if (!service.hasIndexes()) {
+    if (shouldFallbackToLegacy()) {
       if (legacyProxyService != null) {
         return fallbackReindex();
       }
@@ -79,7 +90,7 @@ public class QueryIndexController {
       summary = "Index file/directory URIs",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<?> index(@RequestBody QueryIndexPathRequest request) {
-    if (!service.hasIndexes()) {
+    if (shouldFallbackToLegacy()) {
       if (legacyProxyService != null) {
         return fallbackIndex(request.uris());
       }

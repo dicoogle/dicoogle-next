@@ -22,6 +22,7 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
+import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
 import org.dicoogle.sdk.query.QueryService;
@@ -41,6 +42,7 @@ public class CFindService {
   private final List<String> dimProviders;
   private final MeterRegistry meterRegistry;
   private final LegacyProxyService legacyProxyService;
+  private final LegacyProxyProperties legacyProxyProperties;
 
   public CFindService(
       QueryRouter router,
@@ -48,8 +50,10 @@ public class CFindService {
       DimseCFindProperties properties,
       DimseProperties dimseProperties,
       MeterRegistry meterRegistry,
-      LegacyProxyService legacyProxyService) {
+      LegacyProxyService legacyProxyService,
+      LegacyProxyProperties legacyProxyProperties) {
     this.router = router;
+    this.legacyProxyProperties = legacyProxyProperties;
     this.accessPolicies = List.copyOf(accessPolicies);
     this.supportedLevels =
         properties.getSupportedQueryLevels().stream()
@@ -59,6 +63,7 @@ public class CFindService {
     this.dimProviders = dimseProperties.getDimProviders();
     this.meterRegistry = meterRegistry;
     this.legacyProxyService = legacyProxyService;
+    this.legacyProxyProperties = legacyProxyProperties;
   }
 
   public List<Attributes> find(
@@ -105,13 +110,24 @@ public class CFindService {
 
     validateIdentifier(keys, queryOptions);
 
-    if (router.queryPluginCount() == 0) {
+    boolean hasQueryPlugin = router.queryPluginCount() > 0;
+    boolean useLegacy =
+        legacyProxyProperties != null
+            && legacyProxyProperties.shouldUseLegacyForQueryIndex(hasQueryPlugin);
+
+    if (useLegacy) {
       if (legacyProxyService == null) {
         increment("dicoogle.cfind.failure", "no-query-plugin");
         throw new DicomServiceException(
             Status.UnableToProcess, "No DIMSE query plugin is configured");
       }
       return fallbackToLegacy(keys, level, maxResults, startNs, normalizedLevel);
+    }
+
+    if (!hasQueryPlugin) {
+      increment("dicoogle.cfind.failure", "no-query-plugin");
+      throw new DicomServiceException(
+          Status.UnableToProcess, "No DIMSE query plugin is configured");
     }
 
     String rawPatientName = keys.getString(Tag.PatientName, null);
