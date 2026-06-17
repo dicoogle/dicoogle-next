@@ -5,6 +5,7 @@ import java.util.List;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
+import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.DimseAssociationEventListener;
 import org.dicoogle.sdk.query.QueryMoveService;
@@ -31,9 +32,14 @@ public class DimseCStoreConfig {
       StorageRouter storageRouter,
       List<StorageIngestEventListener> storageIngestEventListeners,
       MeterRegistry meterRegistry,
-      @Autowired(required = false) LegacyProxyService legacyProxyService) {
+      @Autowired(required = false) LegacyProxyService legacyProxyService,
+      @Autowired(required = false) LegacyProxyProperties legacyProxyProperties) {
     return new CStoreService(
-        storageRouter, storageIngestEventListeners, meterRegistry, legacyProxyService);
+        storageRouter,
+        storageIngestEventListeners,
+        meterRegistry,
+        legacyProxyService,
+        legacyProxyProperties);
   }
 
   @Bean
@@ -43,9 +49,10 @@ public class DimseCStoreConfig {
       DimseCFindProperties cfindProperties,
       DimseProperties dimseProperties,
       MeterRegistry meterRegistry,
-      @Autowired(required = false) LegacyProxyService legacyProxyService) {
+      @Autowired(required = false) LegacyProxyService legacyProxyService,
+      @Autowired(required = false) LegacyProxyProperties legacyProxyProperties) {
     return new CFindService(
-        queryRouter, cfindAccessPolicies, cfindProperties, dimseProperties, meterRegistry, legacyProxyService);
+        queryRouter, cfindAccessPolicies, cfindProperties, dimseProperties, meterRegistry, legacyProxyService, legacyProxyProperties);
   }
 
   @Bean
@@ -56,7 +63,8 @@ public class DimseCStoreConfig {
       DimseCMoveProperties cmoveProperties,
       DimseProperties dimseProperties,
       MeterRegistry meterRegistry,
-      @Autowired(required = false) LegacyProxyService legacyProxyService) {
+      @Autowired(required = false) LegacyProxyService legacyProxyService,
+      @Autowired(required = false) LegacyProxyProperties legacyProxyProperties) {
     return new CMoveService(
         queryRouter,
         cmoveAccessPolicies,
@@ -64,7 +72,8 @@ public class DimseCStoreConfig {
         cmoveProperties,
         dimseProperties,
         meterRegistry,
-        legacyProxyService);
+        legacyProxyService,
+        legacyProxyProperties);
   }
 
   @Bean

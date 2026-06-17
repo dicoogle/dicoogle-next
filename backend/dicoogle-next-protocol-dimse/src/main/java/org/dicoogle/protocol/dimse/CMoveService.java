@@ -14,6 +14,7 @@ import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
+import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
@@ -34,6 +35,7 @@ public class CMoveService {
   private final Map<String, DimseCMoveProperties.Destination> destinations;
   private final MeterRegistry meterRegistry;
   private final LegacyProxyService legacyProxyService;
+  private final LegacyProxyProperties legacyProxyProperties;
 
   public CMoveService(
       QueryRouter router,
@@ -42,8 +44,10 @@ public class CMoveService {
       DimseCMoveProperties properties,
       DimseProperties dimseProperties,
       MeterRegistry meterRegistry,
-      LegacyProxyService legacyProxyService) {
+      LegacyProxyService legacyProxyService,
+      LegacyProxyProperties legacyProxyProperties) {
     this.router = router;
+    this.legacyProxyProperties = legacyProxyProperties;
     this.accessPolicies = List.copyOf(accessPolicies);
     this.supportedLevels =
         cfindProperties.getSupportedQueryLevels().stream()
@@ -54,6 +58,7 @@ public class CMoveService {
     this.destinations = Map.copyOf(properties.getDestinations());
     this.meterRegistry = meterRegistry;
     this.legacyProxyService = legacyProxyService;
+    this.legacyProxyProperties = legacyProxyProperties;
   }
 
   public List<QueryMoveService.MoveCandidate> resolve(
@@ -100,12 +105,21 @@ public class CMoveService {
           Status.IdentifierDoesNotMatchSOPClass, "Invalid QueryRetrieveLevel");
     }
 
-    if (router.movePluginCount() == 0) {
+    boolean hasMovePlugin = router.movePluginCount() > 0;
+    boolean useLegacy =
+        legacyProxyProperties != null
+            && legacyProxyProperties.shouldUseLegacyForStorageRetrieve(hasMovePlugin);
+
+    if (useLegacy) {
       if (legacyProxyService == null) {
         throw new DicomServiceException(
             Status.UnableToProcess, "No DIMSE move plugin is configured");
       }
       return fallbackToLegacy(keys, level, normalizedLevel);
+    }
+
+    if (!hasMovePlugin) {
+      throw new DicomServiceException(Status.UnableToProcess, "No DIMSE move plugin is configured");
     }
 
     QueryMoveService.MoveRequest request =

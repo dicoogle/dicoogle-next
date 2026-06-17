@@ -135,8 +135,10 @@ app:
 dicoogle:
   legacy-proxy:
     enabled: false
+    storage-retrieve-mode: AUTO
+    query-index-mode: AUTO
     base-url: http://localhost:8080
     timeout: 30s
     auth:
-      username: admin
-      password: admin
+      username: dicoogle
+      password: dicgoole
