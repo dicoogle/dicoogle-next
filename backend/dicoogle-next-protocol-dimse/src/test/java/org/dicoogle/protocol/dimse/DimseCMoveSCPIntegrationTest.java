@@ -209,7 +209,13 @@ class DimseCMoveSCPIntegrationTest {
     QueryRouter findRouter = new QueryRouter(List.of(queryPlugin), List.of(), 4, 1000);
     CFindService cFindService =
         new CFindService(
-            findRouter, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry(), null);
+            findRouter,
+            List.of(),
+            new DimseCFindProperties(),
+            dimProps,
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     DimseCMoveProperties moveProperties = new DimseCMoveProperties();
     DimseCMoveProperties.Destination destination = new DimseCMoveProperties.Destination();
@@ -225,7 +231,10 @@ class DimseCMoveSCPIntegrationTest {
             List.of(),
             new DimseCFindProperties(),
             moveProperties,
-            findRouter, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry(), null);
+            dimProps,
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     DimseCStoreProperties cStoreProperties = new DimseCStoreProperties();
     cStoreProperties.setEnabled(true);

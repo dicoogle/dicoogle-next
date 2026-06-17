@@ -37,7 +37,7 @@ public class DicomwebQidoService {
   }
 
   public boolean hasQueryPlugins() {
-    return !plugins.isEmpty();
+    return router.queryPluginCount() > 0;
   }
 
   public String searchStudies(MultiValueMap<String, String> queryParams) {

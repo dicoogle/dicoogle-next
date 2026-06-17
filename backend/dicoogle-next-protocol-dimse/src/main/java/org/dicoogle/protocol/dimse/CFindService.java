@@ -2,7 +2,6 @@ package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -63,7 +62,6 @@ public class CFindService {
     this.dimProviders = dimseProperties.getDimProviders();
     this.meterRegistry = meterRegistry;
     this.legacyProxyService = legacyProxyService;
-    this.legacyProxyProperties = legacyProxyProperties;
   }
 
   public List<Attributes> find(

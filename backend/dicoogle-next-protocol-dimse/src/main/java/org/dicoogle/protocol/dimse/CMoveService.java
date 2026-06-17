@@ -58,7 +58,6 @@ public class CMoveService {
     this.destinations = Map.copyOf(properties.getDestinations());
     this.meterRegistry = meterRegistry;
     this.legacyProxyService = legacyProxyService;
-    this.legacyProxyProperties = legacyProxyProperties;
   }
 
   public List<QueryMoveService.MoveCandidate> resolve(
