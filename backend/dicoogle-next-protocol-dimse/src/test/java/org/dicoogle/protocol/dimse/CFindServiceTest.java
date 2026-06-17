@@ -37,6 +37,7 @@ class CFindServiceTest {
             new DimseCFindProperties(),
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
     Attributes keys = new Attributes();
 
@@ -56,6 +57,7 @@ class CFindServiceTest {
             new DimseCFindProperties(),
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -78,6 +80,7 @@ class CFindServiceTest {
             new DimseCFindProperties(),
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -101,6 +104,7 @@ class CFindServiceTest {
             new DimseCFindProperties(),
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -124,6 +128,7 @@ class CFindServiceTest {
             new DimseCFindProperties(),
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -152,6 +157,7 @@ class CFindServiceTest {
             properties,
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     Attributes keys = new Attributes();
@@ -173,6 +179,7 @@ class CFindServiceTest {
             new DimseCFindProperties(),
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     Attributes keys = new Attributes();

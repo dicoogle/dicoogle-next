@@ -36,6 +36,7 @@ class CMoveServiceTest {
             new DimseCMoveProperties(),
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     Attributes keys = new Attributes();
@@ -69,6 +70,7 @@ class CMoveServiceTest {
             properties,
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     DicomServiceException ex =
@@ -100,6 +102,7 @@ class CMoveServiceTest {
             properties,
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     Attributes keys = new Attributes();
@@ -125,6 +128,7 @@ class CMoveServiceTest {
             properties,
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     Attributes keys = new Attributes();
@@ -158,6 +162,7 @@ class CMoveServiceTest {
             properties,
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     Attributes keys = new Attributes();
@@ -195,6 +200,7 @@ class CMoveServiceTest {
             properties,
             emptyDim(),
             new SimpleMeterRegistry(),
+            null,
             null);
 
     Attributes keys = new Attributes();

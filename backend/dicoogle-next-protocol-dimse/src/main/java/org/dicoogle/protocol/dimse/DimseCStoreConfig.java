@@ -52,7 +52,13 @@ public class DimseCStoreConfig {
       @Autowired(required = false) LegacyProxyService legacyProxyService,
       @Autowired(required = false) LegacyProxyProperties legacyProxyProperties) {
     return new CFindService(
-        queryRouter, cfindAccessPolicies, cfindProperties, dimseProperties, meterRegistry, legacyProxyService, legacyProxyProperties);
+        queryRouter,
+        cfindAccessPolicies,
+        cfindProperties,
+        dimseProperties,
+        meterRegistry,
+        legacyProxyService,
+        legacyProxyProperties);
   }
 
   @Bean

@@ -157,14 +157,23 @@ class DimseCFindSCPIntegrationTest {
     dimProps.setDimProviders(List.of());
     CFindService cFindService =
         new CFindService(
-            router, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry(), null);
+            router,
+            List.of(),
+            new DimseCFindProperties(),
+            dimProps,
+            new SimpleMeterRegistry(),
+            null,
+            null);
     CMoveService cMoveService =
         new CMoveService(
             new QueryRouter(List.of(), List.of(), 4, 1000),
             List.of(),
             new DimseCFindProperties(),
             new DimseCMoveProperties(),
-            router, List.of(), new DimseCFindProperties(), dimProps, new SimpleMeterRegistry(), null);
+            dimProps,
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     DimseCStoreProperties properties = new DimseCStoreProperties();
     properties.setEnabled(true);
