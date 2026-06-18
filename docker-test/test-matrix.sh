@@ -92,9 +92,17 @@ reindex_legacy() {
   sleep 15
 }
 
+next_login() {
+  curl -s -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
+    -d 'username=dicoogle&password=dicoogle' 'http://localhost:8082/api/login' |
+    python3 -c "import sys,json; print(json.load(sys.stdin)['token'])"
+}
+
 reindex_local() {
+  local token
+  token=$(next_login)
   local resp
-  resp=$(curl -s -u developer:developer -X POST -H 'Content-Type: application/json' \
+  resp=$(curl -s -H "Authorization: Bearer $token" -X POST -H 'Content-Type: application/json' \
     -d '{"uris":["file:///dicoogle-storage"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
   sleep 5
 }
@@ -150,6 +158,9 @@ run_tests() {
   # Copy DICOM files to staging dir (NOT /dicoogle-storage — those get indexed by /system/index/index)
   echo "    Copying DICOM files to staging..."
   docker cp "$DICOM_DIR" dicoogle-legacy:/dicoogle-staging/FELIX 2>/dev/null || true
+
+  # Get bearer token for new backend HTTP auth
+  NEXT_TOKEN=$(next_login)
 
   # Clear logs before tests
   docker logs dicoogle-next --tail 0 2>/dev/null
@@ -315,7 +326,7 @@ run_tests() {
   echo ""
   echo "  [HTTP /search]"
   local search_http
-  search_http=$(curl -s -w '\n%{http_code}' -u developer:developer 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
+  search_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
   local search_http_code
   search_http_code=$(echo "$search_http" | tail -1)
   local search_result
@@ -379,7 +390,7 @@ for i, r in enumerate(results):
   echo ""
   echo "  [HTTP /system/index/status]"
   local status_http
-  status_http=$(curl -s -w '\n%{http_code}' -u developer:developer 'http://localhost:8082/api/system/index/status' 2>&1)
+  status_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/system/index/status' 2>&1)
   local status_http_code
   status_http_code=$(echo "$status_http" | tail -1)
   local status_resp
@@ -393,7 +404,7 @@ for i, r in enumerate(results):
   local idx_before
   idx_before=$(docker logs dicoogle-next 2>&1 | grep -c "No local index plugin, falling back" || true)
   local idx_http
-  idx_http=$(curl -s -w '\n%{http_code}' -u developer:developer -X POST -H 'Content-Type: application/json' \
+  idx_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" -X POST -H 'Content-Type: application/json' \
     -d '{"uris":["file:///dicoogle-staging/FELIX"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
   local idx_http_code
   idx_http_code=$(echo "$idx_http" | tail -1)
@@ -418,7 +429,7 @@ for i, r in enumerate(results):
   echo ""
   echo "  [HTTP /system/index/status after indexing]"
   local status2_http
-  status2_http=$(curl -s -w '\n%{http_code}' -u developer:developer 'http://localhost:8082/api/system/index/status' 2>&1)
+  status2_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/system/index/status' 2>&1)
   local status2_http_code
   status2_http_code=$(echo "$status2_http" | tail -1)
   local status2_resp
@@ -431,7 +442,7 @@ for i, r in enumerate(results):
   echo ""
   echo "  [HTTP /search after indexing]"
   local search2_http
-  search2_http=$(curl -s -w '\n%{http_code}' -u developer:developer 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
+  search2_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
   local search2_http_code
   search2_http_code=$(echo "$search2_http" | tail -1)
   local search2_result
