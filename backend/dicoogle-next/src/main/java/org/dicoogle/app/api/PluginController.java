@@ -20,7 +20,7 @@ public class PluginController {
   }
 
   @GetMapping
-  @Operation(summary = "List loaded plugins", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "List loaded plugins", security = @SecurityRequirement(name = "bearerAuth"))
   public List<PluginStatusResponse> listPlugins() {
     return pluginRegistry.all().stream()
         .map(

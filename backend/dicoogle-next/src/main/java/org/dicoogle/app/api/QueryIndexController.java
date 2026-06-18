@@ -29,7 +29,7 @@ public class QueryIndexController {
   @GetMapping("/status")
   @Operation(
       summary = "List query index status",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public List<QueryIndexStatusItem> status() {
     if (!service.hasIndexes()) {
       throw new ResponseStatusException(
@@ -43,7 +43,7 @@ public class QueryIndexController {
   @PostMapping("/reindex")
   @Operation(
       summary = "Trigger query index reindex",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public List<QueryIndexReindexItem> reindex() {
     if (!service.hasIndexes()) {
       throw new ResponseStatusException(
@@ -57,7 +57,7 @@ public class QueryIndexController {
   @PostMapping("/index")
   @Operation(
       summary = "Index file/directory URIs",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public List<QueryIndexPathItem> index(@RequestBody QueryIndexPathRequest request) {
     if (!service.hasIndexes()) {
       throw new ResponseStatusException(
@@ -75,7 +75,7 @@ public class QueryIndexController {
   @PostMapping("/unindex")
   @Operation(
       summary = "Unindex file/directory URIs",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public List<QueryIndexPathItem> unindex(@RequestBody QueryIndexPathRequest request) {
     if (!service.hasIndexes()) {
       throw new ResponseStatusException(

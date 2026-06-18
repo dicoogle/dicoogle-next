@@ -24,11 +24,11 @@ public class OpenApiConfig {
         .components(
             new Components()
                 .addSecuritySchemes(
-                    "basicAuth",
+                    "bearerAuth",
                     new SecurityScheme()
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("basic")
                         .description("Development basic authentication")))
-        .addSecurityItem(new SecurityRequirement().addList("basicAuth"));
+        .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
   }
 }
