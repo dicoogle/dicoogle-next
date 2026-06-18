@@ -30,7 +30,7 @@ public class DimseTransferCapabilityController {
   @GetMapping
   @Operation(
       summary = "List effective DIMSE transfer capabilities",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public TransferCapabilityListResponse list() {
     return service.getCurrent();
   }
@@ -38,7 +38,7 @@ public class DimseTransferCapabilityController {
   @PutMapping("/{sopClassUid}")
   @Operation(
       summary = "Create or replace one SOP capability",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public TransferCapabilityListResponse upsert(
       @PathVariable String sopClassUid,
       @Valid @RequestBody TransferCapabilityUpsertRequest request,
@@ -49,7 +49,7 @@ public class DimseTransferCapabilityController {
   @DeleteMapping("/{sopClassUid}")
   @Operation(
       summary = "Delete one SOP capability",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public TransferCapabilityListResponse delete(
       @PathVariable String sopClassUid, Principal principal) {
     return service.deleteOne(sopClassUid, actor(principal));
@@ -58,7 +58,7 @@ public class DimseTransferCapabilityController {
   @PostMapping("/replace")
   @Operation(
       summary = "Replace all DIMSE transfer capabilities",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public TransferCapabilityListResponse replaceAll(
       @Valid @RequestBody TransferCapabilityReplaceRequest request, Principal principal) {
     return service.replaceAll(

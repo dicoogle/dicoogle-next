@@ -29,7 +29,7 @@ public class SystemController {
   @GetMapping("/status")
   @Operation(
       summary = "Protected system status",
-      security = @SecurityRequirement(name = "basicAuth"))
+      security = @SecurityRequirement(name = "bearerAuth"))
   public SystemStatusResponse status() {
     return systemStatusService.currentStatus();
   }

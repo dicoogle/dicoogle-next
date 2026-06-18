@@ -26,14 +26,14 @@ public class UserController {
   }
 
   @GetMapping
-  @Operation(summary = "List all users", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "List all users", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, List<UserResponse>>> list() {
     List<UserResponse> users = userService.listUsers().stream().map(UserResponse::from).toList();
     return ResponseEntity.ok(Map.of("users", users));
   }
 
   @PostMapping
-  @Operation(summary = "Create a user", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Create a user", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, Object>> create(
       @RequestParam String username,
       @RequestParam String password,
@@ -43,7 +43,7 @@ public class UserController {
   }
 
   @DeleteMapping("/{username}")
-  @Operation(summary = "Delete a user", security = @SecurityRequirement(name = "basicAuth"))
+  @Operation(summary = "Delete a user", security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, Object>> delete(@PathVariable String username) {
     userService.deleteUser(username);
     return ResponseEntity.ok(Map.of("success", true));
