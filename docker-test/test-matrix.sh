@@ -3,6 +3,7 @@ set -e
 
 DOCKER_DIR="/home/jotalma13/Documents/Bolsa/dicoogle-next/docker-test"
 DICOM_FILE="$HOME/FELIX/IM-0001-0074.dcmfe2f32c2-0564-45a2-9aa7-6c71c6a6913d.dcm"
+DICOM_DIR="$HOME/FELIX"
 DICOM_TIMEOUT=20
 TEST_UID="1.2.840.113745.101000.1008000.38446.6272.7138759"
 
@@ -12,8 +13,8 @@ declare -A RESULTS
 generate_dockerfile() {
   local sr_mode="$1"
   local qi_mode="$2"
-  local sr_plugin="$3"  # "on" or "off"
-  local qi_plugin="$4"  # "on" or "off"
+  local sr_plugin="$3" # "on" or "off"
+  local qi_plugin="$4" # "on" or "off"
 
   local cmd_line="java -jar app.jar"
   cmd_line+=" --spring.profiles.active=dev"
@@ -41,6 +42,7 @@ generate_dockerfile() {
 
   if [ "$qi_plugin" = "on" ]; then
     cmd_line+=" --app.query.lucene.enabled=true"
+    cmd_line+=" --app.query.lucene.storage-root-dir=/dicoogle-storage"
   else
     cmd_line+=" --app.query.lucene.enabled=false"
   fi
@@ -48,7 +50,7 @@ generate_dockerfile() {
   # Always disable file-query (lucene is the main query plugin)
   cmd_line+=" --app.query.file.enabled=false"
 
-  cat > "$DOCKER_DIR/Dockerfile.next" << HEADER
+  cat >"$DOCKER_DIR/Dockerfile.next" <<HEADER
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY dicoogle-next-0.0.1-SNAPSHOT.jar app.jar
@@ -58,7 +60,7 @@ HEADER
 
 start_docker() {
   cd "$DOCKER_DIR"
-  docker compose down 2>/dev/null || true
+  docker compose down -v 2>/dev/null || true
   docker compose up --build -d 2>&1 | tail -3
   # Wait for app to start (takes ~19s)
   local waited=0
@@ -73,13 +75,13 @@ start_docker() {
 
 stop_docker() {
   cd "$DOCKER_DIR"
-  docker compose down 2>/dev/null || true
+  docker compose down -v 2>/dev/null || true
 }
 
 legacy_login() {
   curl -s -X POST -H 'Content-Type: application/x-www-form-urlencoded' \
-    -d 'username=dicoogle&password=dicoogle' 'http://localhost:8080/login' \
-    | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])"
+    -d 'username=dicoogle&password=dicoogle' 'http://localhost:8080/login' |
+    python3 -c "import sys,json; print(json.load(sys.stdin)['token'])"
 }
 
 reindex_legacy() {
@@ -87,7 +89,7 @@ reindex_legacy() {
   token=$(legacy_login)
   curl -s -H "Authorization: Bearer $token" -X POST \
     'http://localhost:8080/management/tasks/index?uri=file:///dicoogle-storage' > /dev/null
-  sleep 5
+  sleep 15
 }
 
 reindex_local() {
@@ -144,6 +146,10 @@ run_tests() {
 
   # Show startup plugin status
   docker logs dicoogle-next 2>&1 | grep -E "Storage plugins loaded|No writable|LuceneQuery|start" | tail -5 | sed 's/^/  | /'
+
+  # Copy DICOM files to staging dir (NOT /dicoogle-storage — those get indexed by /system/index/index)
+  echo "    Copying DICOM files to staging..."
+  docker cp "$DICOM_DIR" dicoogle-legacy:/dicoogle-staging/FELIX 2>/dev/null || true
 
   # Clear logs before tests
   docker logs dicoogle-next --tail 0 2>/dev/null
@@ -203,10 +209,10 @@ run_tests() {
 
   # Reindex AFTER store — always reindex the QUERY backend so /search can find the data
   if [ "$qi_plugin" = "on" ] && $store_success; then
-    echo "    Reindexing local storage (query backend)..."
+    echo "    Reindexing shared volume (query=local)..."
     reindex_local
   elif [ "$qi_plugin" = "off" ] && $store_success; then
-    echo "    Reindexing legacy storage (query backend)..."
+    echo "    Reindexing shared volume (query=legacy)..."
     reindex_legacy
   fi
 
@@ -309,7 +315,7 @@ run_tests() {
   echo ""
   echo "  [HTTP /search]"
   local search_http
-  search_http=$(curl -s -w '\n%{http_code}' -u developer:developer 'http://localhost:8082/api/search?query=FELIX' 2>&1)
+  search_http=$(curl -s -w '\n%{http_code}' -u developer:developer 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
   local search_http_code
   search_http_code=$(echo "$search_http" | tail -1)
   local search_result
@@ -331,15 +337,17 @@ run_tests() {
     echo "$search_result" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
-for r in d.get('results',[])[:3]:
+results = d.get('results',[])
+print(f'    Showing {len(results)} of {len(results)} results:')
+for i, r in enumerate(results):
     fields = r.get('fields', r)
     pname = fields.get('PatientName', '?')
     uid = fields.get('StudyInstanceUID', r.get('uid', '?'))
     mod = fields.get('Modality', '?')
     desc = fields.get('StudyDescription', '?')
-    print(f'      Patient={pname}  Modality={mod}')
-    print(f'        StudyUID={uid}')
-    print(f'        Description={desc}')
+    print(f'      [{i+1}] Patient={pname}  Modality={mod}')
+    print(f'          StudyUID={uid}')
+    print(f'          Description={desc}')
 " 2>/dev/null
   else
     echo "    raw response: ${search_result:0:500}"
@@ -386,14 +394,14 @@ for r in d.get('results',[])[:3]:
   idx_before=$(docker logs dicoogle-next 2>&1 | grep -c "No local index plugin, falling back" || true)
   local idx_http
   idx_http=$(curl -s -w '\n%{http_code}' -u developer:developer -X POST -H 'Content-Type: application/json' \
-    -d '{"uris":["file:///dicoogle-storage"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
+    -d '{"uris":["file:///dicoogle-staging/FELIX"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
   local idx_http_code
   idx_http_code=$(echo "$idx_http" | tail -1)
   local idx_resp
   idx_resp=$(echo "$idx_http" | sed '$d')
   local idx_fb
   idx_fb=$(docker logs dicoogle-next 2>&1 | grep -c "No local index plugin, falling back" || true)
-  idx_fb=$(( idx_fb - idx_before ))
+  idx_fb=$((idx_fb - idx_before))
 
   echo "    HTTP $idx_http_code"
   echo "    $idx_resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "    $idx_resp"
@@ -418,6 +426,46 @@ for r in d.get('results',[])[:3]:
   echo "    HTTP $status2_http_code"
   echo "    $status2_resp" | python3 -m json.tool 2>/dev/null | sed 's/^/    /' || echo "    $status2_resp"
 
+  # ── HTTP /search after index ──
+  sleep 2
+  echo ""
+  echo "  [HTTP /search after indexing]"
+  local search2_http
+  search2_http=$(curl -s -w '\n%{http_code}' -u developer:developer 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
+  local search2_http_code
+  search2_http_code=$(echo "$search2_http" | tail -1)
+  local search2_result
+  search2_result=$(echo "$search2_http" | sed '$d')
+
+  local search2_valid=false
+  local num_results2=-1
+  if echo "$search2_result" | python3 -c "import sys,json; json.load(sys.stdin)" >/dev/null 2>&1; then
+    search2_valid=true
+    num_results2=$(echo "$search2_result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('numResults', -1))" 2>/dev/null || echo -1)
+  fi
+
+  echo "    HTTP $search2_http_code"
+  if $search2_valid; then
+    echo "    numResults: $num_results2"
+    echo "$search2_result" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+results = d.get('results',[])
+print(f'    Indexed {len(results)} studies:')
+for i, r in enumerate(results):
+    fields = r.get('fields', r)
+    pname = fields.get('PatientName', '?')
+    uid = fields.get('StudyInstanceUID', r.get('uid', '?'))
+    mod = fields.get('Modality', '?')
+    desc = fields.get('StudyDescription', '?')
+    print(f'      [{i+1}] Patient={pname}  Modality={mod}')
+    print(f'          StudyUID={uid}')
+    print(f'          Description={desc}')
+" 2>/dev/null
+  else
+    echo "    raw response: ${search2_result:0:500}"
+  fi
+
   # Record result
   if $all_pass; then
     RESULTS[$key]="PASS"
@@ -435,13 +483,14 @@ echo "║  Tests: C-STORE, C-FIND, C-MOVE, HTTP /search, HTTP /index ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 echo "  DICOM file: $DICOM_FILE"
+echo "  DICOM dir:  $DICOM_DIR"
 echo "  StudyInstanceUID: $TEST_UID"
 
 run_tests "LEGACY" "LEGACY" "off" "off" "ALL LEGACY (no plugins, everything routes to legacy)"
-run_tests "NEW"     "NEW"     "on"  "on"  "ALL NEW (local storage + local query, no legacy)"
-run_tests "LEGACY" "NEW"     "off" "on"  "MIXED: storage=legacy, query=local"
-run_tests "NEW"     "LEGACY" "on"  "off" "MIXED: storage=local, query=legacy"
-run_tests "AUTO"   "AUTO"    "off" "off" "AUTO (no plugins, fallback to legacy)"
+run_tests "NEW" "NEW" "on" "on" "ALL NEW (local storage + local query, no legacy)"
+run_tests "LEGACY" "NEW" "off" "on" "MIXED: storage=legacy, query=local"
+run_tests "NEW" "LEGACY" "on" "off" "MIXED: storage=local, query=legacy"
+run_tests "AUTO" "AUTO" "off" "off" "AUTO (no plugins, fallback to legacy)"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"

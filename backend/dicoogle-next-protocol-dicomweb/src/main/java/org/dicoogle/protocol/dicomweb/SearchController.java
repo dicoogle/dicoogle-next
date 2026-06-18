@@ -116,7 +116,9 @@ public class SearchController {
       String query, boolean keyword, String provider, boolean dim) {
     log.info("No local query plugin, falling back to legacy: query={}", query);
 
-    Map<?, ?> legacyResponse = legacyProxyService.searchQuery(query, null, 1000);
+    // Legacy Lucene doesn't handle *:* with expand; convert to *
+    String legacyQuery = "*:*".equals(query) ? "*" : query;
+    Map<?, ?> legacyResponse = legacyProxyService.searchQuery(legacyQuery, null, 1000);
     if (legacyResponse == null) {
       log.warn("Legacy /search returned null");
       return ResponseEntity.ok()

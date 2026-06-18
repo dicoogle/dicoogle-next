@@ -236,13 +236,14 @@ public class LegacyProxyService {
 
   private boolean postIndexWithToken(String uri, String token, boolean isRetry) {
     try {
-      String path = "/management/tasks/index?uri=" + java.net.URLEncoder.encode(uri, "UTF-8");
-      log.debug("Proxying POST {} to legacy Dicoogle", path);
+      log.debug("Proxying POST /management/tasks/index?uri={} to legacy Dicoogle", uri);
 
       Map<?, ?> response =
           webClient
               .method(HttpMethod.POST)
-              .uri(path)
+              .uri(
+                  uriBuilder ->
+                      uriBuilder.path("/management/tasks/index").queryParam("uri", uri).build())
               .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
               .retrieve()
               .bodyToMono(Map.class)
