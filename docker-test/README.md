@@ -70,12 +70,20 @@ Then in another terminal, run dcmtk commands (see [Manual Testing](#manual-testi
 
 ### New Backend (HTTP API)
 
-- **Username:** `developer`
-- **Password:** `developer`
-- Auth type: HTTP Basic
+- **Username:** `dicoogle`
+- **Password:** `dicoogle`
+- Auth type: Bearer token (POST /login → JWT)
 
 ```bash
-curl -u developer:developer http://localhost:8082/api/search?query=*
+# Login
+TOKEN=$(curl -s -X POST \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'username=dicoogle&password=dicoogle' \
+  http://localhost:8082/api/login \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
+# Use token
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8082/api/search?query=*
 ```
 
 ### Legacy Dicoogle
@@ -197,8 +205,15 @@ Expected: `Received Store Response (Success)` in output.
 After storing, trigger reindexing:
 
 ```bash
+# Login first
+TOKEN=$(curl -s -X POST \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  -d 'username=dicoogle&password=dicoogle' \
+  http://localhost:8082/api/login \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+
 # Local reindex
-curl -u developer:developer -X POST \
+curl -H "Authorization: Bearer $TOKEN" -X POST \
   -H 'Content-Type: application/json' \
   -d '{"uris":["file:///dicoogle-storage"]}' \
   http://localhost:8082/api/system/index/index
@@ -242,19 +257,19 @@ Expected: `Received Final Move Response (Success)`.
 ### HTTP Search
 
 ```bash
-curl -u developer:developer 'http://localhost:8082/api/search?query=FELIX'
+curl -H "Authorization: Bearer $TOKEN" 'http://localhost:8082/api/search?query=FELIX'
 ```
 
 ### HTTP Index Status
 
 ```bash
-curl -u developer:developer 'http://localhost:8082/api/system/index/status'
+curl -H "Authorization: Bearer $TOKEN" 'http://localhost:8082/api/system/index/status'
 ```
 
 ### HTTP Trigger Reindex
 
 ```bash
-curl -u developer:developer -X POST \
+curl -H "Authorization: Bearer $TOKEN" -X POST \
   -H 'Content-Type: application/json' \
   -d '{"uris":["file:///dicoogle-storage"]}' \
   'http://localhost:8082/api/system/index/index'
