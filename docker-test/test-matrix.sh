@@ -31,6 +31,8 @@ generate_dockerfile() {
   cmd_line+=" --app.dimse.cmove.destinations.LEGACYSCP.port=6666"
   cmd_line+=" --app.dimse.cmove.destinations.LEGACYSCP.ae-title=DICOOGLE"
 
+  cmd_line+=" --app.storage.file-rw.root-dir=/dicoogle-storage"
+
   if [ "$sr_plugin" = "on" ]; then
     cmd_line+=" --app.storage.file-rw.enabled=true"
   else
@@ -84,14 +86,14 @@ reindex_legacy() {
   local token
   token=$(legacy_login)
   curl -s -H "Authorization: Bearer $token" -X POST \
-    'http://localhost:8080/management/tasks/index?uri=file:///tmp' > /dev/null
+    'http://localhost:8080/management/tasks/index?uri=file:///dicoogle-storage' > /dev/null
   sleep 5
 }
 
 reindex_local() {
   local resp
   resp=$(curl -s -u developer:developer -X POST -H 'Content-Type: application/json' \
-    -d '{"uris":["file:///app/data/storage"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
+    -d '{"uris":["file:///dicoogle-storage"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
   sleep 5
 }
 
@@ -199,12 +201,12 @@ run_tests() {
     fi
   fi
 
-  # Reindex AFTER store
-  if [ "$sr_plugin" = "on" ] && $store_success; then
-    echo "    Reindexing local storage..."
+  # Reindex AFTER store — always reindex the QUERY backend so /search can find the data
+  if [ "$qi_plugin" = "on" ] && $store_success; then
+    echo "    Reindexing local storage (query backend)..."
     reindex_local
-  elif [ "$sr_plugin" = "off" ] && $store_success; then
-    echo "    Reindexing legacy storage..."
+  elif [ "$qi_plugin" = "off" ] && $store_success; then
+    echo "    Reindexing legacy storage (query backend)..."
     reindex_legacy
   fi
 
@@ -384,7 +386,7 @@ for r in d.get('results',[])[:3]:
   idx_before=$(docker logs dicoogle-next 2>&1 | grep -c "No local index plugin, falling back" || true)
   local idx_http
   idx_http=$(curl -s -w '\n%{http_code}' -u developer:developer -X POST -H 'Content-Type: application/json' \
-    -d '{"uris":["file:///tmp"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
+    -d '{"uris":["file:///dicoogle-storage"]}' 'http://localhost:8082/api/system/index/index' 2>&1)
   local idx_http_code
   idx_http_code=$(echo "$idx_http" | tail -1)
   local idx_resp

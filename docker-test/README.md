@@ -23,9 +23,18 @@ docker-test/
     ├── filestorage-3.5.1.jar    # legacy file storage provider
     ├── lucene-3.5.1.jar         # legacy Lucene query/index provider
     └── settings/
-        ├── file-storage.xml     # storage root: /tmp
+        ├── file-storage.xml     # storage root: /dicoogle-storage (shared volume)
         └── luceneset.xml        # Lucene indexer config
 ```
+
+### Shared Storage Volume
+
+Both containers share a Docker named volume `dicoogle-storage` mounted at `/dicoogle-storage`. This allows mixed-mode deployments (e.g., storage on legacy, query on new) to access the same files.
+
+| Container | Storage root | Source |
+|-----------|-------------|--------|
+| legacy | `/dicoogle-storage` | `file-storage.xml` → `root-dir` |
+| next | `/dicoogle-storage` | `--app.storage.file-rw.root-dir` |
 
 ## Quick Start
 
@@ -191,12 +200,12 @@ After storing, trigger reindexing:
 # Local reindex
 curl -u developer:developer -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"uris":["file:///app/data/storage"]}' \
+  -d '{"uris":["file:///dicoogle-storage"]}' \
   http://localhost:8082/api/system/index/index
 
 # Legacy reindex (needs JWT token)
 curl -H "Authorization: Bearer $TOKEN" -X POST \
-  'http://localhost:8080/management/tasks/index?uri=file:///tmp'
+  'http://localhost:8080/management/tasks/index?uri=file:///dicoogle-storage'
 ```
 
 ### C-FIND
@@ -247,7 +256,7 @@ curl -u developer:developer 'http://localhost:8082/api/system/index/status'
 ```bash
 curl -u developer:developer -X POST \
   -H 'Content-Type: application/json' \
-  -d '{"uris":["file:///tmp"]}' \
+  -d '{"uris":["file:///dicoogle-storage"]}' \
   'http://localhost:8082/api/system/index/index'
 ```
 
@@ -273,7 +282,7 @@ Make sure `Plugins/` directory contains `filestorage-3.5.1.jar` and `lucene-3.5.
 
 ### Storage
 
-Files are stored in `/tmp` (configured in `Plugins/settings/file-storage.xml`).
+Files are stored in `/dicoogle-storage` (shared volume, configured in `Plugins/settings/file-storage.xml`).
 
 After storing DICOM files, trigger reindexing so the Lucene plugin can find them:
 
@@ -284,7 +293,7 @@ TOKEN=$(curl -s -X POST -d 'username=dicoogle&password=dicoogle' http://localhos
 
 # Reindex
 curl -H "Authorization: Bearer $TOKEN" -X POST \
-  'http://localhost:8080/management/tasks/index?uri=file:///tmp'
+  'http://localhost:8080/management/tasks/index?uri=file:///dicoogle-storage'
 ```
 
 ## Disabling the Proxy
