@@ -72,6 +72,41 @@ public class RuntimeSettingsService {
     return settings;
   }
 
+  public synchronized RuntimeSettings updateQueryRetrieveSettings(
+      Integer responseTimeout,
+      Integer connectionTimeout,
+      Integer idleTimeout,
+      Integer acceptTimeout,
+      Integer maxPduSend,
+      Integer maxPduReceive,
+      Integer maxAssociations) {
+    RuntimeSettings settings = cloneSettings(cached.get());
+    RuntimeSettings.DicomQueryRetrieveSettings qr = settings.getDimse().getQueryRetrieve();
+    if (responseTimeout != null) {
+      qr.setResponseTimeout(responseTimeout);
+    }
+    if (connectionTimeout != null) {
+      qr.setConnectionTimeout(connectionTimeout);
+    }
+    if (idleTimeout != null) {
+      qr.setIdleTimeout(idleTimeout);
+    }
+    if (acceptTimeout != null) {
+      qr.setAcceptTimeout(acceptTimeout);
+    }
+    if (maxPduSend != null) {
+      qr.setMaxPduSend(maxPduSend);
+    }
+    if (maxPduReceive != null) {
+      qr.setMaxPduReceive(maxPduReceive);
+    }
+    if (maxAssociations != null) {
+      qr.setMaxAssociations(maxAssociations);
+    }
+    saveAndApply(settings);
+    return settings;
+  }
+
   public synchronized RuntimeSettings addMoveDestination(
       String aeTitle, String host, int port, boolean isPublic, String description) {
     if (aeTitle == null || aeTitle.isBlank()) {
@@ -163,6 +198,20 @@ public class RuntimeSettingsService {
     cstore.setPort(original.getPort());
     cstore.setStorageScheme(original.getStorageScheme());
     dimse.setCstore(cstore);
+
+    RuntimeSettings.DicomQueryRetrieveSettings origQr = source.getDimse().getQueryRetrieve();
+    RuntimeSettings.DicomQueryRetrieveSettings qr =
+        new RuntimeSettings.DicomQueryRetrieveSettings();
+    if (origQr != null) {
+      qr.setResponseTimeout(origQr.getResponseTimeout());
+      qr.setConnectionTimeout(origQr.getConnectionTimeout());
+      qr.setIdleTimeout(origQr.getIdleTimeout());
+      qr.setAcceptTimeout(origQr.getAcceptTimeout());
+      qr.setMaxPduSend(origQr.getMaxPduSend());
+      qr.setMaxPduReceive(origQr.getMaxPduReceive());
+      qr.setMaxAssociations(origQr.getMaxAssociations());
+    }
+    dimse.setQueryRetrieve(qr);
 
     Map<String, RuntimeSettings.MoveDestinationSetting> destinations =
         new java.util.LinkedHashMap<>();

@@ -46,6 +46,7 @@ public class RuntimeSettings {
   public static class DimseSettings {
 
     private DimseCStoreSettings cstore = new DimseCStoreSettings();
+    private DicomQueryRetrieveSettings queryRetrieve = new DicomQueryRetrieveSettings();
     private Map<String, MoveDestinationSetting> moveDestinations = new LinkedHashMap<>();
 
     public DimseCStoreSettings getCstore() {
@@ -54,6 +55,14 @@ public class RuntimeSettings {
 
     public void setCstore(DimseCStoreSettings cstore) {
       this.cstore = cstore == null ? new DimseCStoreSettings() : cstore;
+    }
+
+    public DicomQueryRetrieveSettings getQueryRetrieve() {
+      return queryRetrieve;
+    }
+
+    public void setQueryRetrieve(DicomQueryRetrieveSettings queryRetrieve) {
+      this.queryRetrieve = queryRetrieve == null ? new DicomQueryRetrieveSettings() : queryRetrieve;
     }
 
     public Map<String, MoveDestinationSetting> getMoveDestinations() {
@@ -161,6 +170,73 @@ public class RuntimeSettings {
 
     public void setDescription(String description) {
       this.description = description;
+    }
+  }
+
+  public static class DicomQueryRetrieveSettings {
+
+    private int responseTimeout = 30;
+    private int connectionTimeout = 10;
+    private int idleTimeout = 60;
+    private int acceptTimeout = 1;
+    private int maxPduSend = 16378;
+    private int maxPduReceive = 16378;
+    private int maxAssociations = 10;
+
+    public int getResponseTimeout() {
+      return responseTimeout;
+    }
+
+    public void setResponseTimeout(int responseTimeout) {
+      this.responseTimeout = responseTimeout;
+    }
+
+    public int getConnectionTimeout() {
+      return connectionTimeout;
+    }
+
+    public void setConnectionTimeout(int connectionTimeout) {
+      this.connectionTimeout = connectionTimeout;
+    }
+
+    public int getIdleTimeout() {
+      return idleTimeout;
+    }
+
+    public void setIdleTimeout(int idleTimeout) {
+      this.idleTimeout = idleTimeout;
+    }
+
+    public int getAcceptTimeout() {
+      return acceptTimeout;
+    }
+
+    public void setAcceptTimeout(int acceptTimeout) {
+      this.acceptTimeout = acceptTimeout;
+    }
+
+    public int getMaxPduSend() {
+      return maxPduSend;
+    }
+
+    public void setMaxPduSend(int maxPduSend) {
+      this.maxPduSend = maxPduSend;
+    }
+
+    public int getMaxPduReceive() {
+      return maxPduReceive;
+    }
+
+    public void setMaxPduReceive(int maxPduReceive) {
+      this.maxPduReceive = maxPduReceive;
+    }
+
+    public int getMaxAssociations() {
+      return maxAssociations;
+    }
+
+    public void setMaxAssociations(int maxAssociations) {
+      this.maxAssociations = maxAssociations;
     }
   }
 }

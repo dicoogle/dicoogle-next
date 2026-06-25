@@ -2,7 +2,9 @@ package org.dicoogle.app.api;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import org.dicoogle.app.settings.RuntimeSettings;
 import org.dicoogle.app.settings.RuntimeSettingsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,11 +44,16 @@ public class AETitleController {
       summary = "Get DICOM query (C-FIND) service settings",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, Object>> getQuerySettings() {
-    Map<String, Object> settings = new java.util.LinkedHashMap<>();
-    settings.put("isRunning", false);
-    settings.put("port", 0);
-    settings.put("autostart", false);
-    settings.put("hostname", "");
+    RuntimeSettings.DicomQueryRetrieveSettings qr =
+        settingsService.getCurrent().getDimse().getQueryRetrieve();
+    Map<String, Object> settings = new LinkedHashMap<>();
+    settings.put("responseTimeout", qr.getResponseTimeout());
+    settings.put("connectionTimeout", qr.getConnectionTimeout());
+    settings.put("idleTimeout", qr.getIdleTimeout());
+    settings.put("acceptTimeout", qr.getAcceptTimeout());
+    settings.put("maxPduSend", qr.getMaxPduSend());
+    settings.put("maxPduReceive", qr.getMaxPduReceive());
+    settings.put("maxAssociations", qr.getMaxAssociations());
     return ResponseEntity.ok(settings);
   }
 
@@ -55,15 +62,31 @@ public class AETitleController {
       summary = "Update DICOM query (C-FIND) service settings",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<Map<String, Object>> updateQuerySettings(
-      @RequestParam(required = false) Integer port,
-      @RequestParam(required = false) Boolean autostart,
-      @RequestParam(required = false) Boolean running,
-      @RequestParam(required = false) String hostname) {
-    Map<String, Object> settings = new java.util.LinkedHashMap<>();
-    settings.put("isRunning", false);
-    settings.put("port", 0);
-    settings.put("autostart", false);
-    settings.put("hostname", "");
+      @RequestParam(required = false) Integer responseTimeout,
+      @RequestParam(required = false) Integer connectionTimeout,
+      @RequestParam(required = false) Integer idleTimeout,
+      @RequestParam(required = false) Integer acceptTimeout,
+      @RequestParam(required = false) Integer maxPduSend,
+      @RequestParam(required = false) Integer maxPduReceive,
+      @RequestParam(required = false) Integer maxAssociations) {
+    settingsService.updateQueryRetrieveSettings(
+        responseTimeout,
+        connectionTimeout,
+        idleTimeout,
+        acceptTimeout,
+        maxPduSend,
+        maxPduReceive,
+        maxAssociations);
+    RuntimeSettings.DicomQueryRetrieveSettings qr =
+        settingsService.getCurrent().getDimse().getQueryRetrieve();
+    Map<String, Object> settings = new LinkedHashMap<>();
+    settings.put("responseTimeout", qr.getResponseTimeout());
+    settings.put("connectionTimeout", qr.getConnectionTimeout());
+    settings.put("idleTimeout", qr.getIdleTimeout());
+    settings.put("acceptTimeout", qr.getAcceptTimeout());
+    settings.put("maxPduSend", qr.getMaxPduSend());
+    settings.put("maxPduReceive", qr.getMaxPduReceive());
+    settings.put("maxAssociations", qr.getMaxAssociations());
     return ResponseEntity.ok(settings);
   }
 }
