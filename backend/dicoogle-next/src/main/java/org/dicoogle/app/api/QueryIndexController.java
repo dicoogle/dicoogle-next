@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexPathItem;
 import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexPathRequest;
 import org.dicoogle.app.dto.QueryIndexDtos.QueryIndexStatusItem;
 import org.dicoogle.app.service.IndexTaskService;
