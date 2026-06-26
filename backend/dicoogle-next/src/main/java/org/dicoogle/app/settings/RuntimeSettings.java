@@ -46,6 +46,7 @@ public class RuntimeSettings {
   public static class DimseSettings {
 
     private DimseCStoreSettings cstore = new DimseCStoreSettings();
+    private DimseQueryRetrieveSettings queryRetrieveServer = new DimseQueryRetrieveSettings();
     private DicomQueryRetrieveSettings queryRetrieve = new DicomQueryRetrieveSettings();
     private Map<String, MoveDestinationSetting> moveDestinations = new LinkedHashMap<>();
 
@@ -55,6 +56,15 @@ public class RuntimeSettings {
 
     public void setCstore(DimseCStoreSettings cstore) {
       this.cstore = cstore == null ? new DimseCStoreSettings() : cstore;
+    }
+
+    public DimseQueryRetrieveSettings getQueryRetrieveServer() {
+      return queryRetrieveServer;
+    }
+
+    public void setQueryRetrieveServer(DimseQueryRetrieveSettings queryRetrieveServer) {
+      this.queryRetrieveServer =
+          queryRetrieveServer == null ? new DimseQueryRetrieveSettings() : queryRetrieveServer;
     }
 
     public DicomQueryRetrieveSettings getQueryRetrieve() {
@@ -121,6 +131,58 @@ public class RuntimeSettings {
 
     public void setStorageScheme(String storageScheme) {
       this.storageScheme = storageScheme;
+    }
+  }
+
+  public static class DimseQueryRetrieveSettings {
+
+    private boolean enabled;
+    private String aeTitle = "DICOOGLE";
+    private String bindAddress = "0.0.0.0";
+    private int port = 1045;
+
+    public DimseQueryRetrieveSettings() {}
+
+    public static DimseQueryRetrieveSettings fromProperties(
+        org.dicoogle.protocol.dimse.DimseQueryRetrieveProperties props) {
+      DimseQueryRetrieveSettings settings = new DimseQueryRetrieveSettings();
+      settings.setEnabled(props.isEnabled());
+      settings.setAeTitle(props.getAeTitle());
+      settings.setBindAddress(props.getBindAddress());
+      settings.setPort(props.getPort());
+      return settings;
+    }
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    public String getAeTitle() {
+      return aeTitle;
+    }
+
+    public void setAeTitle(String aeTitle) {
+      this.aeTitle = aeTitle;
+    }
+
+    public String getBindAddress() {
+      return bindAddress;
+    }
+
+    public void setBindAddress(String bindAddress) {
+      this.bindAddress = bindAddress;
+    }
+
+    public int getPort() {
+      return port;
+    }
+
+    public void setPort(int port) {
+      this.port = port;
     }
   }
 

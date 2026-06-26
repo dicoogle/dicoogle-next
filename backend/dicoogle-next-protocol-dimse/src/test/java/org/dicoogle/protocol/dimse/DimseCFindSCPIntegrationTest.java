@@ -43,7 +43,7 @@ import org.junit.jupiter.api.Test;
 
 class DimseCFindSCPIntegrationTest {
 
-  private DimseCStoreServer server;
+  private DimseQueryRetrieveServer server;
   private Device scuDevice;
   private Association association;
 
@@ -175,21 +175,27 @@ class DimseCFindSCPIntegrationTest {
             null,
             null);
 
-    DimseCStoreProperties properties = new DimseCStoreProperties();
-    properties.setEnabled(true);
-    properties.setAeTitle("DICOOGLE");
-    properties.setBindAddress("127.0.0.1");
-    properties.setPort(port);
-    properties.setStorageScheme("mem");
+    DimseCStoreProperties cstoreProps = new DimseCStoreProperties();
+    cstoreProps.setEnabled(true);
+    cstoreProps.setAeTitle("DICOOGLE");
+    cstoreProps.setBindAddress("127.0.0.1");
+    cstoreProps.setPort(port);
+    cstoreProps.setStorageScheme("mem");
+
+    DimseQueryRetrieveProperties qrProps = new DimseQueryRetrieveProperties();
+    qrProps.setEnabled(true);
+    qrProps.setAeTitle("DICOOGLE");
+    qrProps.setBindAddress("127.0.0.1");
+    qrProps.setPort(port);
 
     server =
-        new DimseCStoreServer(
-            cStoreService,
+        new DimseQueryRetrieveServer(
             cFindService,
             cMoveService,
             new StorageRouter(List.of(storage)),
-            properties,
-            "mem");
+            qrProps,
+            cstoreProps,
+            null);
     server.start();
   }
 

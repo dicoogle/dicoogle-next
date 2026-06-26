@@ -12,6 +12,7 @@ public class DimseTransferCapabilityConfigProperties {
 
   private Source source = Source.YAML;
   private long syncIntervalMs = 5000;
+  private String filePath = "./data/transfer-capabilities.yml";
   private Jdbc jdbc = new Jdbc();
 
   public Source getSource() {
@@ -28,6 +29,14 @@ public class DimseTransferCapabilityConfigProperties {
 
   public void setSyncIntervalMs(long syncIntervalMs) {
     this.syncIntervalMs = Math.max(1000, syncIntervalMs);
+  }
+
+  public String getFilePath() {
+    return filePath;
+  }
+
+  public void setFilePath(String filePath) {
+    this.filePath = filePath;
   }
 
   public Jdbc getJdbc() {

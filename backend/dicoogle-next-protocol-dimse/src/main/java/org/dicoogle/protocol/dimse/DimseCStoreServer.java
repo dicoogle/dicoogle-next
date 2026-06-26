@@ -3,7 +3,6 @@ package org.dicoogle.protocol.dimse;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executors;
@@ -17,7 +16,6 @@ import org.dcm4che3.net.AssociationMonitor;
 import org.dcm4che3.net.Connection;
 import org.dcm4che3.net.Device;
 import org.dcm4che3.net.PDVInputStream;
-import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.net.pdu.AAssociateRJ;
 import org.dcm4che3.net.pdu.PresentationContext;
@@ -36,12 +34,7 @@ import org.springframework.context.SmartLifecycle;
 
 public class DimseCStoreServer implements SmartLifecycle {
 
-  private static final String STUDY_ROOT_FIND_UID = "1.2.840.10008.5.1.4.1.2.2.1";
-  private static final String STUDY_ROOT_MOVE_UID = "1.2.840.10008.5.1.4.1.2.2.2";
-
   private final CStoreService cStoreService;
-  private final CFindService cFindService;
-  private final CMoveService cMoveService;
   private final org.dicoogle.core.storage.StorageRouter storageRouter;
   private final DimseCStoreProperties properties;
   private final String primaryStorageScheme;
@@ -56,27 +49,15 @@ public class DimseCStoreServer implements SmartLifecycle {
 
   public DimseCStoreServer(
       CStoreService cStoreService,
-      CFindService cFindService,
-      CMoveService cMoveService,
       org.dicoogle.core.storage.StorageRouter storageRouter,
       DimseCStoreProperties properties,
       String primaryStorageScheme) {
     this(
-        cStoreService,
-        cFindService,
-        cMoveService,
-        storageRouter,
-        properties,
-        primaryStorageScheme,
-        List.of(),
-        List.of(),
-        null);
+        cStoreService, storageRouter, properties, primaryStorageScheme, List.of(), List.of(), null);
   }
 
   public DimseCStoreServer(
       CStoreService cStoreService,
-      CFindService cFindService,
-      CMoveService cMoveService,
       org.dicoogle.core.storage.StorageRouter storageRouter,
       DimseCStoreProperties properties,
       String primaryStorageScheme,
@@ -84,8 +65,6 @@ public class DimseCStoreServer implements SmartLifecycle {
       List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies) {
     this(
         cStoreService,
-        cFindService,
-        cMoveService,
         storageRouter,
         properties,
         primaryStorageScheme,
@@ -96,8 +75,6 @@ public class DimseCStoreServer implements SmartLifecycle {
 
   public DimseCStoreServer(
       CStoreService cStoreService,
-      CFindService cFindService,
-      CMoveService cMoveService,
       org.dicoogle.core.storage.StorageRouter storageRouter,
       DimseCStoreProperties properties,
       String primaryStorageScheme,
@@ -105,8 +82,6 @@ public class DimseCStoreServer implements SmartLifecycle {
       List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies,
       LegacyProxyService legacyProxyService) {
     this.cStoreService = Objects.requireNonNull(cStoreService);
-    this.cFindService = Objects.requireNonNull(cFindService);
-    this.cMoveService = Objects.requireNonNull(cMoveService);
     this.storageRouter = Objects.requireNonNull(storageRouter);
     this.properties = Objects.requireNonNull(properties);
     this.primaryStorageScheme =
@@ -147,9 +122,6 @@ public class DimseCStoreServer implements SmartLifecycle {
 
     DicomServiceRegistry services = new DicomServiceRegistry();
     services.addDicomService(new BasicCEchoSCP());
-    services.addDicomService(new DimseCFindSCP(cFindService));
-    services.addDicomService(
-        new DimseCMoveSCP(cMoveService, storageRouter, properties, legacyProxyService));
     services.addDicomService(
         new BasicCStoreSCP("*") {
           @Override
@@ -275,24 +247,6 @@ public class DimseCStoreServer implements SmartLifecycle {
               TransferCapability.Role.SCP,
               UID.ImplicitVRLittleEndian));
     }
-
-    TransferCapability cfindTc =
-        new TransferCapability(
-            "cfind-study-root-scp",
-            STUDY_ROOT_FIND_UID,
-            TransferCapability.Role.SCP,
-            UID.ImplicitVRLittleEndian,
-            UID.ExplicitVRLittleEndian);
-    cfindTc.setQueryOptions(EnumSet.of(QueryOption.DATETIME, QueryOption.FUZZY));
-    ae.addTransferCapability(cfindTc);
-
-    ae.addTransferCapability(
-        new TransferCapability(
-            "cmove-study-root-scp",
-            STUDY_ROOT_MOVE_UID,
-            TransferCapability.Role.SCP,
-            UID.ImplicitVRLittleEndian,
-            UID.ExplicitVRLittleEndian));
   }
 
   public synchronized void applyAcceptedTransferCapabilities(

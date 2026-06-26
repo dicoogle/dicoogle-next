@@ -199,6 +199,11 @@ public class DimseTransferCapabilityService {
     return properties.getSource().name().toLowerCase();
   }
 
+  public void applyToServer() {
+    DimseTransferCapabilityStore.StoredCapabilities stored = store.load();
+    apply(stored);
+  }
+
   private List<DimseCStoreProperties.AcceptedTransferCapability> normalizeCapabilities(
       List<DimseCStoreProperties.AcceptedTransferCapability> capabilities) {
     if (capabilities == null || capabilities.isEmpty()) {

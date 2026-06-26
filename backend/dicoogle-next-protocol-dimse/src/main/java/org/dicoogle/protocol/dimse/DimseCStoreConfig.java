@@ -13,7 +13,6 @@ import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
 import org.dicoogle.sdk.storage.DimseAssociationAcceptedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,7 +22,8 @@ import org.springframework.context.annotation.Configuration;
   DimseCStoreProperties.class,
   DimseCFindProperties.class,
   DimseCMoveProperties.class,
-  DimseProperties.class
+  DimseProperties.class,
+  DimseQueryRetrieveProperties.class
 })
 public class DimseCStoreConfig {
 
@@ -83,11 +83,8 @@ public class DimseCStoreConfig {
   }
 
   @Bean
-  @ConditionalOnProperty(prefix = "app.dimse.cstore", name = "enabled", havingValue = "true")
   DimseCStoreServer dimseCStoreServer(
       CStoreService cStoreService,
-      CFindService cFindService,
-      CMoveService cMoveService,
       StorageRouter storageRouter,
       DimseCStoreProperties properties,
       List<DimseAssociationEventListener> associationEventListeners,
@@ -97,13 +94,28 @@ public class DimseCStoreConfig {
       @Autowired(required = false) LegacyProxyService legacyProxyService) {
     return new DimseCStoreServer(
         cStoreService,
-        cFindService,
-        cMoveService,
         storageRouter,
         properties,
         primaryStorageScheme,
         associationEventListeners,
         associationAccessPolicies,
+        legacyProxyService);
+  }
+
+  @Bean
+  DimseQueryRetrieveServer dimseQueryRetrieveServer(
+      CFindService cFindService,
+      CMoveService cMoveService,
+      StorageRouter storageRouter,
+      DimseQueryRetrieveProperties qrProperties,
+      DimseCStoreProperties cStoreProperties,
+      @Autowired(required = false) LegacyProxyService legacyProxyService) {
+    return new DimseQueryRetrieveServer(
+        cFindService,
+        cMoveService,
+        storageRouter,
+        qrProperties,
+        cStoreProperties,
         legacyProxyService);
   }
 }

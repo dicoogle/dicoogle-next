@@ -23,7 +23,7 @@ public class DicomServicesController {
 
   @GetMapping("/storage")
   @Operation(
-      summary = "Get C-STORE service state",
+      summary = "Get C-STORE (DICOM Storage) service state",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> getStorage() {
     RuntimeSettings.DimseCStoreSettings cstore =
@@ -38,7 +38,7 @@ public class DicomServicesController {
 
   @PostMapping("/storage")
   @Operation(
-      summary = "Update C-STORE service state",
+      summary = "Update C-STORE (DICOM Storage) service state",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> updateStorage(
       @RequestParam(required = false) Integer port,
@@ -57,39 +57,37 @@ public class DicomServicesController {
 
   @GetMapping("/query")
   @Operation(
-      summary = "Get C-FIND service state",
-      description = "C-FIND runs on the same DIMSE server as C-STORE; returns the same status",
+      summary = "Get C-FIND/C-MOVE (DICOM Query-Retrieve) service state",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> getQuery() {
-    RuntimeSettings.DimseCStoreSettings cstore =
-        settingsService.getCurrent().getDimse().getCstore();
+    RuntimeSettings.DimseQueryRetrieveSettings qr =
+        settingsService.getCurrent().getDimse().getQueryRetrieveServer();
     return ResponseEntity.ok(
         new ServiceStatusResponse(
-            settingsService.isCStoreRunning(),
-            cstore.getPort(),
-            cstore.isEnabled(),
-            cstore.getBindAddress()));
+            settingsService.isQueryRetrieveRunning(),
+            qr.getPort(),
+            qr.isEnabled(),
+            qr.getBindAddress()));
   }
 
   @PostMapping("/query")
   @Operation(
-      summary = "Update C-FIND service state",
-      description =
-          "C-FIND runs on the same DIMSE server as C-STORE; starts/stops the shared server",
+      summary = "Update C-FIND/C-MOVE (DICOM Query-Retrieve) service state",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> updateQuery(
       @RequestParam(required = false) Integer port,
       @RequestParam(required = false) Boolean autostart,
       @RequestParam(required = false) Boolean running,
       @RequestParam(required = false) String hostname) {
-    RuntimeSettings updated = settingsService.updateCStore(port, hostname, autostart, running);
-    RuntimeSettings.DimseCStoreSettings cstore = updated.getDimse().getCstore();
+    RuntimeSettings updated =
+        settingsService.updateQueryRetrieveServer(port, hostname, autostart, running);
+    RuntimeSettings.DimseQueryRetrieveSettings qr = updated.getDimse().getQueryRetrieveServer();
     return ResponseEntity.ok(
         new ServiceStatusResponse(
-            settingsService.isCStoreRunning(),
-            cstore.getPort(),
-            cstore.isEnabled(),
-            cstore.getBindAddress()));
+            settingsService.isQueryRetrieveRunning(),
+            qr.getPort(),
+            qr.isEnabled(),
+            qr.getBindAddress()));
   }
 
   private record ServiceStatusResponse(
