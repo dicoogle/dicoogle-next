@@ -42,7 +42,7 @@ import org.junit.jupiter.api.Test;
 
 class DimseCMoveSCPIntegrationTest {
 
-  private DimseCStoreServer sourceServer;
+  private DimseQueryRetrieveServer sourceServer;
   private FileReadWriteStoragePlugin storage;
   private FileQueryIndexPlugin queryPlugin;
   private Device destinationDevice;
@@ -243,9 +243,15 @@ class DimseCMoveSCPIntegrationTest {
     cStoreProperties.setPort(sourcePort);
     cStoreProperties.setStorageScheme("file");
 
+    DimseQueryRetrieveProperties qrProps = new DimseQueryRetrieveProperties();
+    qrProps.setEnabled(true);
+    qrProps.setAeTitle("DICOOGLE");
+    qrProps.setBindAddress("127.0.0.1");
+    qrProps.setPort(sourcePort);
+
     sourceServer =
-        new DimseCStoreServer(
-            cStoreService, cFindService, cMoveService, storageRouter, cStoreProperties, "file");
+        new DimseQueryRetrieveServer(
+            cFindService, cMoveService, storageRouter, qrProps, cStoreProperties, null);
     sourceServer.start();
   }
 

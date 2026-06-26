@@ -21,6 +21,8 @@ generate_dockerfile() {
   cmd_line+=" --server.port=8082"
   cmd_line+=" --app.dimse.cstore.enabled=true"
   cmd_line+=" --app.dimse.cstore.port=11113"
+  cmd_line+=" --app.dimse.query-retrieve.enabled=true"
+  cmd_line+=" --app.dimse.query-retrieve.port=11114"
   cmd_line+=" --app.plugins.startup-validation.require-writable-provider=false"
   cmd_line+=" --dicoogle.legacy-proxy.enabled=true"
   cmd_line+=" --dicoogle.legacy-proxy.base-url=http://legacy:8080"
@@ -234,7 +236,7 @@ run_tests() {
   local find_out
   find_out=$(timeout $DICOM_TIMEOUT findscu -v -aet FINDSCU -aec DICOOGLE -S \
     -k QueryRetrieveLevel=STUDY -k "StudyInstanceUID=$TEST_UID" \
-    localhost 11113 2>&1) || true
+    localhost 11114 2>&1) || true
 
   local find_success=false
   if echo "$find_out" | grep -q "Received Final Find Response (Success)"; then
@@ -287,7 +289,7 @@ run_tests() {
   local move_out
   move_out=$(timeout $DICOM_TIMEOUT movescu -v -aet MOVESCU -aec DICOOGLE -S \
     -k QueryRetrieveLevel=STUDY -k "StudyInstanceUID=$TEST_UID" \
-    -aem LEGACYSCP localhost 11113 2>&1) || true
+    -aem LEGACYSCP localhost 11114 2>&1) || true
 
   local move_success=false
   if echo "$move_out" | grep -q "Received Final Move Response"; then
