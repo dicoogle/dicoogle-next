@@ -39,6 +39,7 @@ export interface Image {
   sopInstanceUID: string;
   instanceNumber?: string;
   seriesInstanceUID: string;
+  uri?: string;
 }
 
 export interface Series {

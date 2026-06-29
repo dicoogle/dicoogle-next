@@ -9,14 +9,20 @@ import {
   ArrowLeft,
   LayoutGrid,
   List,
+  Eraser,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { dicoogleService } from "@/services/dicoogleService";
+import { useAuthStore } from "@/stores/AuthStore";
+import { ConfirmActionDialog } from "@/components/ui/ConfirmActionDialog";
+import { useEntryActions } from "../hooks";
 import { usePagination } from "../hooks/usePagination";
-import type { Series } from "@/types";
+import type { Series, Image, Study } from "@/types";
 
 interface ImageListProps {
+  study: Study;
   series: Series;
   onViewQuick: (sopIndex: number, e?: React.MouseEvent) => void;
   onViewAdvanced: (sopIndex: number) => void;
@@ -24,9 +30,62 @@ interface ImageListProps {
   onBack: () => void;
 }
 
+function ImageActions({ study, image }: { study: Study; image: Image }) {
+  const { user } = useAuthStore();
+  const {
+    openDialog,
+    pendingAction,
+    description,
+    fileCount,
+    loading,
+    handleUnindex,
+    handleRemove,
+    handleConfirm,
+    handleCancel,
+  } = useEntryActions({ level: "instance", study, image });
+
+  if (!user?.admin) return null;
+
+  return (
+    <>
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+          title="Unindex (does not remove file physically)"
+          onClick={handleUnindex}
+        >
+          <Eraser className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-destructive hover:bg-red-50 dark:hover:bg-red-950/30"
+          title="Remove file permanently"
+          onClick={handleRemove}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      <ConfirmActionDialog
+        open={openDialog}
+        action={pendingAction || "unindex"}
+        level="instance"
+        description={description}
+        fileCount={fileCount}
+        loading={loading}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
+    </>
+  );
+}
+
 const PAGE_SIZE = 10;
 
 export function ImageList({
+  study,
   series,
   onViewQuick,
   onViewDump,
@@ -178,6 +237,10 @@ export function ImageList({
                       <Info className="w-3.5 h-3.5 mr-1" /> Metadata
                     </Button>
                   </div>
+
+                  <div className="flex justify-center gap-1 mt-2 pt-2 border-t border-border">
+                    <ImageActions study={study} image={image} />
+                  </div>
                 </div>
               );
             })}
@@ -221,7 +284,7 @@ export function ImageList({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-1 shrink-0 items-center">
                     <Button
                       size="sm"
                       variant="outline-solid"
@@ -238,6 +301,7 @@ export function ImageList({
                     >
                       <Info className="w-4 h-4 mr-2" /> Metadata
                     </Button>
+                    <ImageActions study={study} image={image} />
                   </div>
                 </div>
               );
