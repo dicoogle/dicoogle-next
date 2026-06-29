@@ -2,6 +2,7 @@ package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,12 +13,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import org.dcm4che3.data.Attributes;
+import org.dcm4che3.data.ElementDictionary;
 import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.net.QueryOption;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.core.query.QueryRouter;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
+import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
 import org.dicoogle.sdk.query.QueryService;
@@ -36,14 +40,19 @@ public class CFindService {
   private final int maxResults;
   private final List<String> dimProviders;
   private final MeterRegistry meterRegistry;
+  private final LegacyProxyService legacyProxyService;
+  private final LegacyProxyProperties legacyProxyProperties;
 
   public CFindService(
       QueryRouter router,
       List<DimseAccessPolicy<QueryService.QueryRequest>> accessPolicies,
       DimseCFindProperties properties,
       DimseProperties dimseProperties,
-      MeterRegistry meterRegistry) {
+      MeterRegistry meterRegistry,
+      LegacyProxyService legacyProxyService,
+      LegacyProxyProperties legacyProxyProperties) {
     this.router = router;
+    this.legacyProxyProperties = legacyProxyProperties;
     this.accessPolicies = List.copyOf(accessPolicies);
     this.supportedLevels =
         properties.getSupportedQueryLevels().stream()
@@ -52,6 +61,7 @@ public class CFindService {
     this.maxResults = properties.getMaxResults();
     this.dimProviders = dimseProperties.getDimProviders();
     this.meterRegistry = meterRegistry;
+    this.legacyProxyService = legacyProxyService;
   }
 
   public List<Attributes> find(
@@ -97,6 +107,26 @@ public class CFindService {
     }
 
     validateIdentifier(keys, queryOptions);
+
+    boolean hasQueryPlugin = router.queryPluginCount() > 0;
+    boolean useLegacy =
+        legacyProxyProperties != null
+            && legacyProxyProperties.shouldUseLegacyForQueryIndex(hasQueryPlugin);
+
+    if (useLegacy) {
+      if (legacyProxyService == null) {
+        increment("dicoogle.cfind.failure", "no-query-plugin");
+        throw new DicomServiceException(
+            Status.UnableToProcess, "No DIMSE query plugin is configured");
+      }
+      return fallbackToLegacy(keys, level, maxResults, startNs, normalizedLevel);
+    }
+
+    if (!hasQueryPlugin) {
+      increment("dicoogle.cfind.failure", "no-query-plugin");
+      throw new DicomServiceException(
+          Status.UnableToProcess, "No DIMSE query plugin is configured");
+    }
 
     String rawPatientName = keys.getString(Tag.PatientName, null);
     String freeText = extractFreeText(rawPatientName);
@@ -271,5 +301,127 @@ public class CFindService {
         .tag("level", level)
         .register(meterRegistry)
         .record(System.nanoTime() - startNs, TimeUnit.NANOSECONDS);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Attributes> fallbackToLegacy(
+      Attributes keys,
+      QueryRetrieveLevel level,
+      int maxResults,
+      long startNs,
+      String normalizedLevel) {
+    LOGGER.info("C-FIND no local query plugin, falling back to legacy: level={}", normalizedLevel);
+
+    String query = buildFreetextQuery(keys);
+    String[] fields = buildReturnFields(keys);
+
+    Map<?, ?> response = legacyProxyService.searchQuery(query, fields, maxResults);
+    if (response == null) {
+      LOGGER.warn("C-FIND legacy fallback returned null");
+      increment("dicoogle.cfind.failure", "legacy-null");
+      recordLatency("failure", normalizedLevel, startNs);
+      return List.of();
+    }
+
+    List<?> resultList = (List<?>) response.get("results");
+    if (resultList == null || resultList.isEmpty()) {
+      increment("dicoogle.cfind.success", null);
+      recordLatency("success", normalizedLevel, startNs);
+      return List.of();
+    }
+
+    List<Attributes> results = new ArrayList<>();
+    for (Object obj : resultList) {
+      Map<?, ?> entry = (Map<?, ?>) obj;
+      Map<?, ?> fieldsMap = (Map<?, ?>) entry.get("fields");
+      Attributes attrs = new Attributes();
+      attrs.setString(Tag.QueryRetrieveLevel, VR.CS, level.name());
+      if (fieldsMap != null) {
+        for (Map.Entry<?, ?> f : fieldsMap.entrySet()) {
+          String keyword = (String) f.getKey();
+          int tag = ElementDictionary.tagForKeyword(keyword, null);
+          if (tag != -1 && f.getValue() != null) {
+            VR vr = ElementDictionary.vrOf(tag, null);
+            if (vr == null || vr == VR.UN || vr == VR.SQ) {
+              vr = VR.LO;
+            }
+            attrs.setString(tag, vr, String.valueOf(f.getValue()));
+          }
+        }
+      }
+      filterByLevel(attrs, level);
+      results.add(attrs);
+    }
+
+    List<Attributes> limited =
+        results.size() <= maxResults ? results : results.subList(0, maxResults);
+    increment("dicoogle.cfind.success", null);
+    meterRegistry
+        .counter("dicoogle.cfind.matches", "level", normalizedLevel)
+        .increment(limited.size());
+    LOGGER.info("C-FIND legacy fallback returned {} matches", limited.size());
+    recordLatency("success", normalizedLevel, startNs);
+    return limited;
+  }
+
+  private String buildFreetextQuery(Attributes keys) {
+    StringBuilder query = new StringBuilder();
+    for (int tag : keys.tags()) {
+      if (tag == Tag.QueryRetrieveLevel) {
+        continue;
+      }
+      String value = keys.getString(tag, null);
+      if (value != null && !value.isBlank()) {
+        if (!query.isEmpty()) {
+          query.append(' ');
+        }
+        query.append(value);
+      }
+    }
+    return query.isEmpty() ? "*" : query.toString();
+  }
+
+  private String[] buildReturnFields(Attributes keys) {
+    List<String> fields = new ArrayList<>();
+    for (int tag : keys.tags()) {
+      if (tag == Tag.QueryRetrieveLevel) {
+        continue;
+      }
+      String value = keys.getString(tag, null);
+      if (value == null || value.isBlank()) {
+        String keyword = ElementDictionary.keywordOf(tag, null);
+        if (keyword != null) {
+          fields.add(keyword);
+        }
+      }
+    }
+    if (fields.isEmpty()) {
+      return new String[] {
+        "SOPInstanceUID",
+        "StudyInstanceUID",
+        "SeriesInstanceUID",
+        "PatientID",
+        "PatientName",
+        "PatientSex",
+        "Modality",
+        "StudyDate",
+        "StudyID",
+        "StudyDescription",
+        "SeriesNumber",
+        "SeriesDescription",
+        "InstitutionName",
+        "InstanceNumber"
+      };
+    }
+    return fields.toArray(new String[0]);
+  }
+
+  private void filterByLevel(Attributes attrs, QueryRetrieveLevel level) {
+    if (level == QueryRetrieveLevel.STUDY) {
+      attrs.setNull(Tag.SeriesInstanceUID, VR.UI);
+      attrs.setNull(Tag.SOPInstanceUID, VR.UI);
+    } else if (level == QueryRetrieveLevel.SERIES) {
+      attrs.setNull(Tag.SOPInstanceUID, VR.UI);
+    }
   }
 }

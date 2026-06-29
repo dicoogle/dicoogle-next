@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<configuration>
+    <root-dir>/dicoogle-storage</root-dir>
+    <use-relative-path>false</use-relative-path>
+    <scheme>file</scheme>
+</configuration>

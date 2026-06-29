@@ -35,7 +35,9 @@ class CMoveServiceTest {
             new DimseCFindProperties(),
             new DimseCMoveProperties(),
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -67,7 +69,9 @@ class CMoveServiceTest {
             new DimseCFindProperties(),
             properties,
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     DicomServiceException ex =
         assertThrows(
@@ -97,7 +101,9 @@ class CMoveServiceTest {
             new DimseCFindProperties(),
             properties,
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -121,7 +127,9 @@ class CMoveServiceTest {
             new DimseCFindProperties(),
             properties,
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");
@@ -153,7 +161,9 @@ class CMoveServiceTest {
             new DimseCFindProperties(),
             properties,
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "SERIES");
@@ -189,7 +199,9 @@ class CMoveServiceTest {
             new DimseCFindProperties(),
             properties,
             emptyDim(),
-            new SimpleMeterRegistry());
+            new SimpleMeterRegistry(),
+            null,
+            null);
 
     Attributes keys = new Attributes();
     keys.setString(Tag.QueryRetrieveLevel, VR.CS, "STUDY");

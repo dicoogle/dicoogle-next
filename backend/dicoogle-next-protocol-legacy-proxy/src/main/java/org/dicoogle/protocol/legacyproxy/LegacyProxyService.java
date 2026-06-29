@@ -1,7 +1,9 @@
 package org.dicoogle.protocol.legacyproxy;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.slf4j.Logger;
@@ -10,6 +12,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -65,6 +68,209 @@ public class LegacyProxyService {
    */
   public ResponseEntity<byte[]> forward(HttpServletRequest request) {
     return forwardWithToken(request, authService.getToken(), false);
+  }
+
+  /**
+   * Stores raw DICOM bytes on legacy Dicoogle via POST /storage.
+   *
+   * @param dicomBytes the raw DICOM Part 10 bytes to store
+   * @return the URI assigned by legacy storage, or null on failure
+   */
+  public URI postStorage(byte[] dicomBytes) {
+    return postStorageWithToken(dicomBytes, authService.getToken(), false);
+  }
+
+  /**
+   * Fetches a raw DICOM file from legacy Dicoogle via GET /storage?uri=...
+   *
+   * @param fullUri the full storage URI (e.g., "file:///tmp/.../file.dcm") as returned by legacy
+   *     /search
+   * @return the raw DICOM bytes, or null on failure
+   */
+  public byte[] getFile(String fullUri) {
+    return getFileWithToken(fullUri, authService.getToken(), false);
+  }
+
+  /**
+   * Queries legacy Dicoogle via GET /search.
+   *
+   * @param query the query string (format depends on legacy plugin, typically Lucene syntax)
+   * @param fields extra DICOM fields to return (null uses legacy defaults)
+   * @param maxResults page size
+   * @return the JSON response as a Map with "results", "numResults", "elapsedTime", or null on
+   *     failure
+   */
+  public Map<?, ?> searchQuery(String query, String[] fields, int maxResults) {
+    return searchQueryWithToken(query, fields, maxResults, authService.getToken(), false);
+  }
+
+  /**
+   * Triggers indexing on legacy Dicoogle via POST /management/tasks/index.
+   *
+   * @param uri the URI to index (e.g., "file:///tmp")
+   * @return true if the indexing task was submitted successfully
+   */
+  public boolean postIndex(String uri) {
+    return postIndexWithToken(uri, authService.getToken(), false);
+  }
+
+  private URI postStorageWithToken(byte[] dicomBytes, String token, boolean isRetry) {
+    try {
+      String path = "/storage?scheme=file";
+      log.debug("Proxying POST {} to legacy Dicoogle ({} bytes)", path, dicomBytes.length);
+
+      Map<?, ?> response =
+          webClient
+              .method(HttpMethod.POST)
+              .uri(path)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .contentType(MediaType.APPLICATION_OCTET_STREAM)
+              .bodyValue(dicomBytes)
+              .retrieve()
+              .bodyToMono(Map.class)
+              .block(properties.getTimeout());
+
+      if (response != null && response.containsKey("uri")) {
+        return URI.create((String) response.get("uri"));
+      }
+      log.warn("Legacy Dicoogle POST /storage returned no URI: {}", response);
+      return null;
+
+    } catch (WebClientResponseException e) {
+      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return postStorageWithToken(dicomBytes, freshToken, true);
+      }
+      log.error("Legacy Dicoogle POST /storage returned error: HTTP {}", e.getStatusCode());
+      return null;
+
+    } catch (Exception e) {
+      log.error("Failed to proxy POST /storage to legacy Dicoogle", e);
+      return null;
+    }
+  }
+
+  private byte[] getFileWithToken(String fullUri, String token, boolean isRetry) {
+    try {
+      log.debug("Proxying GET /storage?uri={} to legacy Dicoogle", fullUri);
+
+      java.net.http.HttpClient httpClient = java.net.http.HttpClient.newHttpClient();
+      java.net.URI uri =
+          java.net.URI.create(
+              properties.getBaseUrl()
+                  + "/storage?uri="
+                  + java.net.URLEncoder.encode(fullUri, "UTF-8"));
+
+      java.net.http.HttpRequest request =
+          java.net.http.HttpRequest.newBuilder()
+              .uri(uri)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .GET()
+              .build();
+
+      java.net.http.HttpResponse<byte[]> response =
+          httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray());
+
+      if (response.statusCode() == 401 && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return getFileWithToken(fullUri, freshToken, true);
+      }
+      if (response.statusCode() != 200) {
+        log.error(
+            "Legacy Dicoogle GET /storage?uri=... returned error: HTTP {}", response.statusCode());
+        return null;
+      }
+      return response.body();
+
+    } catch (Exception e) {
+      log.error("Failed to proxy GET /storage to legacy Dicoogle", e);
+      return null;
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<?, ?> searchQueryWithToken(
+      String query, String[] fields, int maxResults, String token, boolean isRetry) {
+    try {
+      UriComponentsBuilder uriBuilder =
+          UriComponentsBuilder.fromPath("/search")
+              .queryParam("query", query)
+              .queryParam("psize", maxResults)
+              .queryParam("expand");
+      if (fields != null && fields.length > 0) {
+        for (String field : fields) {
+          uriBuilder.queryParam("field", field);
+        }
+      }
+      String uri = uriBuilder.build().toUriString();
+
+      log.debug("Proxying GET {} to legacy Dicoogle", uri);
+
+      Map<?, ?> response =
+          webClient
+              .method(HttpMethod.GET)
+              .uri(uri)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .retrieve()
+              .bodyToMono(Map.class)
+              .block(properties.getTimeout());
+
+      return response;
+
+    } catch (WebClientResponseException e) {
+      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return searchQueryWithToken(query, fields, maxResults, freshToken, true);
+      }
+      log.error("Legacy Dicoogle GET /search returned error: HTTP {}", e.getStatusCode());
+      return null;
+
+    } catch (Exception e) {
+      log.error("Failed to proxy GET /search to legacy Dicoogle", e);
+      return null;
+    }
+  }
+
+  private boolean postIndexWithToken(String uri, String token, boolean isRetry) {
+    try {
+      log.debug("Proxying POST /management/tasks/index?uri={} to legacy Dicoogle", uri);
+
+      Map<?, ?> response =
+          webClient
+              .method(HttpMethod.POST)
+              .uri(
+                  uriBuilder ->
+                      uriBuilder.path("/management/tasks/index").queryParam("uri", uri).build())
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+              .retrieve()
+              .bodyToMono(Map.class)
+              .block(properties.getTimeout());
+
+      if (response != null) {
+        log.info("Legacy index task submitted for uri={}: {}", uri, response);
+        return true;
+      }
+      log.warn("Legacy Dicoogle POST /management/tasks/index returned null for uri={}", uri);
+      return false;
+
+    } catch (WebClientResponseException e) {
+      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
+        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+        String freshToken = authService.refreshToken();
+        return postIndexWithToken(uri, freshToken, true);
+      }
+      log.error(
+          "Legacy Dicoogle POST /management/tasks/index returned error: HTTP {}",
+          e.getStatusCode());
+      return false;
+
+    } catch (Exception e) {
+      log.error("Failed to proxy POST /management/tasks/index to legacy Dicoogle", e);
+      return false;
+    }
   }
 
   private ResponseEntity<byte[]> forwardWithToken(

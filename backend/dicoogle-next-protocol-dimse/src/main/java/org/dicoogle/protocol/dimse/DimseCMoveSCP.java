@@ -12,6 +12,7 @@ import org.dcm4che3.net.service.BasicCMoveSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.RetrieveTask;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,15 +24,18 @@ class DimseCMoveSCP extends BasicCMoveSCP {
   private final CMoveService cMoveService;
   private final StorageRouter storageRouter;
   private final DimseCStoreProperties cStoreProperties;
+  private final LegacyProxyService legacyProxyService;
 
   DimseCMoveSCP(
       CMoveService cMoveService,
       StorageRouter storageRouter,
-      DimseCStoreProperties cStoreProperties) {
+      DimseCStoreProperties cStoreProperties,
+      LegacyProxyService legacyProxyService) {
     super(STUDY_ROOT_MOVE_UID);
     this.cMoveService = cMoveService;
     this.storageRouter = storageRouter;
     this.cStoreProperties = cStoreProperties;
+    this.legacyProxyService = legacyProxyService;
   }
 
   @Override
@@ -60,6 +64,7 @@ class DimseCMoveSCP extends BasicCMoveSCP {
         rq,
         storeAssociation,
         storageRouter,
+        legacyProxyService,
         cancelRequested ->
             cMoveService.resolve(
                 rq.getString(Tag.AffectedSOPClassUID),

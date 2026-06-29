@@ -1,5 +1,6 @@
 package org.dicoogle.protocol.dimse;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -16,9 +17,14 @@ import org.dcm4che3.net.service.BasicRetrieveTask;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.InstanceLocator;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.sdk.query.QueryMoveService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class DimseMoveRetrieveTask extends BasicRetrieveTask<DimseMoveRetrieveTask.StorageMoveLocator> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(DimseMoveRetrieveTask.class);
 
   @FunctionalInterface
   interface CandidateProvider {
@@ -28,6 +34,7 @@ class DimseMoveRetrieveTask extends BasicRetrieveTask<DimseMoveRetrieveTask.Stor
 
   private final CandidateProvider candidateProvider;
   private final StorageRouter storageRouter;
+  private final LegacyProxyService legacyProxyService;
   private final boolean[] canceledRef;
   private boolean initialized;
 
@@ -37,6 +44,7 @@ class DimseMoveRetrieveTask extends BasicRetrieveTask<DimseMoveRetrieveTask.Stor
       Attributes requestCommand,
       Association storeAssociation,
       StorageRouter storageRouter,
+      LegacyProxyService legacyProxyService,
       CandidateProvider candidateProvider,
       boolean[] canceledRef) {
     super(
@@ -47,6 +55,7 @@ class DimseMoveRetrieveTask extends BasicRetrieveTask<DimseMoveRetrieveTask.Stor
         new java.util.ArrayList<>(),
         storeAssociation);
     this.storageRouter = storageRouter;
+    this.legacyProxyService = legacyProxyService;
     this.candidateProvider = candidateProvider;
     this.canceledRef = canceledRef;
     setSendPendingRSP(true);
@@ -76,8 +85,26 @@ class DimseMoveRetrieveTask extends BasicRetrieveTask<DimseMoveRetrieveTask.Stor
 
   @Override
   protected DataWriter createDataWriter(StorageMoveLocator inst, String tsuid) throws Exception {
-    return new ReencodeDataWriter(
-        storageRouter.requireReadable(inst.location.getScheme()).openForRead(inst.location), tsuid);
+    String scheme = inst.location.getScheme();
+    InputStream source;
+    if ("legacy".equals(scheme)) {
+      if (legacyProxyService == null) {
+        throw new IOException("No legacy proxy service available for reading legacy:// locations");
+      }
+      String legacyUri = inst.location.getSchemeSpecificPart();
+      if (legacyUri != null && legacyUri.startsWith("//")) {
+        legacyUri = legacyUri.substring(2);
+      }
+      LOGGER.info("C-MOVE fetching DICOM from legacy: uri={}", legacyUri);
+      byte[] dicomBytes = legacyProxyService.getFile(legacyUri);
+      if (dicomBytes == null || dicomBytes.length == 0) {
+        throw new IOException("Legacy Dicoogle returned empty response for: " + legacyUri);
+      }
+      source = new ByteArrayInputStream(dicomBytes);
+    } else {
+      source = storageRouter.requireReadable(scheme).openForRead(inst.location);
+    }
+    return new ReencodeDataWriter(source, tsuid);
   }
 
   private static final class ReencodeDataWriter implements DataWriter {

@@ -8,6 +8,10 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
+import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.LinkedMultiValueMap;
@@ -38,15 +42,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class SearchController {
 
+  private static final Logger log = LoggerFactory.getLogger(SearchController.class);
+
   private static final MediaType APPLICATION_JSON_UTF8 =
       MediaType.parseMediaType("application/json;charset=UTF-8");
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final DicomwebQidoService qidoService;
+  private final LegacyProxyService legacyProxyService;
+  private final LegacyProxyProperties legacyProxyProperties;
 
-  public SearchController(DicomwebQidoService qidoService) {
+  public SearchController(
+      DicomwebQidoService qidoService,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+          LegacyProxyService legacyProxyService,
+      @org.springframework.beans.factory.annotation.Autowired(required = false)
+          LegacyProxyProperties legacyProxyProperties) {
     this.qidoService = qidoService;
+    this.legacyProxyService = legacyProxyService;
+    this.legacyProxyProperties = legacyProxyProperties;
   }
 
   /**
@@ -69,6 +84,20 @@ public class SearchController {
       @RequestParam(value = "provider", required = false) String provider,
       @RequestParam(value = "dim", required = false, defaultValue = "false") boolean dim) {
 
+    boolean hasQueryPlugin = qidoService.hasQueryPlugins();
+    boolean useLegacy =
+        legacyProxyProperties != null
+            && legacyProxyProperties.shouldUseLegacyForQueryIndex(hasQueryPlugin);
+
+    if (useLegacy) {
+      if (legacyProxyService != null) {
+        return fallbackToLegacy(query, keyword, provider, dim);
+      }
+      return ResponseEntity.ok()
+          .contentType(APPLICATION_JSON_UTF8)
+          .body("{\"numResults\":0,\"results\":[]}");
+    }
+
     MultiValueMap<String, String> qidoParams = buildQidoParams(query, keyword);
     qidoParams.add("_rawQuery", query);
 
@@ -80,6 +109,32 @@ public class SearchController {
     String body = buildLegacySearchResponse(resultSet, elapsedNanos);
 
     return ResponseEntity.ok().contentType(APPLICATION_JSON_UTF8).body(body);
+  }
+
+  @SuppressWarnings("unchecked")
+  private ResponseEntity<String> fallbackToLegacy(
+      String query, boolean keyword, String provider, boolean dim) {
+    log.info("No local query plugin, falling back to legacy: query={}", query);
+
+    // Legacy Lucene doesn't handle *:* with expand; convert to *
+    String legacyQuery = "*:*".equals(query) ? "*" : query;
+    Map<?, ?> legacyResponse = legacyProxyService.searchQuery(legacyQuery, null, 1000);
+    if (legacyResponse == null) {
+      log.warn("Legacy /search returned null");
+      return ResponseEntity.ok()
+          .contentType(APPLICATION_JSON_UTF8)
+          .body("{\"numResults\":0,\"results\":[]}");
+    }
+
+    try {
+      String body = MAPPER.writeValueAsString(legacyResponse);
+      return ResponseEntity.ok().contentType(APPLICATION_JSON_UTF8).body(body);
+    } catch (Exception e) {
+      log.error("Failed to serialize legacy search response", e);
+      return ResponseEntity.ok()
+          .contentType(APPLICATION_JSON_UTF8)
+          .body("{\"numResults\":0,\"results\":[]}");
+    }
   }
 
   /**
