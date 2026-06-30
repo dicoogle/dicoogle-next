@@ -41,6 +41,8 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             requests -> {
               requests
+                  .requestMatchers(HttpMethod.GET, "/indexer")
+                  .permitAll()
                   .requestMatchers(HttpMethod.GET, "/ext/version")
                   .permitAll()
                   .requestMatchers(HttpMethod.GET, "/dic2png")
