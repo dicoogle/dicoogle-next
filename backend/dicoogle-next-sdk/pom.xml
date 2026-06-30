@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.dicoogle</groupId>
+        <artifactId>dicoogle-next-backend-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>dicoogle-next-sdk</artifactId>
+    <name>dicoogle-next-sdk</name>
+    <description>Plugin contracts for Dicoogle Next</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-core</artifactId>
+            <version>${dcm4che.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>

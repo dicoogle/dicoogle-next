@@ -2,16 +2,6 @@ spring:
   config:
     activate:
       on-profile: dev
-  datasource:
-    url: jdbc:postgresql://localhost:5432/dicoogle_next
-    username: dicoogle
-    password: dicoogle
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-  flyway:
-    enabled: true
 
 management:
   endpoint:
@@ -21,7 +11,7 @@ management:
 logging:
   level:
     root: INFO
-    pt.ua.dicooglenext: DEBUG
+    org.dicoogle: DEBUG
     org.springframework.security: INFO
 
 springdoc:
@@ -29,8 +19,30 @@ springdoc:
     enabled: true
 
 app:
+  dimse:
+    cfind:
+    cmove:
+      destinations: {}
+    cstore:
+      enabled: true
+  storage:
+    file-rw:
+      enabled: true
+      root-dir: ./data/storage
+      scheme: file
+    file-ro:
+      root-dir: ./data/storage
+  plugins:
+    startup-validation:
+      require-writable-provider: true
+      writable-scheme: file
+    storage:
+      primary-scheme: file
+      enabled-schemes: []
+      disabled-schemes: []
   security:
     docs-enabled: true
-    basic-auth:
-      username: developer
-      password: developer
+  users:
+    seed:
+      username: dicoogle
+      password: dicoogle

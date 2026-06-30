@@ -33,6 +33,124 @@ springdoc:
     tags-sorter: alpha
 
 app:
+  runtime-settings:
+    store: yaml
+    path: ./data/runtime-settings.yml
+  users:
+    path: ./data/users.yml
   security:
     docs-enabled: false
     allowed-origins: []
+  dimse:
+    dim-providers: []
+    cfind:
+      max-results: 1000
+      supported-query-levels:
+        - STUDY
+        - SERIES
+        - IMAGE
+    cmove:
+      max-results: 1000
+      destinations: {}
+    cstore:
+      enabled: false
+      ae-title: DICOOGLE
+      bind-address: 0.0.0.0
+      port: 6666
+      storage-scheme: file
+      config:
+        source: yaml
+        file-path: ./data/transfer-capabilities.yml
+        sync-interval-ms: 5000
+        jdbc:
+          auto-create-table: true
+          table-name: dimse_transfer_capability_config
+          config-key: dimse.cstore.acceptedTransferCapabilities
+          node-id: ${HOSTNAME:dicoogle-next-node}
+          url: ""
+          username: ""
+          password: ""
+      accepted-transfer-capabilities:
+        - sop-class-uid: 1.2.840.10008.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.7
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.1.2
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.6.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.4
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.4.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.2
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+        - sop-class-uid: 1.2.840.10008.5.1.4.1.1.2.1
+          transfer-syntax-uids:
+            - 1.2.840.10008.1.2
+            - 1.2.840.10008.1.2.1
+    query-retrieve:
+      enabled: false
+      ae-title: DICOOGLE
+      bind-address: 0.0.0.0
+      port: 1045
+  query:
+    lucene:
+      enabled: true
+      root-dir: ./data/index
+      index-name: dicoogle-lucene
+      storage-root-dir: ./data/storage
+      auto-reindex-on-startup: true
+      watch-storage: true
+      search-limit: 10000
+      max-boolean-clauses: 2048
+  storage:
+    file-ro:
+      root-dir: ./data/storage
+    file-rw:
+      enabled: false
+      root-dir: ./data/storage
+      scheme: file
+  plugins:
+    startup-validation:
+      require-writable-provider: false
+      writable-scheme: file
+    storage:
+      primary-scheme: file
+      enabled-schemes: []
+      disabled-schemes: []
+
+filesystem:
+  max-entries: 1000
+
+dicoogle:
+  legacy-proxy:
+    enabled: false
+    storage-retrieve-mode: AUTO
+    query-index-mode: AUTO
+    base-url: http://localhost:8080
+    timeout: 30s
+    auth:
+      username: dicoogle
+      password: dicgoole

@@ -1,29 +1,20 @@
-# --- Stage 1: Build the React App ---
 FROM node:20-alpine AS build
-
 WORKDIR /app
-COPY package*.json ./
+COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-
 ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ARG BASE_PATH
-ENV BASE_PATH=$BASE_PATH
-ARG VITE_BASE_PATH
-ENV VITE_BASE_PATH=$BASE_PATH
 ARG VITE_FILESYSTEM_START_PATH
+ARG BASE_PATH
+ARG VITE_BASE_PATH
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ENV VITE_FILESYSTEM_START_PATH=$VITE_FILESYSTEM_START_PATH
-
+ENV BASE_PATH=$BASE_PATH
+ENV VITE_BASE_PATH=$VITE_BASE_PATH
 RUN npm run build
 
-# --- Stage 2: Nginx ---
 FROM nginx:alpine
-
-# Set up Nginx and the Frontend
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html/next
-
 EXPOSE 3000
-
 CMD ["nginx", "-g", "daemon off;"]

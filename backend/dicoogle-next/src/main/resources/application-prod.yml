@@ -16,7 +16,7 @@ spring:
 logging:
   level:
     root: INFO
-    pt.ua.dicooglenext: INFO
+    org.dicoogle: INFO
 
 springdoc:
   api-docs:
@@ -25,6 +25,9 @@ springdoc:
     enabled: false
 
 app:
+  dimse:
+    cmove:
+      destinations: {}
   security:
     docs-enabled: false
     basic-auth:

@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>pt.ua.dicooglenext</groupId>
+        <groupId>org.dicoogle</groupId>
         <artifactId>dicoogle-next-backend-parent</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
@@ -31,18 +31,6 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jdbc</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-flyway</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
         <dependency>
@@ -54,13 +42,53 @@
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-database-postgresql</artifactId>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-storage-file-ro</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-storage-file-rw</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-query-file</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-query-lucene</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-protocol-dimse</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-protocol-dicomweb</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-protocol-legacy-proxy</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
@@ -68,11 +96,6 @@
             <artifactId>spring-boot-devtools</artifactId>
             <scope>runtime</scope>
             <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -92,11 +115,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-webmvc-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

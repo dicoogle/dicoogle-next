@@ -199,3 +199,8 @@ README.html
 *.iml
 .idea
 .exercism
+data/*
+dicoogle-next/data/*
+
+*.md
+!README.md

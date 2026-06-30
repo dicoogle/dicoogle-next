@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.dicoogle</groupId>
+        <artifactId>dicoogle-next-backend-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>dicoogle-next-protocol-dimse</artifactId>
+    <name>dicoogle-next-protocol-dimse</name>
+    <description>DIMSE protocol adapter for Dicoogle Next</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-sdk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-protocol-legacy-proxy</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-core</artifactId>
+            <version>${dcm4che.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4che-net</artifactId>
+            <version>${dcm4che.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-query-file</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.dicoogle</groupId>
+            <artifactId>dicoogle-next-storage-file-rw</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
