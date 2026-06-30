@@ -393,6 +393,16 @@ class DicoogleService {
     return Array.isArray(uri) ? uri[0] : uri;
   }
 
+  async unindex(uri: string | string[]): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.unindex(uri);
+  }
+
+  async remove(uri: string | string[]): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+    await dicoogleClient.remove(uri);
+  }
+
   async listTasks(): Promise<TaskOutcome> {
     if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
     return await dicoogleClient.tasks.list();

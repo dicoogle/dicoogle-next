@@ -1,5 +1,6 @@
 import { useState, Suspense } from "react";
 import { useSearchStore } from "@/stores/SearchStore";
+import { useAuthStore } from "@/stores/AuthStore";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
@@ -12,6 +13,8 @@ import {
   ChevronLeft,
   LayoutList,
   Grid3X3,
+  Eraser,
+  Trash2,
 } from "lucide-react";
 import type { Study } from "@/types";
 import {
@@ -22,6 +25,8 @@ import {
   invokeResultOptionAction,
   invokeResultBatchAction,
 } from "@/plugin-system";
+import { ConfirmActionDialog } from "@/components/ui/ConfirmActionDialog";
+import { useEntryActions } from "./hooks";
 
 interface StudyListProps {
   studies: Study[];
@@ -36,6 +41,61 @@ interface StudyItemProps {
 
 const ITEMS_PER_PAGE_CARD = 3;
 const ITEMS_PER_PAGE_LIST = 10;
+
+function StudyActions({ study }: { study: Study }) {
+  const { user } = useAuthStore();
+  const {
+    openDialog,
+    pendingAction,
+    description,
+    fileCount,
+    loading,
+    handleUnindex,
+    handleRemove,
+    handleConfirm,
+    handleCancel,
+  } = useEntryActions({ level: "study", study });
+
+  if (!user?.admin) return null;
+
+  return (
+    <>
+      <div
+        className="flex items-center gap-1 pt-1"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+          title="Unindex (does not remove files physically)"
+          onClick={handleUnindex}
+        >
+          <Eraser className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-destructive hover:bg-red-50 dark:hover:bg-red-950/30"
+          title="Remove files permanently"
+          onClick={handleRemove}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      <ConfirmActionDialog
+        open={openDialog}
+        action={pendingAction || "unindex"}
+        level="study"
+        description={description}
+        fileCount={fileCount}
+        loading={loading}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
+    </>
+  );
+}
 
 const formatDate = (date?: string) => {
   if (!date) return "N/A";
@@ -115,6 +175,8 @@ const StudyCard = ({ study, isSelected, onClick }: StudyItemProps) => {
                 {study.studyInstanceUID}
               </code>
             </details>
+
+            <StudyActions study={study} />
 
             {optionExtensions.length > 0 && (
               <div
@@ -218,6 +280,7 @@ const StudyListItem = ({
                 {ext.icon}
               </Button>
             ))}
+          <StudyActions study={study} />
         </div>
       )}
     </div>

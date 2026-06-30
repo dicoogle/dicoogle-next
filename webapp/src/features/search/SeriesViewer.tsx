@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useSearchStore } from "@/stores/SearchStore";
+import { useAuthStore } from "@/stores/AuthStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
@@ -9,16 +10,72 @@ import {
   List,
   FileText,
   ArrowLeft,
+  Eraser,
+  Trash2,
 } from "lucide-react";
 import { dicoogleService } from "@/services/dicoogleService";
 import { ImageList } from "./components/ImageList";
 import { DICOMDumpModal } from "./components/DICOMDumpModal";
 import { QuickViewer } from "./components/QuickViewer";
 import { AdvancedViewer } from "./components/AdvancedViewer";
+import { ConfirmActionDialog } from "@/components/ui/ConfirmActionDialog";
+import { useEntryActions } from "./hooks";
 import type { Study, Series } from "@/types";
 
 interface SeriesViewerProps {
   study: Study;
+}
+
+function SeriesActions({ study, series }: { study: Study; series: Series }) {
+  const { user } = useAuthStore();
+  const {
+    openDialog,
+    pendingAction,
+    description,
+    fileCount,
+    loading,
+    handleUnindex,
+    handleRemove,
+    handleConfirm,
+    handleCancel,
+  } = useEntryActions({ level: "series", study, series });
+
+  if (!user?.admin) return null;
+
+  return (
+    <>
+      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+          title="Unindex (does not remove files physically)"
+          onClick={handleUnindex}
+        >
+          <Eraser className="w-3.5 h-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-destructive hover:bg-red-50 dark:hover:bg-red-950/30"
+          title="Remove files permanently"
+          onClick={handleRemove}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      <ConfirmActionDialog
+        open={openDialog}
+        action={pendingAction || "unindex"}
+        level="series"
+        description={description}
+        fileCount={fileCount}
+        loading={loading}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
+    </>
+  );
 }
 
 export function SeriesViewer({ study }: SeriesViewerProps) {
@@ -163,6 +220,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     return (
       <div ref={containerRef}>
         <ImageList
+          study={study}
           series={selectedSeriesForImages}
           onViewQuick={handleViewImageQuick}
           onViewAdvanced={handleViewImageAdvanced}
@@ -308,6 +366,10 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                       <FileText className="w-3.5 h-3.5 mr-1.5" /> Images
                     </Button>
                   </div>
+
+                  <div className="flex justify-center pt-1">
+                    <SeriesActions study={study} series={s} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -354,7 +416,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                       </p>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Button
                         size="sm"
                         variant="outline-solid"
@@ -373,6 +435,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
                       >
                         <FileText className="w-4 h-4 mr-1" /> View Images
                       </Button>
+                      <SeriesActions study={study} series={s} />
                     </div>
                   </div>
                 </div>

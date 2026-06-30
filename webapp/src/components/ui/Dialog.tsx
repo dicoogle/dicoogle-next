@@ -42,6 +42,7 @@ export function Dialog({ open, onClose, children, title, size = "md" }: DialogPr
       {/* Dialog */}
       <div
         className={`relative bg-background rounded-lg shadow-xl w-full ${sizeClasses[size]} max-h-[90vh] flex flex-col`}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         {title && (

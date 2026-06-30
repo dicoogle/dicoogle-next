@@ -93,6 +93,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
                 sopInstanceUID: sopInstanceUID,
                 instanceNumber: fields.InstanceNumber || fields.instanceNumber,
                 seriesInstanceUID: seriesUID,
+                uri: result.uri,
               });
               imagesMap.set(seriesUID, images);
             }
