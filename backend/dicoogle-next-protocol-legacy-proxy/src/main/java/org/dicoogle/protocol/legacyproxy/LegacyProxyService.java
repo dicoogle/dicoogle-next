@@ -22,7 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 /**
  * Forwards HTTP requests to legacy Dicoogle and returns their responses.
  *
- * <p>Handles token injection and automatic re-authentication on 401.
+ * <p>Handles token injection and automatic re-authentication on 401 or 403.
  */
 @Service
 @ConditionalOnProperty(
@@ -97,11 +97,12 @@ public class LegacyProxyService {
    * @param query the query string (format depends on legacy plugin, typically Lucene syntax)
    * @param fields extra DICOM fields to return (null uses legacy defaults)
    * @param maxResults page size
+   * @param offset number of results to skip (0 for no offset)
    * @return the JSON response as a Map with "results", "numResults", "elapsedTime", or null on
    *     failure
    */
-  public Map<?, ?> searchQuery(String query, String[] fields, int maxResults) {
-    return searchQueryWithToken(query, fields, maxResults, authService.getToken(), false);
+  public Map<?, ?> searchQuery(String query, String[] fields, int maxResults, int offset) {
+    return searchQueryWithToken(query, fields, maxResults, offset, authService.getToken(), false);
   }
 
   /**
@@ -137,8 +138,9 @@ public class LegacyProxyService {
       return null;
 
     } catch (WebClientResponseException e) {
-      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
-        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+      if (isAuthError(e.getStatusCode().value()) && !isRetry) {
+        log.warn(
+            "Received {} from legacy Dicoogle — refreshing token and retrying", e.getStatusCode());
         String freshToken = authService.refreshToken();
         return postStorageWithToken(dicomBytes, freshToken, true);
       }
@@ -172,8 +174,10 @@ public class LegacyProxyService {
       java.net.http.HttpResponse<byte[]> response =
           httpClient.send(request, java.net.http.HttpResponse.BodyHandlers.ofByteArray());
 
-      if (response.statusCode() == 401 && !isRetry) {
-        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+      if (isAuthError(response.statusCode()) && !isRetry) {
+        log.warn(
+            "Received {} from legacy Dicoogle — refreshing token and retrying",
+            response.statusCode());
         String freshToken = authService.refreshToken();
         return getFileWithToken(fullUri, freshToken, true);
       }
@@ -191,13 +195,15 @@ public class LegacyProxyService {
   }
 
   private Map<?, ?> searchQueryWithToken(
-      String query, String[] fields, int maxResults, String token, boolean isRetry) {
+      String query, String[] fields, int maxResults, int offset, String token, boolean isRetry) {
     try {
       UriComponentsBuilder uriBuilder =
           UriComponentsBuilder.fromPath("/search")
               .queryParam("query", query)
-              .queryParam("psize", maxResults)
-              .queryParam("expand");
+              .queryParam("psize", maxResults);
+      if (offset > 0) {
+        uriBuilder.queryParam("page", offset / Math.max(maxResults, 1));
+      }
       if (fields != null && fields.length > 0) {
         for (String field : fields) {
           uriBuilder.queryParam("field", field);
@@ -219,10 +225,11 @@ public class LegacyProxyService {
       return response;
 
     } catch (WebClientResponseException e) {
-      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
-        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+      if (isAuthError(e.getStatusCode().value()) && !isRetry) {
+        log.warn(
+            "Received {} from legacy Dicoogle — refreshing token and retrying", e.getStatusCode());
         String freshToken = authService.refreshToken();
-        return searchQueryWithToken(query, fields, maxResults, freshToken, true);
+        return searchQueryWithToken(query, fields, maxResults, offset, freshToken, true);
       }
       log.error("Legacy Dicoogle GET /search returned error: HTTP {}", e.getStatusCode());
       return null;
@@ -256,8 +263,9 @@ public class LegacyProxyService {
       return false;
 
     } catch (WebClientResponseException e) {
-      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
-        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+      if (isAuthError(e.getStatusCode().value()) && !isRetry) {
+        log.warn(
+            "Received {} from legacy Dicoogle — refreshing token and retrying", e.getStatusCode());
         String freshToken = authService.refreshToken();
         return postIndexWithToken(uri, freshToken, true);
       }
@@ -295,8 +303,9 @@ public class LegacyProxyService {
       return ResponseEntity.ok(responseBody);
 
     } catch (WebClientResponseException e) {
-      if (e.getStatusCode() == HttpStatus.UNAUTHORIZED && !isRetry) {
-        log.warn("Received 401 from legacy Dicoogle — refreshing token and retrying");
+      if (isAuthError(e.getStatusCode().value()) && !isRetry) {
+        log.warn(
+            "Received {} from legacy Dicoogle — refreshing token and retrying", e.getStatusCode());
         String freshToken = authService.refreshToken();
         return forwardWithToken(request, freshToken, true);
       }
@@ -309,6 +318,12 @@ public class LegacyProxyService {
       log.error("Failed to proxy request to legacy Dicoogle", e);
       return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
     }
+  }
+
+  /** Returns true if the HTTP status indicates an expired or invalid token (401 or 403). */
+  private static boolean isAuthError(int statusCode) {
+    return statusCode == HttpStatus.UNAUTHORIZED.value()
+        || statusCode == HttpStatus.FORBIDDEN.value();
   }
 
   private String buildUri(HttpServletRequest request) {

@@ -127,10 +127,13 @@ public class SearchController {
   @SuppressWarnings("unchecked")
   private ResponseEntity<String> fallbackToLegacy(
       String query, String provider, int offset, int limit, String[] field) {
-    log.info("No local query plugin, falling back to legacy: query={}", query);
+    // Legacy Dicoogle rejects empty query with HTTP 400 — use "*" for wildcard
+    String legacyQuery = (query == null || query.isBlank()) ? "*" : query;
+    log.info("No local query plugin, falling back to legacy: query={}", legacyQuery);
 
     int maxResults = limit > 0 ? limit : 1000;
-    Map<?, ?> legacyResponse = legacyProxyService.searchQuery(query, field, maxResults);
+    Map<?, ?> legacyResponse =
+        legacyProxyService.searchQuery(legacyQuery, field, maxResults, offset);
     if (legacyResponse == null) {
       log.warn("Legacy /search returned null");
       return ResponseEntity.ok()

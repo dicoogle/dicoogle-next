@@ -191,7 +191,7 @@ public class QueryIndexController {
   @SuppressWarnings("unchecked")
   private ResponseEntity<?> fallbackStatus() {
     log.info("No local index plugin, falling back to legacy for index status");
-    Map<?, ?> response = legacyProxyService.searchQuery("index:status", null, 100);
+    Map<?, ?> response = legacyProxyService.searchQuery("index:status", null, 100, 0);
     if (response != null) {
       return ResponseEntity.ok(response);
     }
@@ -201,7 +201,7 @@ public class QueryIndexController {
   @SuppressWarnings("unchecked")
   private ResponseEntity<?> fallbackReindex() {
     log.info("No local index plugin, falling back to legacy for reindex");
-    Map<?, ?> response = legacyProxyService.searchQuery("reindex", null, 100);
+    Map<?, ?> response = legacyProxyService.searchQuery("reindex", null, 100, 0);
     if (response != null) {
       return ResponseEntity.ok(response);
     }
