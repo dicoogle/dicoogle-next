@@ -74,7 +74,7 @@ class QueryIndexControllerTest {
           "pluginId": "missing"
         }
         """
-            .formatted(testDataRoot.toString());
+            .formatted(testDataRoot.toUri());
 
     mockMvc
         .perform(
@@ -94,7 +94,7 @@ class QueryIndexControllerTest {
             "pluginId": "lucene"
         }
         """
-            .formatted(testDataRoot.toString().replace("\\", "\\\\"));
+            .formatted(testDataRoot.toUri());
 
     mockMvc
         .perform(

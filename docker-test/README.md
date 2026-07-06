@@ -293,7 +293,7 @@ mvn package -DskipTests
 java -jar target/dicoogle.jar -s
 ```
 
-Make sure `Plugins/` directory contains `filestorage-3.5.1.jar` and `lucene-3.5.1.jar`.
+Make sure `Plugins/` directory contains `filestorage-3.6.0.jar` and `lucene-3.6.0.jar`.
 
 ### Storage
 

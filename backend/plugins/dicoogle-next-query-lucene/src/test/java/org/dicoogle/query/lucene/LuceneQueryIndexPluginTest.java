@@ -151,7 +151,7 @@ class LuceneQueryIndexPluginTest {
     assertEquals(1, indexedViaPathUri);
     assertTrue(plugin.indexedDocuments() >= 1);
 
-    int removedViaPlainPath = plugin.unindexPath(URI.create(dicomNoExt.toString()));
+    int removedViaPlainPath = plugin.unindexPath(dicomNoExt.toUri());
     assertEquals(1, removedViaPlainPath);
     assertEquals(0, plugin.locateInstance("1.2.3", "1.2.3.1", "1.2.3.4.5").isPresent() ? 1 : 0);
 

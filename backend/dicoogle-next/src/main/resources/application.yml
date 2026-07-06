@@ -153,4 +153,4 @@ dicoogle:
     timeout: 30s
     auth:
       username: dicoogle
-      password: dicgoole
+      password: dicoogle

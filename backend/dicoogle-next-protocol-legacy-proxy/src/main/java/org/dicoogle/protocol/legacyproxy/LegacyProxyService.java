@@ -190,7 +190,6 @@ public class LegacyProxyService {
     }
   }
 
-  @SuppressWarnings("unchecked")
   private Map<?, ?> searchQueryWithToken(
       String query, String[] fields, int maxResults, String token, boolean isRetry) {
     try {
