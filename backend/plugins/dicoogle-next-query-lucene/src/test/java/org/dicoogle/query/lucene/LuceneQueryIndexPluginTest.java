@@ -38,7 +38,6 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
@@ -104,7 +103,7 @@ class LuceneQueryIndexPluginTest {
   }
 
   @Test
-  void reindexBuildsIndexFromFilesystem() throws Exception {
+  void indexStorageRootBuildsIndexFromFilesystem() throws Exception {
     Path storageRoot = Files.createTempDirectory("lucene-storage-reindex");
     Path indexRoot = Files.createTempDirectory("lucene-index-reindex");
 
@@ -118,11 +117,10 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
-    int indexed = plugin.reindex();
+    int indexed = plugin.indexPath(storageRoot.toUri());
     assertTrue(indexed >= 1);
     assertTrue(plugin.indexedDocuments() >= 1);
     plugin.stop();
@@ -139,7 +137,6 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
@@ -178,7 +175,6 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);

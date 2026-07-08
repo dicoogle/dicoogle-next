@@ -141,39 +141,7 @@ public class LuceneQueryIndexPlugin
   }
 
   @Override
-  public int reindex() throws IOException {
-    writer.deleteAll();
-    writer.commit();
-
-    if (!Files.isDirectory(storageRoot)) {
-      return 0;
-    }
-
-    int indexed = 0;
-    try (var walk = Files.walk(storageRoot)) {
-      for (Path path : walk.filter(Files::isRegularFile).toList()) {
-        if (!path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".dcm")) {
-          continue;
-        }
-        if (indexPath(path)) {
-          indexed++;
-        }
-      }
-    }
-    writer.commit();
-    return indexed;
-  }
-
-  @Override
   public void start() {
-    if (properties.isAutoReindexOnStartup()) {
-      try {
-        int count = reindex();
-        LOGGER.info("Lucene index reindexed on startup: documents={}", count);
-      } catch (IOException ex) {
-        LOGGER.warn("Failed to reindex lucene on startup: {}", ex.getMessage());
-      }
-    }
     watcher.start();
   }
 

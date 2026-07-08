@@ -121,7 +121,6 @@ app:
       root-dir: ./data/index
       index-name: dicoogle-lucene
       storage-root-dir: ./data/storage
-      auto-reindex-on-startup: true
       watch-storage: true
       search-limit: 10000
       max-boolean-clauses: 2048

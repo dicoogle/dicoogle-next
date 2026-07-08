@@ -1,6 +1,5 @@
 package org.dicoogle.app.api;
 
-import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -90,31 +89,6 @@ class IndexTaskControllerTest {
                 .param("uid", "nonexistent"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.stopped").value(false));
-  }
-
-  @Test
-  void reindexCreatesTaskThatAppearsInListing() throws Exception {
-    String taskUid =
-        mockMvc
-            .perform(post("/system/index/reindex").with(user("dicoogle").roles("ADMIN")))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.taskUid", notNullValue()))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
-
-    mockMvc
-        .perform(get("/index/task").with(user("dicoogle").roles("ADMIN")))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.results[*].taskUid").exists());
-  }
-
-  @Test
-  void reindexReturnsTaskUid() throws Exception {
-    mockMvc
-        .perform(post("/system/index/reindex").with(user("dicoogle").roles("ADMIN")))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.taskUid").isString());
   }
 
   @Test

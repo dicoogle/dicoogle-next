@@ -19,7 +19,6 @@ app:
     lucene:
       root-dir: ./target/test-index
       index-name: dicoogle-lucene
-      auto-reindex-on-startup: false
       watch-storage: false
   dimse:
     cfind:

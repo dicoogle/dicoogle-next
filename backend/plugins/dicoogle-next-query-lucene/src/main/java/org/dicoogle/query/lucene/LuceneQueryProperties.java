@@ -9,7 +9,6 @@ public class LuceneQueryProperties {
   private String rootDir = "./data/index";
   private String indexName = "dicoogle-lucene";
   private String storageRootDir = "./data/storage";
-  private boolean autoReindexOnStartup = true;
   private boolean watchStorage = true;
   private int searchLimit = 10000;
   private int maxBooleanClauses = 2048;
@@ -44,14 +43,6 @@ public class LuceneQueryProperties {
 
   public void setStorageRootDir(String storageRootDir) {
     this.storageRootDir = storageRootDir;
-  }
-
-  public boolean isAutoReindexOnStartup() {
-    return autoReindexOnStartup;
-  }
-
-  public void setAutoReindexOnStartup(boolean autoReindexOnStartup) {
-    this.autoReindexOnStartup = autoReindexOnStartup;
   }
 
   public boolean isWatchStorage() {

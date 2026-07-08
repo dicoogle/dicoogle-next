@@ -30,18 +30,6 @@ public class QueryIndexMaintenanceService {
     return out;
   }
 
-  public List<ReindexResult> reindexAll() {
-    List<ReindexResult> out = new ArrayList<>(plugins.size());
-    for (QueryIndexMaintenance plugin : plugins) {
-      try {
-        out.add(new ReindexResult(plugin.indexId(), plugin.reindex()));
-      } catch (IOException ex) {
-        throw new IllegalStateException("Failed to reindex " + plugin.indexId(), ex);
-      }
-    }
-    return out;
-  }
-
   public boolean hasIndexes() {
     return !plugins.isEmpty();
   }
@@ -138,8 +126,6 @@ public class QueryIndexMaintenanceService {
   }
 
   public record IndexStatus(String pluginId, int documents) {}
-
-  public record ReindexResult(String pluginId, int indexedDocuments) {}
 
   public record PathIndexResult(String pluginId, int affectedItems) {}
 }
