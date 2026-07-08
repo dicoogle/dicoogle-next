@@ -17,6 +17,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomOutputStream;
+import org.dicoogle.core.storage.StoragePluginNotFoundException;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
@@ -153,7 +154,7 @@ class LuceneQueryIndexPluginTest {
     assertEquals(0, plugin.locateInstance("1.2.3", "1.2.3.1", "1.2.3.4.5").isPresent() ? 1 : 0);
 
     assertThrows(
-        IllegalArgumentException.class,
+        StoragePluginNotFoundException.class,
         () -> plugin.indexPath(URI.create("http://example.com/file.dcm")));
 
     plugin.stop();

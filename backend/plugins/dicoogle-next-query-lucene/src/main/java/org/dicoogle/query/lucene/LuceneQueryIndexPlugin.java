@@ -51,6 +51,7 @@ import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
 import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.query.StorageIngestEventListener;
+import org.dicoogle.sdk.storage.ListableStoragePlugin;
 import org.dicoogle.sdk.storage.StorageIngestFailureEvent;
 import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
 import org.slf4j.Logger;
@@ -315,15 +316,31 @@ public class LuceneQueryIndexPlugin
 
   @Override
   public int indexPath(URI uri) throws IOException {
-    Path path = validatePathReference(uri);
+    if (isFileUri(uri)) {
+      return indexFileUri(uri);
+    }
+
+    String scheme = uri.getScheme();
+    if (scheme == null || scheme.isBlank()) {
+      return indexSingleUri(uri);
+    }
+
+    var listable = storageRouter.findListable(scheme);
+    if (listable.isPresent()) {
+      return indexRecursive(uri, listable.get());
+    }
+
+    return indexSingleUri(uri);
+  }
+
+  private int indexFileUri(URI uri) throws IOException {
+    Path path = Path.of(uri).toAbsolutePath().normalize();
     if (Files.isDirectory(path)) {
       int indexed = 0;
       try (var walk = Files.walk(path)) {
         for (Path p : walk.filter(Files::isRegularFile).toList()) {
-          if (!isLikelyDicomFile(p)) {
-            continue;
-          }
-          if (indexPath(p)) {
+          if (isLikelyDicomFile(p)) {
+            indexUri(p.toUri(), "file");
             indexed++;
           }
         }
@@ -331,26 +348,63 @@ public class LuceneQueryIndexPlugin
       writer.commit();
       return indexed;
     }
-    if (!Files.isRegularFile(path) || !isLikelyDicomFile(path)) {
+    if (!isLikelyDicomFile(path)) {
       return 0;
     }
-    boolean indexed = indexPath(path);
+    indexUri(path.toUri(), "file");
     writer.commit();
-    return indexed ? 1 : 0;
+    return 1;
+  }
+
+  private int indexRecursive(URI uri, ListableStoragePlugin plugin) throws IOException {
+    if (plugin.isDirectory(uri)) {
+      int indexed = 0;
+      for (URI child : plugin.listChildren(uri)) {
+        indexed += indexRecursive(child, plugin);
+      }
+      return indexed;
+    }
+    return indexSingleUri(uri);
+  }
+
+  private int indexSingleUri(URI uri) throws IOException {
+    if (!isDicomUri(uri)) {
+      return 0;
+    }
+    indexUri(uri, uri.getScheme());
+    writer.commit();
+    return 1;
   }
 
   @Override
   public int unindexPath(URI uri) throws IOException {
-    Path path = validatePathReference(uri);
+    if (isFileUri(uri)) {
+      return unindexFileUri(uri);
+    }
+
+    String scheme = uri.getScheme();
+    if (scheme == null || scheme.isBlank()) {
+      return unindexSingleUri(uri);
+    }
+
+    var listable = storageRouter.findListable(scheme);
+    if (listable.isPresent()) {
+      return unindexRecursive(uri, listable.get());
+    }
+
+    return unindexSingleUri(uri);
+  }
+
+  private int unindexFileUri(URI uri) throws IOException {
+    Path path = Path.of(uri).toAbsolutePath().normalize();
     if (Files.isDirectory(path)) {
       int removed = 0;
       try (var walk = Files.walk(path)) {
         for (Path p : walk.filter(Files::isRegularFile).toList()) {
-          if (!isLikelyDicomFile(p)) {
-            continue;
+          if (isLikelyDicomFile(p)) {
+            removePath(p);
+            removed++;
           }
-          removePath(p);
-          removed++;
         }
       }
       writer.commit();
@@ -364,17 +418,39 @@ public class LuceneQueryIndexPlugin
     return 1;
   }
 
-  private Path validatePathReference(URI uri) {
-    if (uri == null) {
-      throw new IllegalArgumentException("Path reference must not be null");
+  private int unindexRecursive(URI uri, ListableStoragePlugin plugin) throws IOException {
+    if (plugin.isDirectory(uri)) {
+      int removed = 0;
+      for (URI child : plugin.listChildren(uri)) {
+        removed += unindexRecursive(child, plugin);
+      }
+      return removed;
     }
-    if (uri.getScheme() == null || uri.getScheme().isBlank()) {
-      return Path.of(uri.toString()).toAbsolutePath().normalize();
+    return unindexSingleUri(uri);
+  }
+
+  private int unindexSingleUri(URI uri) throws IOException {
+    writer.deleteDocuments(new Term(LuceneIndexerFields.LOCATION, uri.toString()));
+    writer.commit();
+    return 1;
+  }
+
+  private static boolean isFileUri(URI uri) {
+    return uri.getScheme() != null && uri.getScheme().equalsIgnoreCase("file");
+  }
+
+  private boolean isDicomUri(URI uri) {
+    String name = uri.getPath() != null ? uri.getPath() : uri.toString();
+    if (name.toLowerCase(Locale.ROOT).endsWith(".dcm")) {
+      return true;
     }
-    if ("file".equalsIgnoreCase(uri.getScheme())) {
-      return Path.of(uri).toAbsolutePath().normalize();
+    try (InputStream stream = storageRouter.requireReadable(uri.getScheme()).openForRead(uri);
+        DicomInputStream dis = new DicomInputStream(stream)) {
+      Attributes attrs = dis.readDataset();
+      return hasText(attrs.getString(Tag.SOPInstanceUID, null));
+    } catch (Exception ex) {
+      return false;
     }
-    throw new IllegalArgumentException("Only filesystem paths are supported for path indexing");
   }
 
   private boolean isLikelyDicomFile(Path path) {

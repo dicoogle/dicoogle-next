@@ -2,6 +2,8 @@ package org.dicoogle.core.storage;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
+import org.dicoogle.sdk.storage.ListableStoragePlugin;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
@@ -21,6 +23,14 @@ public class StorageRouter {
         .filter(plugin -> plugin.scheme().equalsIgnoreCase(scheme))
         .findFirst()
         .orElseThrow(() -> new StoragePluginNotFoundException(scheme));
+  }
+
+  public Optional<ListableStoragePlugin> findListable(String scheme) {
+    return plugins.stream()
+        .filter(ListableStoragePlugin.class::isInstance)
+        .map(ListableStoragePlugin.class::cast)
+        .filter(plugin -> plugin.scheme().equalsIgnoreCase(scheme))
+        .findFirst();
   }
 
   public WritableStoragePlugin requireWritable(String scheme) {
