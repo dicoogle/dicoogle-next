@@ -1,11 +1,16 @@
 package org.dicoogle.app.api;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.dicoogle.app.auth.TokenService;
 import org.dicoogle.app.users.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class LoginController {
 
+  private static final Logger log = LoggerFactory.getLogger(LoginController.class);
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
   private final UserService userService;
   private final TokenService tokenService;
 
@@ -24,20 +32,40 @@ public class LoginController {
     this.tokenService = tokenService;
   }
 
-  @PostMapping("/login")
+  @PostMapping(value = "/login", consumes = MediaType.ALL_VALUE)
   @Operation(summary = "Authenticate and receive a bearer token")
   public ResponseEntity<Map<String, Object>> login(
-      @RequestParam String username, @RequestParam String password) {
-    if (!userService.authenticate(username, password)) {
+      HttpServletRequest request,
+      @RequestParam(required = false) String username,
+      @RequestParam(required = false) String password) {
+    String user = username;
+    String pass = password;
+
+    if (isBlank(user) || isBlank(pass)) {
+      Map<String, String> body = readJsonBody(request);
+      if (body != null) {
+        if (isBlank(user)) {
+          user = body.get("username");
+        }
+        if (isBlank(pass)) {
+          pass = body.get("password");
+        }
+      }
+    }
+
+    if (isBlank(user) || isBlank(pass)) {
+      return ResponseEntity.badRequest()
+          .body(Map.of("success", false, "error", "missing username or password"));
+    }
+    if (!userService.authenticate(user, pass)) {
       return ResponseEntity.status(401)
           .body(Map.of("success", false, "error", "invalid credentials"));
     }
-    String token = tokenService.createToken(username);
-    var user = userService.findByUsername(username);
-    boolean admin = user != null && user.isAdmin();
+    String token = tokenService.createToken(user);
+    var userServiceUser = userService.findByUsername(user);
+    boolean admin = userServiceUser != null && userServiceUser.isAdmin();
     List<String> roles = admin ? List.of("admin") : List.of();
-    return ResponseEntity.ok(
-        Map.of("user", username, "admin", admin, "roles", roles, "token", token));
+    return ResponseEntity.ok(Map.of("user", user, "admin", admin, "roles", roles, "token", token));
   }
 
   @GetMapping("/login")
@@ -67,5 +95,23 @@ public class LoginController {
       tokenService.revokeToken(token);
     }
     return ResponseEntity.ok(Map.of("success", true));
+  }
+
+  @SuppressWarnings("unchecked")
+  private Map<String, String> readJsonBody(HttpServletRequest request) {
+    String contentType = request.getContentType();
+    if (contentType == null || !contentType.contains(MediaType.APPLICATION_JSON_VALUE)) {
+      return null;
+    }
+    try {
+      return MAPPER.readValue(request.getInputStream(), Map.class);
+    } catch (IOException e) {
+      log.debug("Failed to read JSON login body", e);
+      return null;
+    }
+  }
+
+  private static boolean isBlank(String s) {
+    return s == null || s.isBlank();
   }
 }

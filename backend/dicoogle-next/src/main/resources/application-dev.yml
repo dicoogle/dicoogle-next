@@ -21,10 +21,17 @@ springdoc:
 app:
   dimse:
     cfind:
+      max-results: 1000
     cmove:
-      destinations: {}
+      max-results: 1000
     cstore:
       enabled: true
+      bind-address: 127.0.0.1
+      port: 6666
+    query-retrieve:
+      enabled: true
+      bind-address: 127.0.0.1
+      port: 1045
   storage:
     file-rw:
       enabled: true
