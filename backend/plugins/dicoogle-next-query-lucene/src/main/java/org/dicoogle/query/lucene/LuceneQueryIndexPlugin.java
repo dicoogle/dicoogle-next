@@ -402,9 +402,6 @@ public class LuceneQueryIndexPlugin
       writer.commit();
       return removed;
     }
-    if (!isLikelyDicomFile(path)) {
-      return 0;
-    }
     removePath(path);
     writer.commit();
     return 1;

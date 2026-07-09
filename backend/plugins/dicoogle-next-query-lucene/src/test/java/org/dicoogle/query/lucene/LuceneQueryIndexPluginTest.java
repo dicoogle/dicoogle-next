@@ -188,6 +188,37 @@ class LuceneQueryIndexPluginTest {
     plugin.stop();
   }
 
+  @Test
+  void unindexWorksAfterFileIsDeletedFromDisk() throws Exception {
+    Path storageRoot = Files.createTempDirectory("lucene-storage-delete");
+    Path indexRoot = Files.createTempDirectory("lucene-index-delete");
+
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(storageRoot, "file");
+    StorageRouter router = new StorageRouter(List.of(storage));
+
+    LuceneQueryProperties properties = new LuceneQueryProperties();
+    properties.setRootDir(indexRoot.toString());
+    properties.setStorageRootDir(storageRoot.toString());
+    properties.setWatchStorage(false);
+
+    LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
+
+    Path dicomFile = storageRoot.resolve("test-study.dcm");
+    Files.write(dicomFile, createDicom("P5", "DELETE_TEST", "MR", "A5", "20250101"));
+
+    int indexed = plugin.indexPath(dicomFile.toUri());
+    assertEquals(1, indexed);
+    assertTrue(plugin.indexedDocuments() >= 1);
+
+    Files.delete(dicomFile);
+
+    int removed = plugin.unindexPath(dicomFile.toUri());
+    assertEquals(1, removed);
+    assertEquals(0, plugin.indexedDocuments());
+
+    plugin.stop();
+  }
+
   private byte[] createDicom(
       String patientId, String patientName, String modality, String accession, String studyDate)
       throws Exception {
