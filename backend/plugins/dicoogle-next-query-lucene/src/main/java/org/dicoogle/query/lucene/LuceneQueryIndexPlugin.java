@@ -554,7 +554,7 @@ public class LuceneQueryIndexPlugin
     try (InputStream stream =
             storageRouter.requireReadable(location.getScheme()).openForRead(location);
         DicomInputStream dis = new DicomInputStream(stream)) {
-      return dis.readDataset();
+      return dis.readDataset(-1, Tag.PixelData);
     }
   }
 

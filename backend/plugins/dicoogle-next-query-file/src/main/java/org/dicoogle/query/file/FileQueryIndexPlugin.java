@@ -249,7 +249,7 @@ public class FileQueryIndexPlugin
   private Attributes readDataset(URI location) throws IOException {
     try (var stream = storagePlugin.openForRead(location);
         DicomInputStream dis = new DicomInputStream(stream)) {
-      return dis.readDataset();
+      return dis.readDataset(-1, Tag.PixelData);
     }
   }
 

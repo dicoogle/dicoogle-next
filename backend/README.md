@@ -85,6 +85,15 @@ For JDBC mode, configure:
 - `app.dimse.cstore.config.jdbc.username`
 - `app.dimse.cstore.config.jdbc.password`
 
+## Settings Loading Behavior
+
+Runtime settings follow a **static-first** model:
+
+1. On startup, all settings are built from Spring config properties (`application.yml` / `application-dev.yml`). The static YAML always wins on fresh starts.
+2. Persisted `runtime-settings.yml` is only read to restore `moveDestinations` — these are runtime-only values added via the API and cannot be expressed in static YAML.
+3. After any API call that changes settings (C-STORE, Query-Retrieve, move destinations), the updated values are saved to `runtime-settings.yml`.
+4. On next startup, the static config is loaded first, then `moveDestinations` are overlaid from the persisted file.
+
 Default storage root:
 
 - `./data/storage`
