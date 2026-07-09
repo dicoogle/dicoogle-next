@@ -74,7 +74,6 @@ public class LuceneQueryIndexPlugin
   private final Path storageRoot;
   private final Directory directory;
   private final IndexWriter writer;
-  private final LuceneStorageWatcher watcher;
 
   public LuceneQueryIndexPlugin(StorageRouter storageRouter, LuceneQueryProperties properties)
       throws IOException {
@@ -92,7 +91,6 @@ public class LuceneQueryIndexPlugin
     BooleanQuery.setMaxClauseCount(Math.max(128, properties.getMaxBooleanClauses()));
     this.directory = FSDirectory.open(indexDir);
     this.writer = new IndexWriter(directory, new IndexWriterConfig(new StandardAnalyzer()));
-    this.watcher = new LuceneStorageWatcher(storageRoot, this);
   }
 
   @Override
@@ -127,11 +125,6 @@ public class LuceneQueryIndexPlugin
   @Override
   public synchronized void setWatchEnabled(boolean watch) {
     properties.setWatchStorage(watch);
-    if (watch) {
-      watcher.start();
-    } else {
-      watcher.stop();
-    }
   }
 
   @Override
@@ -143,12 +136,11 @@ public class LuceneQueryIndexPlugin
 
   @Override
   public void start() {
-    watcher.start();
+    // No-op: watcher is managed by StorageWatcherService
   }
 
   @Override
   public void stop() {
-    watcher.stop();
     try {
       writer.close();
     } catch (IOException ex) {

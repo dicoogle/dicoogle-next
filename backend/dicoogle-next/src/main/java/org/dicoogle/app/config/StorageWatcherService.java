@@ -1,6 +1,7 @@
-package org.dicoogle.query.lucene;
+package org.dicoogle.app.config;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
@@ -10,26 +11,30 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
+import org.dicoogle.app.service.QueryIndexMaintenanceService;
+import org.dicoogle.sdk.query.QueryIndexMaintenance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.SmartLifecycle;
 
-final class LuceneStorageWatcher {
+class StorageWatcherService implements SmartLifecycle {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(LuceneStorageWatcher.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(StorageWatcherService.class);
 
   private final Path root;
-  private final LuceneQueryIndexPlugin index;
+  private final QueryIndexMaintenanceService indexService;
   private Thread worker;
   private WatchService watchService;
   private volatile boolean running;
 
-  LuceneStorageWatcher(Path root, LuceneQueryIndexPlugin index) {
+  StorageWatcherService(Path root, QueryIndexMaintenanceService indexService) {
     this.root = root;
-    this.index = index;
+    this.indexService = indexService;
   }
 
-  synchronized void start() {
-    if (running) {
+  @Override
+  public synchronized void start() {
+    if (running || !indexService.hasIndexes()) {
       return;
     }
     try {
@@ -37,18 +42,19 @@ final class LuceneStorageWatcher {
       watchService = root.getFileSystem().newWatchService();
       registerTree(root);
     } catch (IOException ex) {
-      LOGGER.warn("Cannot start lucene watcher: {}", ex.getMessage());
+      LOGGER.warn("Cannot start storage watcher: {}", ex.getMessage());
       return;
     }
 
     running = true;
-    worker = new Thread(this::watchLoop, "lucene-storage-watcher");
+    worker = new Thread(this::watchLoop, "storage-watcher");
     worker.setDaemon(true);
     worker.start();
-    LOGGER.info("Lucene storage watcher started at {}", root);
+    LOGGER.info("Storage watcher started at {}", root);
   }
 
-  void stop() {
+  @Override
+  public synchronized void stop() {
     running = false;
     if (worker != null) {
       worker.interrupt();
@@ -62,6 +68,21 @@ final class LuceneStorageWatcher {
       }
       watchService = null;
     }
+  }
+
+  @Override
+  public boolean isRunning() {
+    return running;
+  }
+
+  @Override
+  public int getPhase() {
+    return 0;
+  }
+
+  @Override
+  public boolean isAutoStartup() {
+    return true;
   }
 
   private void watchLoop() {
@@ -108,8 +129,8 @@ final class LuceneStorageWatcher {
         registerTree(path);
         return;
       }
-      if (index.isIndexablePath(path)) {
-        index.indexPath(path);
+      if (Files.isRegularFile(path)) {
+        dispatchIndex(path.toUri());
       }
     } catch (Exception ex) {
       LOGGER.debug("Failed to index created file {}", path, ex);
@@ -118,8 +139,8 @@ final class LuceneStorageWatcher {
 
   private void handleModify(Path path) {
     try {
-      if (Files.isRegularFile(path) && index.isIndexablePath(path)) {
-        index.indexPath(path);
+      if (Files.isRegularFile(path)) {
+        dispatchIndex(path.toUri());
       }
     } catch (Exception ex) {
       LOGGER.debug("Failed to index modified file {}", path, ex);
@@ -129,10 +150,30 @@ final class LuceneStorageWatcher {
   private void handleDelete(Path path) {
     try {
       if (isLikelyDicomName(path)) {
-        index.removePath(path);
+        dispatchUnindex(path.toUri());
       }
     } catch (Exception ex) {
       LOGGER.debug("Failed to remove deleted file {} from index", path, ex);
+    }
+  }
+
+  private void dispatchIndex(URI uri) {
+    for (QueryIndexMaintenance plugin : indexService.getAllPlugins()) {
+      try {
+        plugin.indexPath(uri);
+      } catch (Exception ex) {
+        LOGGER.debug("Plugin {} failed to index {}", plugin.indexId(), uri, ex);
+      }
+    }
+  }
+
+  private void dispatchUnindex(URI uri) {
+    for (QueryIndexMaintenance plugin : indexService.getAllPlugins()) {
+      try {
+        plugin.unindexPath(uri);
+      } catch (Exception ex) {
+        LOGGER.debug("Plugin {} failed to unindex {}", plugin.indexId(), uri, ex);
+      }
     }
   }
 
