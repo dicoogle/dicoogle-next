@@ -86,6 +86,7 @@ class StorageWatcherService implements SmartLifecycle {
   }
 
   private void watchLoop() {
+    LOGGER.info("Watcher loop started, waiting for events on {}", root);
     while (running) {
       WatchKey key;
       try {
@@ -99,7 +100,9 @@ class StorageWatcherService implements SmartLifecycle {
       }
 
       Path watchedDir = (Path) key.watchable();
-      for (WatchEvent<?> event : key.pollEvents()) {
+      java.util.List<WatchEvent<?>> events = key.pollEvents();
+      LOGGER.debug("Watcher got {} events for {}", events.size(), watchedDir);
+      for (WatchEvent<?> event : events) {
         WatchEvent.Kind<?> kind = event.kind();
         if (kind == StandardWatchEventKinds.OVERFLOW) {
           continue;
@@ -107,6 +110,8 @@ class StorageWatcherService implements SmartLifecycle {
 
         Path relative = (Path) event.context();
         Path affected = watchedDir.resolve(relative).toAbsolutePath().normalize();
+
+        LOGGER.debug("Watcher event: {} -> {}", kind, affected);
 
         if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
           handleCreate(affected);
@@ -118,7 +123,7 @@ class StorageWatcherService implements SmartLifecycle {
       }
 
       if (!key.reset()) {
-        LOGGER.debug("Watcher key no longer valid for {}", watchedDir);
+        LOGGER.warn("Watcher key no longer valid for {}", watchedDir);
       }
     }
   }
@@ -158,21 +163,25 @@ class StorageWatcherService implements SmartLifecycle {
   }
 
   private void dispatchIndex(URI uri) {
+    LOGGER.debug("Dispatching index for {}", uri);
     for (QueryIndexMaintenance plugin : indexService.getAllPlugins()) {
       try {
-        plugin.indexPath(uri);
+        int indexed = plugin.indexPath(uri);
+        LOGGER.debug("Plugin {} indexed {} documents for {}", plugin.indexId(), indexed, uri);
       } catch (Exception ex) {
-        LOGGER.debug("Plugin {} failed to index {}", plugin.indexId(), uri, ex);
+        LOGGER.warn("Plugin {} failed to index {}", plugin.indexId(), uri, ex);
       }
     }
   }
 
   private void dispatchUnindex(URI uri) {
+    LOGGER.debug("Dispatching unindex for {}", uri);
     for (QueryIndexMaintenance plugin : indexService.getAllPlugins()) {
       try {
-        plugin.unindexPath(uri);
+        int removed = plugin.unindexPath(uri);
+        LOGGER.debug("Plugin {} unindexed {} documents for {}", plugin.indexId(), removed, uri);
       } catch (Exception ex) {
-        LOGGER.debug("Plugin {} failed to unindex {}", plugin.indexId(), uri, ex);
+        LOGGER.warn("Plugin {} failed to unindex {}", plugin.indexId(), uri, ex);
       }
     }
   }
@@ -189,6 +198,7 @@ class StorageWatcherService implements SmartLifecycle {
                 StandardWatchEventKinds.ENTRY_CREATE,
                 StandardWatchEventKinds.ENTRY_MODIFY,
                 StandardWatchEventKinds.ENTRY_DELETE);
+            LOGGER.debug("Registered watcher for directory: {}", dir);
             return FileVisitResult.CONTINUE;
           }
 
