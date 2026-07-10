@@ -126,11 +126,15 @@ public class DicomwebRetrieveService {
           if (!seen.add(location.toString())) {
             continue;
           }
-          metadata.add(readMetadata(location));
+          try {
+            metadata.add(readMetadata(location));
+          } catch (Exception ex) {
+            LOGGER.warn("Skipping unavailable instance in study metadata: {}", location, ex);
+          }
         }
       } catch (IOException ex) {
         throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve study metadata", ex);
+            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to list study instances", ex);
       }
     }
 
@@ -158,11 +162,15 @@ public class DicomwebRetrieveService {
           if (!seen.add(location.toString())) {
             continue;
           }
-          metadata.add(readMetadata(location));
+          try {
+            metadata.add(readMetadata(location));
+          } catch (Exception ex) {
+            LOGGER.warn("Skipping unavailable instance in series metadata: {}", location, ex);
+          }
         }
       } catch (IOException ex) {
         throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve series metadata", ex);
+            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to list series instances", ex);
       }
     }
 
@@ -281,11 +289,17 @@ public class DicomwebRetrieveService {
     try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location)) {
       byte[] bytes = stream.readAllBytes();
       try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(bytes))) {
-        return dis.readDataset();
+        return dis.readDataset(-1, Tag.PixelData);
+      } catch (Exception ex) {
+        LOGGER.error("DICOM parse error for {}: {}", location, ex.toString(), ex);
+        throw new ResponseStatusException(
+            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
       }
-    } catch (IOException ex) {
+    } catch (ResponseStatusException ex) {
+      throw ex;
+    } catch (Exception ex) {
       throw new ResponseStatusException(
-          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read DICOM instance from storage", ex);
     }
   }
 
