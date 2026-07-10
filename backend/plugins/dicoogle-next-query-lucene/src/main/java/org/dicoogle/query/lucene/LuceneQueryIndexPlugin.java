@@ -136,7 +136,41 @@ public class LuceneQueryIndexPlugin
 
   @Override
   public void start() {
-    // No-op: watcher is managed by StorageWatcherService
+    cleanStaleEntries();
+  }
+
+  private void cleanStaleEntries() {
+    try (DirectoryReader reader = DirectoryReader.open(writer)) {
+      int total = reader.numDocs();
+      if (total == 0) {
+        return;
+      }
+      java.util.List<Term> stale = new ArrayList<>();
+      for (int i = 0; i < total; i++) {
+        Document doc = reader.document(i);
+        if (doc == null) {
+          continue;
+        }
+        String loc = doc.get(LuceneIndexerFields.LOCATION);
+        if (loc == null || loc.isBlank()) {
+          continue;
+        }
+        URI uri = URI.create(loc);
+        if (isFileUri(uri)) {
+          Path path = Path.of(uri);
+          if (!Files.exists(path)) {
+            stale.add(new Term(LuceneIndexerFields.LOCATION, loc));
+          }
+        }
+      }
+      if (!stale.isEmpty()) {
+        writer.deleteDocuments(stale.toArray(new Term[0]));
+        writer.commit();
+        LOGGER.info("Cleaned {} stale index entries pointing to missing files", stale.size());
+      }
+    } catch (IOException ex) {
+      LOGGER.warn("Failed to clean stale index entries: {}", ex.getMessage());
+    }
   }
 
   @Override
