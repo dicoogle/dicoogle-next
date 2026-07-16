@@ -322,20 +322,6 @@ public class LuceneQueryIndexPlugin
     return resolveLocations(builder.build(), properties.getSearchLimit());
   }
 
-  boolean indexPath(Path path) {
-    try {
-      indexUri(path.toUri(), "file");
-      return true;
-    } catch (Exception ex) {
-      LOGGER.debug("Skipping non-indexable file {}", path, ex);
-      return false;
-    }
-  }
-
-  boolean isIndexablePath(Path path) {
-    return isLikelyDicomFile(path);
-  }
-
   void removePath(Path path) throws IOException {
     writer.deleteDocuments(new Term(LuceneIndexerFields.LOCATION, path.toUri().toString()));
   }
