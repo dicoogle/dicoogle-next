@@ -210,7 +210,7 @@ public class CMoveService {
     String query = buildFreetextQuery(keys);
     String[] fields = buildLegacyReturnFields(keys);
 
-    Map<?, ?> response = legacyProxyService.searchQuery(query, fields, maxResults);
+    Map<?, ?> response = legacyProxyService.searchQuery(query, fields, maxResults, 0);
     if (response == null) {
       LOGGER.warn("C-MOVE legacy fallback returned null");
       return List.of();

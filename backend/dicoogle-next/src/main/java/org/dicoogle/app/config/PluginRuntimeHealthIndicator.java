@@ -3,7 +3,6 @@ package org.dicoogle.app.config;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
 import org.springframework.boot.health.contributor.Health;
@@ -22,11 +21,6 @@ public class PluginRuntimeHealthIndicator implements HealthIndicator {
 
   @Override
   public Health health() {
-    long readableCount =
-        storagePlugins.stream().filter(ReadableStoragePlugin.class::isInstance).count();
-    long writableCount =
-        storagePlugins.stream().filter(WritableStoragePlugin.class::isInstance).count();
-
     String requiredScheme = runtimeProperties.getStartupValidation().getWritableScheme();
     boolean hasWritableForRequiredScheme =
         storagePlugins.stream()
@@ -36,11 +30,7 @@ public class PluginRuntimeHealthIndicator implements HealthIndicator {
                         && plugin.scheme().equalsIgnoreCase(requiredScheme));
 
     Map<String, Object> details = new LinkedHashMap<>();
-    details.put("storagePlugins.total", storagePlugins.size());
-    details.put("storagePlugins.readable", readableCount);
-    details.put("storagePlugins.writable", writableCount);
-    details.put("requiredWritableScheme", requiredScheme);
-    details.put("hasWritableForRequiredScheme", hasWritableForRequiredScheme);
+    details.put("storagePlugins", storagePlugins.size());
 
     if (runtimeProperties.getStartupValidation().isRequireWritableProvider()
         && !hasWritableForRequiredScheme) {

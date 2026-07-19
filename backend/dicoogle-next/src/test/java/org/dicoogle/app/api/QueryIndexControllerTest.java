@@ -44,18 +44,6 @@ class QueryIndexControllerTest {
   }
 
   @Test
-  void reindexRequiresAuthentication() throws Exception {
-    mockMvc.perform(post("/system/index/reindex")).andExpect(status().isUnauthorized());
-  }
-
-  @Test
-  void reindexReturnsOkForAuthenticatedUser() throws Exception {
-    mockMvc
-        .perform(post("/system/index/reindex").with(user("dicoogle").roles("ADMIN")))
-        .andExpect(status().isOk());
-  }
-
-  @Test
   void indexPathRequiresAuthentication() throws Exception {
     mockMvc.perform(post("/system/index/index")).andExpect(status().isUnauthorized());
   }
@@ -74,7 +62,7 @@ class QueryIndexControllerTest {
           "pluginId": "missing"
         }
         """
-            .formatted(testDataRoot.toString());
+            .formatted(testDataRoot.toUri());
 
     mockMvc
         .perform(
@@ -94,7 +82,7 @@ class QueryIndexControllerTest {
             "pluginId": "lucene"
         }
         """
-            .formatted(testDataRoot.toString().replace("\\", "\\\\"));
+            .formatted(testDataRoot.toUri());
 
     mockMvc
         .perform(

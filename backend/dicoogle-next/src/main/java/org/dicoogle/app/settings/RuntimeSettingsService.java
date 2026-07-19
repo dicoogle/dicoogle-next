@@ -35,15 +35,17 @@ public class RuntimeSettingsService {
     this.cstoreServerProvider = cstoreServerProvider;
     this.qrServerProvider = qrServerProvider;
 
-    RuntimeSettings settings = store.load();
-    if (settings == null) {
-      settings = RuntimeSettings.fromProperties(cstoreProperties, moveProperties);
-      settings
-          .getDimse()
-          .setQueryRetrieveServer(
-              RuntimeSettings.DimseQueryRetrieveSettings.fromProperties(qrProperties));
-      store.save(settings);
+    RuntimeSettings settings = RuntimeSettings.fromProperties(cstoreProperties, moveProperties);
+    settings
+        .getDimse()
+        .setQueryRetrieveServer(
+            RuntimeSettings.DimseQueryRetrieveSettings.fromProperties(qrProperties));
+
+    RuntimeSettings persisted = store.load();
+    if (persisted != null) {
+      settings.getDimse().setMoveDestinations(persisted.getDimse().getMoveDestinations());
     }
+    store.save(settings);
     cached.set(settings);
     apply(settings);
   }

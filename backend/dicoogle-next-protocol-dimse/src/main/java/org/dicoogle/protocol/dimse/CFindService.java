@@ -315,7 +315,7 @@ public class CFindService {
     String query = buildFreetextQuery(keys);
     String[] fields = buildReturnFields(keys);
 
-    Map<?, ?> response = legacyProxyService.searchQuery(query, fields, maxResults);
+    Map<?, ?> response = legacyProxyService.searchQuery(query, fields, maxResults, 0);
     if (response == null) {
       LOGGER.warn("C-FIND legacy fallback returned null");
       increment("dicoogle.cfind.failure", "legacy-null");

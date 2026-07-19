@@ -11,8 +11,9 @@ java -jar dicoogle-next/target/dicoogle-next-0.0.1-SNAPSHOT.jar
 
 Default profile is `dev`, which enables:
 
-- DIMSE C-STORE on port `11112`
-- DIMSE C-ECHO verification on port `11112`
+- DIMSE C-STORE on port `6666`
+- DIMSE C-FIND/C-MOVE (Query-Retrieve) on port `1045`
+- DIMSE C-ECHO verification available on both ports (Verification SOP class is always registered)
 - Writable filesystem storage plugin (`file-rw`)
 - Read-only filesystem fallback (`file-ro`)
 - Startup validation requiring writable `file` scheme
@@ -84,14 +85,23 @@ For JDBC mode, configure:
 - `app.dimse.cstore.config.jdbc.username`
 - `app.dimse.cstore.config.jdbc.password`
 
+## Settings Loading Behavior
+
+Runtime settings follow a **static-first** model:
+
+1. On startup, all settings are built from Spring config properties (`application.yml` / `application-dev.yml`). The static YAML always wins on fresh starts.
+2. Persisted `runtime-settings.yml` is only read to restore `moveDestinations` — these are runtime-only values added via the API and cannot be expressed in static YAML.
+3. After any API call that changes settings (C-STORE, Query-Retrieve, move destinations), the updated values are saved to `runtime-settings.yml`.
+4. On next startup, the static config is loaded first, then `moveDestinations` are overlaid from the persisted file.
+
 Default storage root:
 
 - `./data/storage`
 
 Default API auth credentials:
 
-- username: `developer`
-- password: `developer`
+- username: `dicoogle`
+- password: `dicoogle`
 
 ## HTTP Endpoints
 
@@ -112,8 +122,8 @@ Default API auth credentials:
 ### 1) Verify runtime
 
 ```bash
-curl -u developer:developer http://localhost:8080/api/system/plugins
-curl -u developer:developer http://localhost:8080/api/system/status
+curl -u dicoogle:dicoogle http://localhost:8080/api/system/plugins
+curl -u dicoogle:dicoogle http://localhost:8080/api/system/status
 curl http://localhost:8080/api/actuator/health
 ```
 
@@ -126,7 +136,7 @@ dcmtk
 ### 3) Send one DICOM with C-STORE
 
 ```bash
-storescu -aet TESTSCU -aec DICOOGLE localhost 11112 /path/to/sample.dcm
+storescu -aet TESTSCU -aec DICOOGLE localhost 6666 /path/to/sample.dcm
 ```
 
 ### 4) Extract UIDs from the same file
@@ -151,17 +161,17 @@ Stored files use old-style hierarchy under `./data/storage`:
 ### 6) Retrieve through WADO-RS
 
 ```bash
-curl -u developer:developer -H "Accept: application/dicom" -o retrieved.dcm \
+curl -u dicoogle:dicoogle -H "Accept: application/dicom" -o retrieved.dcm \
 "http://localhost:8080/api/dicom-web/studies/<StudyUID>/series/<SeriesUID>/instances/<SOPUID>"
 
-curl -u developer:developer \
+curl -u dicoogle:dicoogle \
 "http://localhost:8080/api/dicom-web/studies/<StudyUID>/series/<SeriesUID>/instances/<SOPUID>/metadata"
 ```
 
 ### 7) Negative test
 
 ```bash
-curl -i -u developer:developer \
+curl -i -u dicoogle:dicoogle \
 "http://localhost:8080/api/dicom-web/studies/1.2.3/series/4.5.6/instances/7.8.9"
 ```
 
@@ -172,21 +182,21 @@ Expected: `404` with `application/problem+json`.
 Study-level search:
 
 ```bash
-curl -u developer:developer \
+curl -u dicoogle:dicoogle \
   "http://localhost:8080/api/dicom-web/studies?PatientName=FELIX&limit=10"
 ```
 
 Series-level search inside a study:
 
 ```bash
-curl -u developer:developer \
+curl -u dicoogle:dicoogle \
   "http://localhost:8080/api/dicom-web/studies/<StudyUID>/series?Modality=MR"
 ```
 
 Instance-level search inside a series:
 
 ```bash
-curl -u developer:developer \
+curl -u dicoogle:dicoogle \
   "http://localhost:8080/api/dicom-web/studies/<StudyUID>/series/<SeriesUID>/instances?includefield=PatientName&includefield=PatientID"
 ```
 
@@ -203,19 +213,19 @@ Standard Study Root by UID:
 
 ```bash
 findscu -v -S -k QueryRetrieveLevel=STUDY -k StudyInstanceUID=<StudyUID> \
-  -aet TESTSCU -aec DICOOGLE localhost 11112
+  -aet TESTSCU -aec DICOOGLE localhost 1045
 ```
 
 Mixed free-text + keyword filter on same request (old Dicoogle style):
 
 ```bash
 findscu -v -S -k QueryRetrieveLevel=STUDY -k "PatientName=brain modality:MR" \
-  -aet TESTSCU -aec DICOOGLE localhost 11112
+  -aet TESTSCU -aec DICOOGLE localhost 1045
 ```
 
 ### 10) C-MOVE example (movescu)
 
 ```bash
 movescu -v -S -k QueryRetrieveLevel=STUDY -k StudyInstanceUID=<StudyUID> \
-  -aet TESTSCU -aec DICOOGLE localhost 11112 DEST_AE
+  -aet TESTSCU -aec DICOOGLE localhost 1045 DEST_AE
 ```

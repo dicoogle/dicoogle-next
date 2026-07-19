@@ -9,8 +9,6 @@ public interface QueryIndexMaintenance extends QueryIndexPlugin {
 
   int indexedDocuments() throws IOException;
 
-  int reindex() throws IOException;
-
   int indexPath(URI uri) throws IOException;
 
   int unindexPath(URI uri) throws IOException;

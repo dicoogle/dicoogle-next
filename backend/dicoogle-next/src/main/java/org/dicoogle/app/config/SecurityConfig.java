@@ -57,8 +57,6 @@ public class SecurityConfig {
                   .authenticated()
                   .requestMatchers(HttpMethod.GET, "/system/index/status")
                   .authenticated()
-                  .requestMatchers(HttpMethod.POST, "/system/index/reindex")
-                  .authenticated()
                   .requestMatchers(HttpMethod.POST, "/system/index/index")
                   .authenticated()
                   .requestMatchers(HttpMethod.POST, "/system/index/unindex")

@@ -18,12 +18,12 @@ import org.dcm4che3.io.DicomInputStream;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
 import org.dicoogle.sdk.storage.DicomInstanceLocator;
-import org.dicoogle.sdk.storage.ReadableStoragePlugin;
+import org.dicoogle.sdk.storage.ListableStoragePlugin;
 import org.dicoogle.sdk.storage.StoredObject;
 import org.dicoogle.sdk.storage.WritableStoragePlugin;
 
 public class FileReadWriteStoragePlugin
-    implements ReadableStoragePlugin,
+    implements ListableStoragePlugin,
         WritableStoragePlugin,
         DicomInstanceLocator,
         QueryIndexStorageLocator {
@@ -49,6 +49,24 @@ public class FileReadWriteStoragePlugin
   @Override
   public String scheme() {
     return scheme;
+  }
+
+  @Override
+  public List<URI> listChildren(URI parent) throws IOException {
+    Path path = toPath(parent);
+    if (!Files.isDirectory(path)) {
+      return List.of();
+    }
+    List<URI> result = new ArrayList<>();
+    try (var stream = Files.list(path)) {
+      stream.forEach(child -> result.add(child.toUri()));
+    }
+    return result;
+  }
+
+  @Override
+  public boolean isDirectory(URI location) throws IOException {
+    return Files.isDirectory(toPath(location));
   }
 
   @Override

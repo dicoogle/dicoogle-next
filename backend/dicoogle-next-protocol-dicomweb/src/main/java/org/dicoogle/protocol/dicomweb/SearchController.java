@@ -19,12 +19,13 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Legacy-compatible search endpoints for the dicoogle-next UI.
  *
- * <p>The dicoogle-next frontend's SearchStore calls {@code GET /search?query=...&keyword=false} and
- * expects a flat JSON response shaped like:
+ * <p>The dicoogle-next frontend's SearchStore calls {@code GET /search?query=...} and expects a
+ * flat JSON response shaped like:
  *
  * <pre>
  * {
@@ -71,18 +72,19 @@ public class SearchController {
    *
    * <ul>
    *   <li>{@code query} – free-text or keyword query string (e.g. {@code PatientName:FELIX})
-   *   <li>{@code keyword} – {@code true} to treat query as DICOM keyword expression (default:
-   *       {@code false})
    *   <li>{@code provider} – optional plugin provider name (ignored, kept for API compat)
-   *   <li>{@code dim} – {@code true} to group results by study (default: {@code false}, flat list)
+   *   <li>{@code offset} – number of results to skip (default 0)
+   *   <li>{@code limit} – maximum number of results to return (default 0 = all)
+   *   <li>{@code field} – DICOM keyword to include in results (repeatable)
    * </ul>
    */
   @GetMapping(value = "/search", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> search(
       @RequestParam(value = "query", required = false, defaultValue = "") String query,
-      @RequestParam(value = "keyword", required = false, defaultValue = "false") boolean keyword,
       @RequestParam(value = "provider", required = false) String provider,
-      @RequestParam(value = "dim", required = false, defaultValue = "false") boolean dim) {
+      @RequestParam(value = "offset", required = false, defaultValue = "0") int offset,
+      @RequestParam(value = "limit", required = false, defaultValue = "0") int limit,
+      @RequestParam(value = "field", required = false) String[] field) {
 
     boolean hasQueryPlugin = qidoService.hasQueryPlugins();
     boolean useLegacy =
@@ -91,15 +93,26 @@ public class SearchController {
 
     if (useLegacy) {
       if (legacyProxyService != null) {
-        return fallbackToLegacy(query, keyword, provider, dim);
+        return fallbackToLegacy(query, provider, offset, limit, field);
       }
-      return ResponseEntity.ok()
-          .contentType(APPLICATION_JSON_UTF8)
-          .body("{\"numResults\":0,\"results\":[]}");
+      throw new ResponseStatusException(
+          org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,
+          "Legacy proxy expected but not available");
     }
 
-    MultiValueMap<String, String> qidoParams = buildQidoParams(query, keyword);
+    MultiValueMap<String, String> qidoParams = buildQidoParams(query);
     qidoParams.add("_rawQuery", query);
+    if (offset > 0) {
+      qidoParams.add("offset", String.valueOf(offset));
+    }
+    if (limit > 0) {
+      qidoParams.add("limit", String.valueOf(limit));
+    }
+    if (field != null) {
+      for (String f : field) {
+        qidoParams.add("includefield", f);
+      }
+    }
 
     long start = System.nanoTime();
     DicomwebQidoService.SearchResultSet resultSet =
@@ -113,12 +126,14 @@ public class SearchController {
 
   @SuppressWarnings("unchecked")
   private ResponseEntity<String> fallbackToLegacy(
-      String query, boolean keyword, String provider, boolean dim) {
-    log.info("No local query plugin, falling back to legacy: query={}", query);
+      String query, String provider, int offset, int limit, String[] field) {
+    // Legacy Dicoogle rejects empty query with HTTP 400 — use "*" for wildcard
+    String legacyQuery = (query == null || query.isBlank()) ? "*" : query;
+    log.info("No local query plugin, falling back to legacy: query={}", legacyQuery);
 
-    // Legacy Lucene doesn't handle *:* with expand; convert to *
-    String legacyQuery = "*:*".equals(query) ? "*" : query;
-    Map<?, ?> legacyResponse = legacyProxyService.searchQuery(legacyQuery, null, 1000);
+    int maxResults = limit > 0 ? limit : 1000;
+    Map<?, ?> legacyResponse =
+        legacyProxyService.searchQuery(legacyQuery, field, maxResults, offset);
     if (legacyResponse == null) {
       log.warn("Legacy /search returned null");
       return ResponseEntity.ok()
@@ -147,10 +162,12 @@ public class SearchController {
   @GetMapping(value = "/searchDIM", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> searchDim(
       @RequestParam(value = "query", required = false, defaultValue = "") String query,
-      @RequestParam(value = "keyword", required = false, defaultValue = "false") boolean keyword,
-      @RequestParam(value = "provider", required = false) String provider) {
+      @RequestParam(value = "provider", required = false) String provider,
+      @RequestParam(value = "offset", required = false, defaultValue = "0") int offset,
+      @RequestParam(value = "limit", required = false, defaultValue = "0") int limit,
+      @RequestParam(value = "field", required = false) String[] field) {
 
-    return search(query, keyword, provider, false);
+    return search(query, provider, offset, limit, field);
   }
 
   /**
@@ -163,19 +180,25 @@ public class SearchController {
    *   <li>Keyword: {@code query=PatientName:FELIX} → mapped to {@code PatientName=FELIX}
    * </ul>
    */
-  private MultiValueMap<String, String> buildQidoParams(String query, boolean keyword) {
+  private MultiValueMap<String, String> buildQidoParams(String query) {
     MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
     if (query == null || query.isBlank()) {
       // empty query — return all (no filters)
       return params;
     }
 
-    if (keyword) {
-      // Keyword mode: expect "Key:Value" pairs separated by spaces
-      // "*:*" is a wildcard meaning "return all" — treat as empty filter
-      if ("*:*".equals(query.trim())) {
-        return params;
+    // Detect keyword mode: "Key:Value" pairs separated by spaces
+    boolean hasKeywordPairs = false;
+    for (String token : query.trim().split("\\s+")) {
+      int colon = token.indexOf(':');
+      if (colon > 0 && colon < token.length() - 1) {
+        hasKeywordPairs = true;
+        break;
       }
+    }
+
+    if (hasKeywordPairs) {
+      // Keyword mode: expect "Key:Value" pairs separated by spaces
       for (String token : query.trim().split("\\s+")) {
         int colon = token.indexOf(':');
         if (colon > 0 && colon < token.length() - 1) {

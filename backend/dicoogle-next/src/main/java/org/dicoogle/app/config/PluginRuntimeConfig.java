@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import org.dicoogle.app.service.QueryIndexMaintenanceService;
 import org.dicoogle.core.plugins.PluginRegistry;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
@@ -13,6 +14,7 @@ import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.storage.filero.FileReadOnlyStoragePlugin;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -96,5 +98,17 @@ public class PluginRuntimeConfig {
   QueryRouter queryRouter(List<QueryService> queryServices, List<QueryMoveService> moveServices) {
     return new QueryRouter(
         queryServices, moveServices, DEFAULT_QUERY_THREAD_POOL, DEFAULT_MAX_RESULTS);
+  }
+
+  @Bean(initMethod = "start", destroyMethod = "stop")
+  @ConditionalOnProperty(
+      prefix = "app.storage.watcher",
+      name = "enabled",
+      havingValue = "true",
+      matchIfMissing = true)
+  StorageWatcherService storageWatcherService(
+      @Value("${app.storage.file-ro.root-dir:./data/storage}") String rootDir,
+      QueryIndexMaintenanceService indexService) {
+    return new StorageWatcherService(Path.of(rootDir).toAbsolutePath().normalize(), indexService);
   }
 }

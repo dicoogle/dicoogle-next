@@ -17,6 +17,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomOutputStream;
+import org.dicoogle.core.storage.StoragePluginNotFoundException;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
@@ -38,7 +39,6 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
@@ -104,7 +104,7 @@ class LuceneQueryIndexPluginTest {
   }
 
   @Test
-  void reindexBuildsIndexFromFilesystem() throws Exception {
+  void indexStorageRootBuildsIndexFromFilesystem() throws Exception {
     Path storageRoot = Files.createTempDirectory("lucene-storage-reindex");
     Path indexRoot = Files.createTempDirectory("lucene-index-reindex");
 
@@ -118,11 +118,10 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
-    int indexed = plugin.reindex();
+    int indexed = plugin.indexPath(storageRoot.toUri());
     assertTrue(indexed >= 1);
     assertTrue(plugin.indexedDocuments() >= 1);
     plugin.stop();
@@ -139,7 +138,6 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
@@ -151,12 +149,12 @@ class LuceneQueryIndexPluginTest {
     assertEquals(1, indexedViaPathUri);
     assertTrue(plugin.indexedDocuments() >= 1);
 
-    int removedViaPlainPath = plugin.unindexPath(URI.create(dicomNoExt.toString()));
+    int removedViaPlainPath = plugin.unindexPath(dicomNoExt.toUri());
     assertEquals(1, removedViaPlainPath);
     assertEquals(0, plugin.locateInstance("1.2.3", "1.2.3.1", "1.2.3.4.5").isPresent() ? 1 : 0);
 
     assertThrows(
-        IllegalArgumentException.class,
+        StoragePluginNotFoundException.class,
         () -> plugin.indexPath(URI.create("http://example.com/file.dcm")));
 
     plugin.stop();
@@ -178,7 +176,6 @@ class LuceneQueryIndexPluginTest {
     LuceneQueryProperties properties = new LuceneQueryProperties();
     properties.setRootDir(indexRoot.toString());
     properties.setStorageRootDir(storageRoot.toString());
-    properties.setAutoReindexOnStartup(false);
     properties.setWatchStorage(false);
 
     LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
@@ -187,6 +184,37 @@ class LuceneQueryIndexPluginTest {
     assertEquals(2, plugin.indexedDocuments());
     assertEquals(2, plugin.unindexPath(dir.toUri()));
     assertFalse(plugin.locateInstance("1.2.3", "1.2.3.1", "1.2.3.4.5").isPresent());
+
+    plugin.stop();
+  }
+
+  @Test
+  void unindexWorksAfterFileIsDeletedFromDisk() throws Exception {
+    Path storageRoot = Files.createTempDirectory("lucene-storage-delete");
+    Path indexRoot = Files.createTempDirectory("lucene-index-delete");
+
+    FileReadWriteStoragePlugin storage = new FileReadWriteStoragePlugin(storageRoot, "file");
+    StorageRouter router = new StorageRouter(List.of(storage));
+
+    LuceneQueryProperties properties = new LuceneQueryProperties();
+    properties.setRootDir(indexRoot.toString());
+    properties.setStorageRootDir(storageRoot.toString());
+    properties.setWatchStorage(false);
+
+    LuceneQueryIndexPlugin plugin = new LuceneQueryIndexPlugin(router, properties);
+
+    Path dicomFile = storageRoot.resolve("test-study.dcm");
+    Files.write(dicomFile, createDicom("P5", "DELETE_TEST", "MR", "A5", "20250101"));
+
+    int indexed = plugin.indexPath(dicomFile.toUri());
+    assertEquals(1, indexed);
+    assertTrue(plugin.indexedDocuments() >= 1);
+
+    Files.delete(dicomFile);
+
+    int removed = plugin.unindexPath(dicomFile.toUri());
+    assertEquals(1, removed);
+    assertEquals(0, plugin.indexedDocuments());
 
     plugin.stop();
   }

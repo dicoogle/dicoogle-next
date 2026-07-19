@@ -18,7 +18,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
  * Manages authentication with legacy Dicoogle.
  *
  * <p>Authenticates lazily on first use via POST /login, stores the token in memory, and
- * re-authenticates automatically if a 401 is encountered during proxying.
+ * re-authenticates automatically if a 401 or 403 is encountered during proxying.
  */
 @Service
 @ConditionalOnProperty(
@@ -59,7 +59,7 @@ public class LegacyProxyAuthService {
 
   /**
    * Forces re-authentication, replacing any cached token. Called by LegacyProxyService when a 401
-   * is received from legacy Dicoogle.
+   * or 403 is received from legacy Dicoogle.
    */
   public String refreshToken() {
     log.info("Refreshing legacy Dicoogle authentication token");

@@ -74,26 +74,6 @@ public class QueryIndexController {
             .toList());
   }
 
-  @PostMapping("/reindex")
-  @Operation(
-      summary = "Trigger query index reindex (async task)",
-      security = @SecurityRequirement(name = "bearerAuth"))
-  public ResponseEntity<?> reindex() {
-    if (shouldFallbackToLegacy()) {
-      if (legacyProxyService != null) {
-        return fallbackReindex();
-      }
-      throw new ResponseStatusException(
-          HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
-    }
-    if (!service.hasIndexes()) {
-      throw new ResponseStatusException(
-          HttpStatus.NOT_IMPLEMENTED, "No query index plugin is configured");
-    }
-    String taskUid = taskService.submitReindexAll(service.getAllPlugins());
-    return ResponseEntity.ok(Map.of("taskUid", taskUid));
-  }
-
   @PostMapping("/index")
   @Operation(
       summary = "Index file/directory URIs (async task)",
@@ -191,17 +171,7 @@ public class QueryIndexController {
   @SuppressWarnings("unchecked")
   private ResponseEntity<?> fallbackStatus() {
     log.info("No local index plugin, falling back to legacy for index status");
-    Map<?, ?> response = legacyProxyService.searchQuery("index:status", null, 100);
-    if (response != null) {
-      return ResponseEntity.ok(response);
-    }
-    return ResponseEntity.ok(List.of());
-  }
-
-  @SuppressWarnings("unchecked")
-  private ResponseEntity<?> fallbackReindex() {
-    log.info("No local index plugin, falling back to legacy for reindex");
-    Map<?, ?> response = legacyProxyService.searchQuery("reindex", null, 100);
+    Map<?, ?> response = legacyProxyService.searchQuery("index:status", null, 100, 0);
     if (response != null) {
       return ResponseEntity.ok(response);
     }

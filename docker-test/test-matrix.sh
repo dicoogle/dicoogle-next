@@ -21,8 +21,10 @@ generate_dockerfile() {
   cmd_line+=" --server.port=8082"
   cmd_line+=" --app.dimse.cstore.enabled=true"
   cmd_line+=" --app.dimse.cstore.port=11113"
+  cmd_line+=" --app.dimse.cstore.bind-address=0.0.0.0"
   cmd_line+=" --app.dimse.query-retrieve.enabled=true"
   cmd_line+=" --app.dimse.query-retrieve.port=11114"
+  cmd_line+=" --app.dimse.query-retrieve.bind-address=0.0.0.0"
   cmd_line+=" --app.plugins.startup-validation.require-writable-provider=false"
   cmd_line+=" --dicoogle.legacy-proxy.enabled=true"
   cmd_line+=" --dicoogle.legacy-proxy.base-url=http://legacy:8080"
@@ -328,7 +330,7 @@ run_tests() {
   echo ""
   echo "  [HTTP /search]"
   local search_http
-  search_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
+  search_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/search?limit=100' 2>&1)
   local search_http_code
   search_http_code=$(echo "$search_http" | tail -1)
   local search_result
@@ -444,7 +446,7 @@ for i, r in enumerate(results):
   echo ""
   echo "  [HTTP /search after indexing]"
   local search2_http
-  search2_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/search?query=*:*&psize=100' 2>&1)
+  search2_http=$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $NEXT_TOKEN" 'http://localhost:8082/api/search?limit=100' 2>&1)
   local search2_http_code
   search2_http_code=$(echo "$search2_http" | tail -1)
   local search2_result
