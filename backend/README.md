@@ -85,6 +85,12 @@ For JDBC mode, configure:
 - `app.dimse.cstore.config.jdbc.username`
 - `app.dimse.cstore.config.jdbc.password`
 
+## Legacy Proxy
+
+dicoogle-next can proxy operations to a legacy Dicoogle v3 instance, enabling incremental migration. When enabled, unmatched HTTP routes and selected operations (search, store, index) are forwarded to the legacy server automatically.
+
+See [docs/legacy-proxy.md](docs/legacy-proxy.md) for full documentation.
+
 ## Settings Loading Behavior
 
 Runtime settings follow a **static-first** model:

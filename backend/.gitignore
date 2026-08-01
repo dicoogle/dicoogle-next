@@ -204,3 +204,4 @@ dicoogle-next/data/*
 
 *.md
 !README.md
+!docs/legacy-proxy.md
