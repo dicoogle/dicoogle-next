@@ -19,7 +19,6 @@ import org.dcm4che3.io.DicomOutputStream;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.PluginMetadata;
-import org.dicoogle.sdk.query.QueryIndexStorageLocator;
 import org.dicoogle.sdk.service.StorageRetrieveEventListener;
 import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
@@ -41,8 +40,7 @@ class DicomwebRetrieveServiceTest {
     InMemoryHierarchicalStoragePlugin plugin = new InMemoryHierarchicalStoragePlugin(dicom);
     DicomwebRetrieveService service =
         new DicomwebRetrieveService(
-            List.of(plugin),
-            List.of(plugin),
+            List.<DicomInstanceLocator>of(plugin),
             emptyRouter(),
             new StorageRouter(List.of(plugin)),
             List.<StorageRetrieveEventListener>of(),
@@ -71,8 +69,7 @@ class DicomwebRetrieveServiceTest {
   void returnsNotFoundWhenNoStoragePluginCanLocateInstance() {
     DicomwebRetrieveService service =
         new DicomwebRetrieveService(
-            List.<QueryIndexStorageLocator>of(),
-            List.of(new EmptyHierarchicalStoragePlugin()),
+            List.<DicomInstanceLocator>of(),
             emptyRouter(),
             new StorageRouter(List.of()),
             List.<StorageRetrieveEventListener>of(),
@@ -92,8 +89,7 @@ class DicomwebRetrieveServiceTest {
     InMemoryHierarchicalStoragePlugin fallback = new InMemoryHierarchicalStoragePlugin(dicom);
     DicomwebRetrieveService service =
         new DicomwebRetrieveService(
-            List.<QueryIndexStorageLocator>of(),
-            List.of(fallback),
+            List.<DicomInstanceLocator>of(),
             emptyRouter(),
             new StorageRouter(List.of(fallback)),
             List.<StorageRetrieveEventListener>of(),
@@ -137,8 +133,7 @@ class DicomwebRetrieveServiceTest {
   private static final class InMemoryHierarchicalStoragePlugin
       implements ReadableStoragePlugin,
           WritableStoragePlugin,
-          DicomInstanceLocator,
-          QueryIndexStorageLocator {
+          org.dicoogle.sdk.query.QueryIndexStorageLocator {
 
     private static final URI LOCATION =
         URI.create(

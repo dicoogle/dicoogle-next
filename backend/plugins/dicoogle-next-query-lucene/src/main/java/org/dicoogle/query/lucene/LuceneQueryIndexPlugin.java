@@ -291,11 +291,16 @@ public class LuceneQueryIndexPlugin
   public java.util.Optional<URI> locateInstance(
       String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) throws IOException {
     BooleanQuery.Builder builder = new BooleanQuery.Builder();
-    builder.add(
-        term(LuceneIndexerFields.STUDY_INSTANCE_UID, studyInstanceUid), BooleanClause.Occur.FILTER);
-    builder.add(
-        term(LuceneIndexerFields.SERIES_INSTANCE_UID, seriesInstanceUid),
-        BooleanClause.Occur.FILTER);
+    if (hasText(studyInstanceUid)) {
+      builder.add(
+          term(LuceneIndexerFields.STUDY_INSTANCE_UID, studyInstanceUid),
+          BooleanClause.Occur.FILTER);
+    }
+    if (hasText(seriesInstanceUid)) {
+      builder.add(
+          term(LuceneIndexerFields.SERIES_INSTANCE_UID, seriesInstanceUid),
+          BooleanClause.Occur.FILTER);
+    }
     builder.add(
         term(LuceneIndexerFields.SOP_INSTANCE_UID, sopInstanceUid), BooleanClause.Occur.FILTER);
 
