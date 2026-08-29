@@ -100,12 +100,12 @@ public class PluginRuntimeConfig {
         queryServices, moveServices, DEFAULT_QUERY_THREAD_POOL, DEFAULT_MAX_RESULTS);
   }
 
+  // The file-system watcher indexes files created outside of C-STORE (e.g. manual drops).
+  // C-STORE already indexes via StorageIngestEventListener, so the watcher is disabled by
+  // default to avoid double-indexing. Enable explicitly with app.storage.watcher.enabled=true
+  // if you need to pick up files written outside the normal DICOM pipeline.
   @Bean(initMethod = "start", destroyMethod = "stop")
-  @ConditionalOnProperty(
-      prefix = "app.storage.watcher",
-      name = "enabled",
-      havingValue = "true",
-      matchIfMissing = true)
+  @ConditionalOnProperty(prefix = "app.storage.watcher", name = "enabled", havingValue = "true")
   StorageWatcherService storageWatcherService(
       @Value("${app.storage.file-ro.root-dir:./data/storage}") String rootDir,
       QueryIndexMaintenanceService indexService) {
