@@ -3,9 +3,11 @@ package org.dicoogle.protocol.dimse;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import org.dcm4che3.data.Attributes;
@@ -127,9 +129,9 @@ public class CStoreService {
       return result;
     }
 
-    byte[] ps310Payload;
+    Path normalizedFile;
     try {
-      ps310Payload = normalizeToPs310(request.payload(), affectedSopClassUid, transferSyntaxUid);
+      normalizedFile = normalizeToPs310(request.payload(), affectedSopClassUid, transferSyntaxUid);
     } catch (IOException ex) {
       CStoreResult result =
           CStoreResult.cannotUnderstand(
@@ -142,8 +144,11 @@ public class CStoreService {
 
     try {
       var plugin = storageRouter.requireWritable(scheme);
-      StoredObject stored =
-          plugin.store(new ByteArrayInputStream(ps310Payload), request.contentType());
+      long fileSize = Files.size(normalizedFile);
+      StoredObject stored;
+      try (InputStream fileStream = Files.newInputStream(normalizedFile)) {
+        stored = plugin.store(fileStream, request.contentType());
+      }
       CStoreResult result = CStoreResult.success(identifiers, stored.location());
       LOGGER.info(
           "C-STORE stored: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
@@ -171,13 +176,14 @@ public class CStoreService {
               identifiers.seriesInstanceUid(),
               identifiers.sopInstanceUid(),
               scheme);
-          URI legacyUri = legacyProxyService.postStorage(ps310Payload);
+          byte[] legacyPayload = Files.readAllBytes(normalizedFile);
+          URI legacyUri = legacyProxyService.postStorage(legacyPayload);
           if (legacyUri != null) {
             CStoreResult result = CStoreResult.success(identifiers, legacyUri);
             emitIngestSuccess(
                 request,
                 identifiers,
-                new StoredObject(legacyUri, ps310Payload.length, "application/dicom"),
+                new StoredObject(legacyUri, legacyPayload.length, "application/dicom"),
                 scheme);
             increment("dicoogle.cstore.success", scheme);
             recordOutcome("success", scheme, startNs);
@@ -227,6 +233,8 @@ public class CStoreService {
       increment("dicoogle.cstore.failure", scheme);
       recordOutcome("failure", scheme, startNs);
       return result;
+    } finally {
+      deleteTempFile(normalizedFile);
     }
   }
 
@@ -253,10 +261,14 @@ public class CStoreService {
     }
   }
 
-  private byte[] normalizeToPs310(byte[] payload, String sopClassUid, String transferSyntaxUid)
+  private Path normalizeToPs310(byte[] payload, String sopClassUid, String transferSyntaxUid)
       throws IOException {
-    try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(payload))) {
-      Attributes attrs = dis.readDataset();
+    Path tmpFile = Files.createTempFile("dicoogle-cstore-", ".dcm");
+    try {
+      Attributes attrs;
+      try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(payload))) {
+        attrs = dis.readDataset();
+      }
       String sopInstanceUid = attrs.getString(Tag.SOPInstanceUID);
       if (!isPresent(sopInstanceUid)) {
         throw new IOException("Dataset missing SOP Instance UID");
@@ -276,11 +288,24 @@ public class CStoreService {
           VR.SH,
           org.dicoogle.sdk.ImplementationInfo.IMPLEMENTATION_VERSION_NAME);
 
-      ByteArrayOutputStream output = new ByteArrayOutputStream(payload.length + 512);
-      try (DicomOutputStream dos = new DicomOutputStream(output, transferSyntaxUid)) {
+      try (var fos = new java.io.FileOutputStream(tmpFile.toFile());
+          DicomOutputStream dos = new DicomOutputStream(fos, transferSyntaxUid)) {
         dos.writeDataset(fmi, attrs);
       }
-      return output.toByteArray();
+      return tmpFile;
+    } catch (IOException ex) {
+      deleteTempFile(tmpFile);
+      throw ex;
+    }
+  }
+
+  private void deleteTempFile(Path path) {
+    if (path != null) {
+      try {
+        Files.deleteIfExists(path);
+      } catch (IOException ex) {
+        LOGGER.debug("Failed to delete temp file {}", path, ex);
+      }
     }
   }
 
