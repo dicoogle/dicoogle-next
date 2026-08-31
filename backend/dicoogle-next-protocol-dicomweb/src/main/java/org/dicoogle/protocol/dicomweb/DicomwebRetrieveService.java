@@ -4,7 +4,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.json.Json;
 import jakarta.json.stream.JsonGenerator;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URI;
@@ -265,20 +264,15 @@ public class DicomwebRetrieveService {
   }
 
   Attributes readMetadata(URI location) {
-    try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location)) {
-      byte[] bytes = stream.readAllBytes();
-      try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(bytes))) {
-        return dis.readDataset(-1, Tag.PixelData);
-      } catch (Exception ex) {
-        LOGGER.error("DICOM parse error for {}: {}", location, ex.toString(), ex);
-        throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
-      }
+    try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location);
+        DicomInputStream dis = new DicomInputStream(stream)) {
+      return dis.readDataset(-1, Tag.PixelData);
     } catch (ResponseStatusException ex) {
       throw ex;
     } catch (Exception ex) {
+      LOGGER.error("DICOM parse error for {}: {}", location, ex.toString(), ex);
       throw new ResponseStatusException(
-          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read DICOM instance from storage", ex);
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
     }
   }
 

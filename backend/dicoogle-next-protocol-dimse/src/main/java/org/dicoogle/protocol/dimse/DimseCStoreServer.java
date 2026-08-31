@@ -142,7 +142,7 @@ public class DimseCStoreServer implements SmartLifecycle {
                     new CStoreRequest(
                         as.getSerialNo(),
                         targetScheme,
-                        data.readAllBytes(),
+                        data,
                         "application/dicom",
                         as.getCallingAET(),
                         as.getCalledAET(),

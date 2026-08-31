@@ -11,6 +11,7 @@ import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryIndexPlugin;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryService;
+import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.storage.filero.FileReadOnlyStoragePlugin;
 import org.springframework.beans.factory.annotation.Value;
@@ -75,6 +76,14 @@ public class PluginRuntimeConfig {
   @Bean
   StorageRouter storageRouter(ActiveStoragePlugins activeStoragePlugins) {
     return new StorageRouter(activeStoragePlugins.plugins());
+  }
+
+  @Bean
+  List<DicomInstanceLocator> dicomInstanceLocators(ActiveStoragePlugins activeStoragePlugins) {
+    return activeStoragePlugins.plugins().stream()
+        .filter(DicomInstanceLocator.class::isInstance)
+        .map(DicomInstanceLocator.class::cast)
+        .toList();
   }
 
   @Bean(name = "primaryStorageScheme")

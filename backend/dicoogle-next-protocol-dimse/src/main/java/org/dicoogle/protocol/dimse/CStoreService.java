@@ -2,7 +2,6 @@ package org.dicoogle.protocol.dimse;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -84,162 +83,196 @@ public class CStoreService {
 
     increment("dicoogle.cstore.requests", scheme);
 
-    if (request.payload() == null || request.payload().length == 0) {
+    if (request.payload() == null) {
       CStoreResult result = CStoreResult.cannotUnderstand("Received empty C-STORE payload");
       recordOutcome("failure", scheme, startNs);
       return result;
     }
 
-    CStoreIdentifiers identifiers = extractIdentifiers(request.payload());
-    if (identifiers == null) {
-      CStoreResult result =
-          CStoreResult.cannotUnderstand("Missing required DICOM identifiers for C-STORE");
-      emitIngestFailure(request, null, result, scheme);
-      recordOutcome("failure", scheme, startNs);
-      return result;
-    }
-
-    String affectedSopClassUid = request.affectedSopClassUid();
-    String transferSyntaxUid = request.transferSyntaxUid();
-    if (!isPresent(affectedSopClassUid)) {
-      affectedSopClassUid = identifiers.sopClassUid();
-    }
-    if (!isPresent(transferSyntaxUid)) {
-      transferSyntaxUid = UID.ImplicitVRLittleEndian;
-    }
-
-    if (!affectedSopClassUid.equals(identifiers.sopClassUid())) {
-      CStoreResult result =
-          CStoreResult.cannotUnderstand(
-              "Affected SOP Class UID does not match dataset SOP Class UID", identifiers);
-      emitIngestFailure(request, identifiers, result, scheme);
-      increment("dicoogle.cstore.failure", scheme);
-      recordOutcome("failure", scheme, startNs);
-      return result;
-    }
-
-    if (isPresent(request.affectedSopInstanceUid())
-        && !request.affectedSopInstanceUid().equals(identifiers.sopInstanceUid())) {
-      CStoreResult result =
-          CStoreResult.cannotUnderstand(
-              "Affected SOP Instance UID does not match dataset SOP Instance UID", identifiers);
-      emitIngestFailure(request, identifiers, result, scheme);
-      increment("dicoogle.cstore.failure", scheme);
-      recordOutcome("failure", scheme, startNs);
-      return result;
-    }
-
-    Path normalizedFile;
+    // Stream the incoming DICOM to a temp file immediately to avoid holding
+    // the entire payload in memory. All subsequent operations work on the file.
+    Path tempFile;
     try {
-      normalizedFile = normalizeToPs310(request.payload(), affectedSopClassUid, transferSyntaxUid);
+      tempFile = streamToTempFile(request.payload());
     } catch (IOException ex) {
       CStoreResult result =
-          CStoreResult.cannotUnderstand(
-              "Failed to create a PS3.10 DICOM file payload", identifiers);
-      emitIngestFailure(request, identifiers, result, scheme);
-      increment("dicoogle.cstore.failure", scheme);
+          CStoreResult.cannotUnderstand("Failed to buffer C-STORE payload to temp file");
       recordOutcome("failure", scheme, startNs);
       return result;
     }
 
     try {
-      var plugin = storageRouter.requireWritable(scheme);
-      long fileSize = Files.size(normalizedFile);
-      StoredObject stored;
-      try (InputStream fileStream = Files.newInputStream(normalizedFile)) {
-        stored = plugin.store(fileStream, request.contentType());
+      CStoreIdentifiers identifiers = extractIdentifiers(tempFile);
+      if (identifiers == null) {
+        CStoreResult result =
+            CStoreResult.cannotUnderstand("Missing required DICOM identifiers for C-STORE");
+        emitIngestFailure(request, null, result, scheme);
+        recordOutcome("failure", scheme, startNs);
+        return result;
       }
-      CStoreResult result = CStoreResult.success(identifiers, stored.location());
-      LOGGER.info(
-          "C-STORE stored: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
-          nullSafe(request.callingAet()),
-          nullSafe(request.calledAet()),
-          identifiers.studyInstanceUid(),
-          identifiers.seriesInstanceUid(),
-          identifiers.sopInstanceUid(),
-          scheme,
-          stored.location());
-      emitIngestSuccess(request, identifiers, stored, scheme);
-      increment("dicoogle.cstore.success", scheme);
-      recordOutcome("success", scheme, startNs);
-      return result;
-    } catch (NoWritableStoragePluginException | StoragePluginNotFoundException ex) {
-      if (legacyProxyService != null
-          && legacyProxyProperties != null
-          && legacyProxyProperties.shouldUseLegacyForStorageRetrieve(false)) {
-        try {
-          LOGGER.info(
-              "C-STORE no local writable provider, falling back to legacy: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
-              nullSafe(request.callingAet()),
-              nullSafe(request.calledAet()),
-              identifiers.studyInstanceUid(),
-              identifiers.seriesInstanceUid(),
-              identifiers.sopInstanceUid(),
-              scheme);
-          byte[] legacyPayload = Files.readAllBytes(normalizedFile);
-          URI legacyUri = legacyProxyService.postStorage(legacyPayload);
-          if (legacyUri != null) {
-            CStoreResult result = CStoreResult.success(identifiers, legacyUri);
-            emitIngestSuccess(
-                request,
-                identifiers,
-                new StoredObject(legacyUri, legacyPayload.length, "application/dicom"),
-                scheme);
-            increment("dicoogle.cstore.success", scheme);
-            recordOutcome("success", scheme, startNs);
+
+      String affectedSopClassUid = request.affectedSopClassUid();
+      String transferSyntaxUid = request.transferSyntaxUid();
+      if (!isPresent(affectedSopClassUid)) {
+        affectedSopClassUid = identifiers.sopClassUid();
+      }
+      if (!isPresent(transferSyntaxUid)) {
+        transferSyntaxUid = UID.ImplicitVRLittleEndian;
+      }
+
+      if (!affectedSopClassUid.equals(identifiers.sopClassUid())) {
+        CStoreResult result =
+            CStoreResult.cannotUnderstand(
+                "Affected SOP Class UID does not match dataset SOP Class UID", identifiers);
+        emitIngestFailure(request, identifiers, result, scheme);
+        increment("dicoogle.cstore.failure", scheme);
+        recordOutcome("failure", scheme, startNs);
+        return result;
+      }
+
+      if (isPresent(request.affectedSopInstanceUid())
+          && !request.affectedSopInstanceUid().equals(identifiers.sopInstanceUid())) {
+        CStoreResult result =
+            CStoreResult.cannotUnderstand(
+                "Affected SOP Instance UID does not match dataset SOP Instance UID", identifiers);
+        emitIngestFailure(request, identifiers, result, scheme);
+        increment("dicoogle.cstore.failure", scheme);
+        recordOutcome("failure", scheme, startNs);
+        return result;
+      }
+
+      Path normalizedFile;
+      try {
+        normalizedFile = normalizeToPs310(tempFile, affectedSopClassUid, transferSyntaxUid);
+      } catch (IOException ex) {
+        CStoreResult result =
+            CStoreResult.cannotUnderstand(
+                "Failed to create a PS3.10 DICOM file payload", identifiers);
+        emitIngestFailure(request, identifiers, result, scheme);
+        increment("dicoogle.cstore.failure", scheme);
+        recordOutcome("failure", scheme, startNs);
+        return result;
+      }
+
+      try {
+        var plugin = storageRouter.requireWritable(scheme);
+        StoredObject stored;
+        try (InputStream fileStream = Files.newInputStream(normalizedFile)) {
+          stored = plugin.store(fileStream, request.contentType());
+        }
+        CStoreResult result = CStoreResult.success(identifiers, stored.location());
+        LOGGER.info(
+            "C-STORE stored: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
+            nullSafe(request.callingAet()),
+            nullSafe(request.calledAet()),
+            identifiers.studyInstanceUid(),
+            identifiers.seriesInstanceUid(),
+            identifiers.sopInstanceUid(),
+            scheme,
+            stored.location());
+        emitIngestSuccess(request, identifiers, stored, scheme);
+        increment("dicoogle.cstore.success", scheme);
+        recordOutcome("success", scheme, startNs);
+        return result;
+      } catch (NoWritableStoragePluginException | StoragePluginNotFoundException ex) {
+        if (legacyProxyService != null
+            && legacyProxyProperties != null
+            && legacyProxyProperties.shouldUseLegacyForStorageRetrieve(false)) {
+          try {
             LOGGER.info(
-                "C-STORE stored via legacy fallback: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
+                "C-STORE no local writable provider, falling back to legacy: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
                 nullSafe(request.callingAet()),
                 nullSafe(request.calledAet()),
                 identifiers.studyInstanceUid(),
                 identifiers.seriesInstanceUid(),
                 identifiers.sopInstanceUid(),
-                scheme,
-                legacyUri);
-            return result;
+                scheme);
+            long fileSize = Files.size(normalizedFile);
+            try (InputStream legacyStream = Files.newInputStream(normalizedFile)) {
+              URI legacyUri = legacyProxyService.postStorage(legacyStream, fileSize);
+              if (legacyUri != null) {
+                CStoreResult result = CStoreResult.success(identifiers, legacyUri);
+                emitIngestSuccess(
+                    request,
+                    identifiers,
+                    new StoredObject(legacyUri, fileSize, "application/dicom"),
+                    scheme);
+                increment("dicoogle.cstore.success", scheme);
+                recordOutcome("success", scheme, startNs);
+                LOGGER.info(
+                    "C-STORE stored via legacy fallback: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
+                    nullSafe(request.callingAet()),
+                    nullSafe(request.calledAet()),
+                    identifiers.studyInstanceUid(),
+                    identifiers.seriesInstanceUid(),
+                    identifiers.sopInstanceUid(),
+                    scheme,
+                    legacyUri);
+                return result;
+              }
+            }
+            LOGGER.warn("C-STORE legacy fallback returned null URI");
+          } catch (Exception fallbackEx) {
+            LOGGER.error("C-STORE legacy fallback failed", fallbackEx);
           }
-          LOGGER.warn("C-STORE legacy fallback returned null URI");
-        } catch (Exception fallbackEx) {
-          LOGGER.error("C-STORE legacy fallback failed", fallbackEx);
         }
-      }
 
-      CStoreResult result = CStoreResult.noWritableProvider(scheme);
-      LOGGER.warn(
-          "C-STORE rejected (no writable provider): callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
-          nullSafe(request.callingAet()),
-          nullSafe(request.calledAet()),
-          identifiers.studyInstanceUid(),
-          identifiers.seriesInstanceUid(),
-          identifiers.sopInstanceUid(),
-          scheme);
-      emitIngestFailure(request, identifiers, result, scheme);
-      increment("dicoogle.cstore.failure", scheme);
-      recordOutcome("failure", scheme, startNs);
-      return result;
-    } catch (IOException | RuntimeException ex) {
-      CStoreResult result =
-          CStoreResult.cannotUnderstand("Failed to persist C-STORE payload", identifiers);
-      LOGGER.warn(
-          "C-STORE failed: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, reason={}",
-          nullSafe(request.callingAet()),
-          nullSafe(request.calledAet()),
-          identifiers.studyInstanceUid(),
-          identifiers.seriesInstanceUid(),
-          identifiers.sopInstanceUid(),
-          scheme,
-          ex.getMessage());
-      emitIngestFailure(request, identifiers, result, scheme);
-      increment("dicoogle.cstore.failure", scheme);
-      recordOutcome("failure", scheme, startNs);
-      return result;
+        CStoreResult result = CStoreResult.noWritableProvider(scheme);
+        LOGGER.warn(
+            "C-STORE rejected (no writable provider): callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
+            nullSafe(request.callingAet()),
+            nullSafe(request.calledAet()),
+            identifiers.studyInstanceUid(),
+            identifiers.seriesInstanceUid(),
+            identifiers.sopInstanceUid(),
+            scheme);
+        emitIngestFailure(request, identifiers, result, scheme);
+        increment("dicoogle.cstore.failure", scheme);
+        recordOutcome("failure", scheme, startNs);
+        return result;
+      } catch (IOException | RuntimeException ex) {
+        CStoreResult result =
+            CStoreResult.cannotUnderstand("Failed to persist C-STORE payload", identifiers);
+        LOGGER.warn(
+            "C-STORE failed: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, reason={}",
+            nullSafe(request.callingAet()),
+            nullSafe(request.calledAet()),
+            identifiers.studyInstanceUid(),
+            identifiers.seriesInstanceUid(),
+            identifiers.sopInstanceUid(),
+            scheme,
+            ex.getMessage());
+        emitIngestFailure(request, identifiers, result, scheme);
+        increment("dicoogle.cstore.failure", scheme);
+        recordOutcome("failure", scheme, startNs);
+        return result;
+      } finally {
+        deleteTempFile(normalizedFile);
+      }
     } finally {
-      deleteTempFile(normalizedFile);
+      deleteTempFile(tempFile);
     }
   }
 
-  private CStoreIdentifiers extractIdentifiers(byte[] payload) {
-    try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(payload))) {
+  private Path streamToTempFile(InputStream in) throws IOException {
+    Path tmpFile = Files.createTempFile("dicoogle-cstore-", ".dcm");
+    try {
+      try (var out = Files.newOutputStream(tmpFile)) {
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = in.read(buf)) != -1) {
+          out.write(buf, 0, n);
+        }
+      }
+      return tmpFile;
+    } catch (IOException ex) {
+      deleteTempFile(tmpFile);
+      throw ex;
+    }
+  }
+
+  private CStoreIdentifiers extractIdentifiers(Path dicomFile) {
+    try (DicomInputStream dis = new DicomInputStream(dicomFile.toFile())) {
       Attributes attrs = dis.readDataset();
 
       String patientId = attrs.getString(Tag.PatientID);
@@ -261,12 +294,12 @@ public class CStoreService {
     }
   }
 
-  private Path normalizeToPs310(byte[] payload, String sopClassUid, String transferSyntaxUid)
+  private Path normalizeToPs310(Path dicomFile, String sopClassUid, String transferSyntaxUid)
       throws IOException {
     Path tmpFile = Files.createTempFile("dicoogle-cstore-", ".dcm");
     try {
       Attributes attrs;
-      try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(payload))) {
+      try (DicomInputStream dis = new DicomInputStream(dicomFile.toFile())) {
         attrs = dis.readDataset();
       }
       String sopInstanceUid = attrs.getString(Tag.SOPInstanceUID);
