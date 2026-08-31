@@ -16,10 +16,13 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
   private final TokenService tokenService;
   private final UserService userService;
+  private final boolean basicAuthEnabled;
 
-  public TokenAuthenticationFilter(TokenService tokenService, UserService userService) {
+  public TokenAuthenticationFilter(
+      TokenService tokenService, UserService userService, boolean basicAuthEnabled) {
     this.tokenService = tokenService;
     this.userService = userService;
+    this.basicAuthEnabled = basicAuthEnabled;
   }
 
   @Override
@@ -31,7 +34,7 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     if (header != null && !header.isBlank()) {
       if (header.startsWith("Bearer ")) {
         authenticateWithToken(header.substring(7));
-      } else if (header.startsWith("Basic ")) {
+      } else if (basicAuthEnabled && header.startsWith("Basic ")) {
         authenticateWithBasic(header.substring(6));
       }
     } else {
