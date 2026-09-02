@@ -187,6 +187,11 @@ public class SearchController {
       return params;
     }
 
+    // Wildcard "*:*" means "return all" — no filters
+    if ("*:*".equals(query.trim()) || "*".equals(query.trim())) {
+      return params;
+    }
+
     // Detect keyword mode: "Key:Value" pairs separated by spaces
     boolean hasKeywordPairs = false;
     for (String token : query.trim().split("\\s+")) {
@@ -204,6 +209,9 @@ public class SearchController {
         if (colon > 0 && colon < token.length() - 1) {
           String key = token.substring(0, colon);
           String value = token.substring(colon + 1);
+          if ("*".equals(key)) {
+            continue;
+          }
           params.add(key, value);
         }
       }

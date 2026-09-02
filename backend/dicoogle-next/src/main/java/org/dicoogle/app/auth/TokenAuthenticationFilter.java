@@ -36,6 +36,9 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
         authenticateWithToken(header.substring(7));
       } else if (basicAuthEnabled && header.startsWith("Basic ")) {
         authenticateWithBasic(header.substring(6));
+      } else {
+        // dicoogle-client sends bare tokens without "Bearer " prefix
+        authenticateWithToken(header);
       }
     } else {
       String token = request.getParameter("token");
