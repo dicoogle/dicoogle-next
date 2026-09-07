@@ -11,6 +11,7 @@ import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.sdk.query.QueryIndexPlugin;
 import org.dicoogle.sdk.query.QueryMoveService;
 import org.dicoogle.sdk.query.QueryService;
+import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.StoragePlugin;
 import org.dicoogle.storage.filero.FileReadOnlyStoragePlugin;
 import org.springframework.beans.factory.annotation.Value;
@@ -77,6 +78,14 @@ public class PluginRuntimeConfig {
     return new StorageRouter(activeStoragePlugins.plugins());
   }
 
+  @Bean
+  List<DicomInstanceLocator> dicomInstanceLocators(ActiveStoragePlugins activeStoragePlugins) {
+    return activeStoragePlugins.plugins().stream()
+        .filter(DicomInstanceLocator.class::isInstance)
+        .map(DicomInstanceLocator.class::cast)
+        .toList();
+  }
+
   @Bean(name = "primaryStorageScheme")
   String primaryStorageScheme(PluginRuntimeProperties runtimeProperties) {
     return runtimeProperties.getStorage().getPrimaryScheme();
@@ -100,12 +109,12 @@ public class PluginRuntimeConfig {
         queryServices, moveServices, DEFAULT_QUERY_THREAD_POOL, DEFAULT_MAX_RESULTS);
   }
 
+  // The file-system watcher indexes files created outside of C-STORE (e.g. manual drops).
+  // C-STORE already indexes via StorageIngestEventListener, so the watcher is disabled by
+  // default to avoid double-indexing. Enable explicitly with app.storage.watcher.enabled=true
+  // if you need to pick up files written outside the normal DICOM pipeline.
   @Bean(initMethod = "start", destroyMethod = "stop")
-  @ConditionalOnProperty(
-      prefix = "app.storage.watcher",
-      name = "enabled",
-      havingValue = "true",
-      matchIfMissing = true)
+  @ConditionalOnProperty(prefix = "app.storage.watcher", name = "enabled", havingValue = "true")
   StorageWatcherService storageWatcherService(
       @Value("${app.storage.file-ro.root-dir:./data/storage}") String rootDir,
       QueryIndexMaintenanceService indexService) {

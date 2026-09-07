@@ -229,6 +229,7 @@ public class DicomwebQidoService {
     String sop = attrs.getString(Tag.SOPInstanceUID, null);
 
     return switch (level) {
+      case PATIENT -> attrs.getString(Tag.PatientID, null);
       case STUDY -> study;
       case SERIES -> study != null && series != null ? study + "|" + series : null;
       case IMAGE ->
@@ -259,6 +260,7 @@ public class DicomwebQidoService {
 
   private Set<Integer> requiredTags(QueryRetrieveLevel level) {
     return switch (level) {
+      case PATIENT -> Set.of(Tag.PatientID);
       case STUDY -> Set.of(Tag.StudyInstanceUID);
       case SERIES -> Set.of(Tag.StudyInstanceUID, Tag.SeriesInstanceUID);
       case IMAGE -> Set.of(Tag.StudyInstanceUID, Tag.SeriesInstanceUID, Tag.SOPInstanceUID);

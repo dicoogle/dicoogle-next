@@ -4,7 +4,6 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.json.Json;
 import jakarta.json.stream.JsonGenerator;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URI;
@@ -20,7 +19,6 @@ import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.json.JSONWriter;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
-import org.dicoogle.sdk.query.QueryIndexStorageLocator;
 import org.dicoogle.sdk.query.QueryRetrieveLevel;
 import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.service.StorageRetrieveEventListener;
@@ -39,8 +37,7 @@ public class DicomwebRetrieveService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DicomwebRetrieveService.class);
 
-  private final List<QueryIndexStorageLocator> queryLocators;
-  private final List<DicomInstanceLocator> fallbackLocators;
+  private final List<DicomInstanceLocator> locators;
   private final QueryRouter router;
   private final StorageRouter storageRouter;
   private final List<StorageRetrieveEventListener> retrieveEventListeners;
@@ -48,14 +45,12 @@ public class DicomwebRetrieveService {
 
   @Autowired
   public DicomwebRetrieveService(
-      List<QueryIndexStorageLocator> queryLocators,
-      List<DicomInstanceLocator> fallbackLocators,
+      List<DicomInstanceLocator> locators,
       QueryRouter router,
       StorageRouter storageRouter,
       List<StorageRetrieveEventListener> retrieveEventListeners,
       MeterRegistry meterRegistry) {
-    this.queryLocators = List.copyOf(queryLocators);
-    this.fallbackLocators = List.copyOf(fallbackLocators);
+    this.locators = List.copyOf(locators);
     this.router = router;
     this.storageRouter = storageRouter;
     this.retrieveEventListeners = List.copyOf(retrieveEventListeners);
@@ -111,16 +106,16 @@ public class DicomwebRetrieveService {
   public String studyMetadata(String studyInstanceUid) {
     LOGGER.info("WADO-RS study metadata request: studyUID={}", studyInstanceUid);
 
-    if (queryLocators.isEmpty()) {
+    if (locators.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED,
-          "No query index locator is configured for study metadata requests");
+          "No storage locator is configured for study metadata requests");
     }
 
     List<Attributes> metadata = new ArrayList<>();
     Collection<String> seen = new LinkedHashSet<>();
 
-    for (QueryIndexStorageLocator plugin : queryLocators) {
+    for (DicomInstanceLocator plugin : locators) {
       try {
         for (URI location : plugin.listStudyInstances(studyInstanceUid)) {
           if (!seen.add(location.toString())) {
@@ -147,16 +142,16 @@ public class DicomwebRetrieveService {
         studyInstanceUid,
         seriesInstanceUid);
 
-    if (queryLocators.isEmpty()) {
+    if (locators.isEmpty()) {
       throw new ResponseStatusException(
           HttpStatus.NOT_IMPLEMENTED,
-          "No query index locator is configured for series metadata requests");
+          "No storage locator is configured for series metadata requests");
     }
 
     List<Attributes> metadata = new ArrayList<>();
     Collection<String> seen = new LinkedHashSet<>();
 
-    for (QueryIndexStorageLocator plugin : queryLocators) {
+    for (DicomInstanceLocator plugin : locators) {
       try {
         for (URI location : plugin.listSeriesInstances(studyInstanceUid, seriesInstanceUid)) {
           if (!seen.add(location.toString())) {
@@ -249,8 +244,7 @@ public class DicomwebRetrieveService {
 
   private LocatedInstance locate(
       String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
-    // QueryIndexStorageLocator lookup — sequential for now (typically one plugin)
-    for (QueryIndexStorageLocator plugin : queryLocators) {
+    for (DicomInstanceLocator plugin : locators) {
       try {
         var location = plugin.locateInstance(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
         if (location.isPresent()) {
@@ -265,41 +259,20 @@ public class DicomwebRetrieveService {
       }
     }
 
-    // Fallback locators
-    for (DicomInstanceLocator plugin : fallbackLocators) {
-      try {
-        var location = plugin.locateInstance(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
-        if (location.isPresent()) {
-          storageRouter.requireReadable(location.get().getScheme());
-          return new LocatedInstance(location.get());
-        }
-      } catch (IOException ex) {
-        throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "Failed to resolve DICOM instance in fallback storage locator",
-            ex);
-      }
-    }
-
     throw new ResponseStatusException(
         HttpStatus.NOT_FOUND, "DICOM instance not found for study/series/SOP identifiers");
   }
 
   Attributes readMetadata(URI location) {
-    try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location)) {
-      byte[] bytes = stream.readAllBytes();
-      try (DicomInputStream dis = new DicomInputStream(new ByteArrayInputStream(bytes))) {
-        return dis.readDataset(-1, Tag.PixelData);
-      } catch (Exception ex) {
-        LOGGER.error("DICOM parse error for {}: {}", location, ex.toString(), ex);
-        throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
-      }
+    try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location);
+        DicomInputStream dis = new DicomInputStream(stream)) {
+      return dis.readDataset(-1, Tag.PixelData);
     } catch (ResponseStatusException ex) {
       throw ex;
     } catch (Exception ex) {
+      LOGGER.error("DICOM parse error for {}: {}", location, ex.toString(), ex);
       throw new ResponseStatusException(
-          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to read DICOM instance from storage", ex);
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
     }
   }
 

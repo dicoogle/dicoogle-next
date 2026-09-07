@@ -4,6 +4,7 @@ import java.util.List;
 import org.dicoogle.app.auth.TokenAuthenticationFilter;
 import org.dicoogle.app.auth.TokenService;
 import org.dicoogle.app.users.UserService;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
+@EnableConfigurationProperties(SecurityProperties.class)
 public class SecurityConfig {
 
   private static final String[] DOCS_ENDPOINTS = {
@@ -92,8 +94,9 @@ public class SecurityConfig {
 
   @Bean
   TokenAuthenticationFilter tokenAuthenticationFilter(
-      TokenService tokenService, UserService userService) {
-    return new TokenAuthenticationFilter(tokenService, userService);
+      TokenService tokenService, UserService userService, SecurityProperties properties) {
+    return new TokenAuthenticationFilter(
+        tokenService, userService, properties.isBasicAuthEnabled());
   }
 
   @Bean

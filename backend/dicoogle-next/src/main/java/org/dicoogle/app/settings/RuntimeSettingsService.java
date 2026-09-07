@@ -43,7 +43,12 @@ public class RuntimeSettingsService {
 
     RuntimeSettings persisted = store.load();
     if (persisted != null) {
-      settings.getDimse().setMoveDestinations(persisted.getDimse().getMoveDestinations());
+      // Merge persisted destinations with static config destinations.
+      // Persisted entries take precedence (same key overwrites static config).
+      Map<String, RuntimeSettings.MoveDestinationSetting> merged = new java.util.LinkedHashMap<>();
+      merged.putAll(settings.getDimse().getMoveDestinations());
+      merged.putAll(persisted.getDimse().getMoveDestinations());
+      settings.getDimse().setMoveDestinations(merged);
     }
     store.save(settings);
     cached.set(settings);

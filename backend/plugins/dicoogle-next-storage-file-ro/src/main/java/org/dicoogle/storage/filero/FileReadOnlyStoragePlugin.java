@@ -47,6 +47,13 @@ public class FileReadOnlyStoragePlugin
   @Override
   public Optional<URI> locateInstance(
       String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) throws IOException {
+    if (sopInstanceUid == null || sopInstanceUid.isBlank()) {
+      return Optional.empty();
+    }
+    if (studyInstanceUid == null || seriesInstanceUid == null) {
+      return Optional.empty();
+    }
+
     String safeStudy = safeSegment(studyInstanceUid);
     String safeSeries = safeSegment(seriesInstanceUid);
     String safeSop = safeSegment(sopInstanceUid) + ".dcm";

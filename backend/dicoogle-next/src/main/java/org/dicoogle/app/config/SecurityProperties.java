@@ -8,6 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SecurityProperties {
 
   private boolean docsEnabled;
+  private boolean basicAuthEnabled;
   private List<String> allowedOrigins = new ArrayList<>();
 
   public boolean isDocsEnabled() {
@@ -16,6 +17,14 @@ public class SecurityProperties {
 
   public void setDocsEnabled(boolean docsEnabled) {
     this.docsEnabled = docsEnabled;
+  }
+
+  public boolean isBasicAuthEnabled() {
+    return basicAuthEnabled;
+  }
+
+  public void setBasicAuthEnabled(boolean basicAuthEnabled) {
+    this.basicAuthEnabled = basicAuthEnabled;
   }
 
   public List<String> getAllowedOrigins() {

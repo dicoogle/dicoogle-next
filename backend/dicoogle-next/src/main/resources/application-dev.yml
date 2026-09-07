@@ -49,6 +49,7 @@ app:
       disabled-schemes: []
   security:
     docs-enabled: true
+    basic-auth-enabled: true
   users:
     seed:
       username: dicoogle

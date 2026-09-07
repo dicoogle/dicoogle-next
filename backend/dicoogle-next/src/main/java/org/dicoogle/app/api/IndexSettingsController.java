@@ -10,6 +10,7 @@ import org.dicoogle.sdk.query.QueryIndexSettings;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +43,29 @@ public class IndexSettingsController {
     all.put("path", indexSettings.getIndexPath());
     all.put("watcher", indexSettings.isWatchEnabled());
     return ResponseEntity.ok(all);
+  }
+
+  @PostMapping
+  @Operation(
+      summary = "Update all index settings",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  public ResponseEntity<?> updateAll(
+      @RequestParam(required = false) String path,
+      @RequestParam(required = false) Boolean watcher) {
+    if (indexSettings == null) {
+      return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    }
+    if (path != null && !path.isBlank()) {
+      indexSettings.setIndexPath(path.trim());
+    }
+    if (watcher != null) {
+      indexSettings.setWatchEnabled(watcher);
+    }
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("success", true);
+    result.put("path", indexSettings.getIndexPath());
+    result.put("watcher", indexSettings.isWatchEnabled());
+    return ResponseEntity.ok(result);
   }
 
   @GetMapping("/path")

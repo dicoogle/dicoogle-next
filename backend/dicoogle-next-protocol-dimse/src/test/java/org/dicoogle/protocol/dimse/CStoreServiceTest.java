@@ -29,7 +29,7 @@ class CStoreServiceTest {
 
     CStoreResult result =
         service.store(
-            new CStoreRequest(
+            CStoreRequest.ofBytes(
                 101,
                 "file",
                 createValidDicom(),
@@ -51,7 +51,7 @@ class CStoreServiceTest {
 
     CStoreResult result =
         service.store(
-            new CStoreRequest(
+            CStoreRequest.ofBytes(
                 102,
                 "file",
                 createValidDicom(),
@@ -75,7 +75,7 @@ class CStoreServiceTest {
 
     CStoreResult result =
         service.store(
-            new CStoreRequest(
+            CStoreRequest.ofBytes(
                 103,
                 "s3",
                 createValidDicom(),
@@ -95,7 +95,7 @@ class CStoreServiceTest {
 
     CStoreResult result =
         service.store(
-            new CStoreRequest(
+            CStoreRequest.ofBytes(
                 104,
                 "file",
                 "not-dicom".getBytes(),

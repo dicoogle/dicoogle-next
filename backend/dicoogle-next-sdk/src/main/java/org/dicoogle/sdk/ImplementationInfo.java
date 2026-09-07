@@ -24,12 +24,21 @@ public final class ImplementationInfo {
 
   private ImplementationInfo() {}
 
+  private static final int MAX_VERSION_NAME_LENGTH = 16;
+  private static final String VERSION_PREFIX = "DICNXT_";
+
   private static String loadVersionName() {
     String version = readVersionProperty();
     if (version == null || version.isBlank()) {
       version = "unknown";
     }
-    return "DICOOGLE_NEXT_" + version;
+    // VR SH (Short String) is limited to 16 characters.
+    // Prefix "DICNXT_" (7 chars) leaves 9 chars for the version.
+    String fullName = VERSION_PREFIX + version;
+    if (fullName.length() > MAX_VERSION_NAME_LENGTH) {
+      return fullName.substring(0, MAX_VERSION_NAME_LENGTH);
+    }
+    return fullName;
   }
 
   private static String readVersionProperty() {

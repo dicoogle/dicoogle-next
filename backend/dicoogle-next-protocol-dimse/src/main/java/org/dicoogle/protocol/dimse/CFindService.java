@@ -179,12 +179,15 @@ public class CFindService {
       return List.of();
     }
 
+    List<Attributes> results = all.stream().map(QueryService.QueryResult::attributes).toList();
+
+    // Aggregate instance-level results to the requested level.
+    // If the underlying index only supports instance-level searches,
+    // a STUDY-level query should return one record per study, not per instance.
+    List<Attributes> aggregated = aggregateToLevel(results, level);
+
     List<Attributes> limited =
-        all.size() <= maxResults
-            ? all.stream().map(QueryService.QueryResult::attributes).toList()
-            : all.subList(0, maxResults).stream()
-                .map(QueryService.QueryResult::attributes)
-                .toList();
+        aggregated.size() <= maxResults ? aggregated : aggregated.subList(0, maxResults);
 
     increment("dicoogle.cfind.success", null);
     meterRegistry
@@ -192,6 +195,50 @@ public class CFindService {
         .increment(limited.size());
     recordLatency("success", normalizedLevel, startNs);
     return limited;
+  }
+
+  private List<Attributes> aggregateToLevel(List<Attributes> results, QueryRetrieveLevel level) {
+    if (level == QueryRetrieveLevel.IMAGE || results.size() <= 1) {
+      return results;
+    }
+
+    java.util.LinkedHashMap<String, Attributes> grouped = new LinkedHashMap<>();
+    for (Attributes attrs : results) {
+      String key = groupingKey(attrs, level);
+      grouped.computeIfAbsent(
+          key,
+          k -> {
+            Attributes copy = new Attributes(attrs);
+            stripBelowLevel(copy, level);
+            return copy;
+          });
+    }
+    return new ArrayList<>(grouped.values());
+  }
+
+  private void stripBelowLevel(Attributes attrs, QueryRetrieveLevel level) {
+    if (level == QueryRetrieveLevel.STUDY) {
+      attrs.setNull(Tag.SeriesInstanceUID, VR.UI);
+      attrs.setNull(Tag.SOPInstanceUID, VR.UI);
+      attrs.setNull(Tag.InstanceNumber, VR.IS);
+    } else if (level == QueryRetrieveLevel.SERIES) {
+      attrs.setNull(Tag.SOPInstanceUID, VR.UI);
+      attrs.setNull(Tag.InstanceNumber, VR.IS);
+    }
+  }
+
+  private String groupingKey(Attributes attrs, QueryRetrieveLevel level) {
+    String studyUid = attrs.getString(Tag.StudyInstanceUID, "");
+    if (level == QueryRetrieveLevel.STUDY) {
+      return studyUid;
+    }
+    String seriesUid = attrs.getString(Tag.SeriesInstanceUID, "");
+    if (level == QueryRetrieveLevel.SERIES) {
+      return studyUid + "|" + seriesUid;
+    }
+    // PATIENT level
+    String patientId = attrs.getString(Tag.PatientID, "");
+    return patientId;
   }
 
   private String requestedKeyTags(Attributes keys) {
