@@ -178,6 +178,19 @@ class QueryRouterTest {
   }
 
   @Test
+  void maxResultsIntegerMaxValueReturnsAllResults() {
+    var r1 = new QueryService.QueryResult(attrs("1", "1", "1"), URI_1);
+    var r2 = new QueryService.QueryResult(attrs("2", "2", "2"), URI_2);
+    var r3 = new QueryService.QueryResult(attrs("3", "3", "3"), URI_3);
+    var pA = stubQuery("query-a", List.of(r1, r2, r3));
+    var router = new QueryRouter(List.of(pA), List.of(), 4, Integer.MAX_VALUE);
+
+    var out = router.queryAll(REQ);
+    assertEquals(3, out.size());
+    router.shutdown();
+  }
+
+  @Test
   void errorIsolation() {
     var rA = new QueryService.QueryResult(attrs("1", "2", "3"), URI_1);
     var pGood = stubQuery("query-a", List.of(rA));
