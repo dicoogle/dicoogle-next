@@ -26,7 +26,10 @@ import org.springframework.context.annotation.Primary;
 public class PluginRuntimeConfig {
 
   private static final int DEFAULT_QUERY_THREAD_POOL = 4;
-  private static final int DEFAULT_MAX_RESULTS = 1000;
+  // Match legacy Dicoogle behaviour: no hard cap on query results ("return all", psize =
+  // Integer.MAX_VALUE).
+  // Clients can still paginate via limit/offset/psize when they do not want the full result set.
+  private static final int DEFAULT_MAX_RESULTS = Integer.MAX_VALUE;
 
   @Bean
   @Primary

@@ -33,6 +33,20 @@ class DicomwebQidoServiceTest {
   }
 
   @Test
+  void qidoInstanceSearchKeepsEveryInstanceOfSameStudy() {
+    Attributes a1 = dataset("1.2.3", "1.2.3.1", "1.2.3.1.1", "FELIX", "P1");
+    Attributes a2 = dataset("1.2.3", "1.2.3.2", "1.2.3.2.1", "FELIX", "P1");
+
+    DicomwebQidoService service =
+        new DicomwebQidoService(router(new StubQueryPlugin(List.of(a1, a2))));
+    DicomwebQidoService.SearchResultSet resultSet =
+        service.searchInstancesWithUris(new LinkedMultiValueMap<>(), null);
+
+    JsonArray array = Json.createReader(new StringReader(resultSet.dicomJson())).readArray();
+    assertEquals(2, array.size());
+  }
+
+  @Test
   void qidoIncludeFieldProjectsAndKeepsRequiredTags() {
     Attributes a1 = dataset("1.2.3", "1.2.3.1", "1.2.3.1.1", "FELIX", "P1");
 

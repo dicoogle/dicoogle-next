@@ -53,6 +53,19 @@ public class DicomwebQidoService {
     return search(QueryRetrieveLevel.STUDY, null, null, queryParams, provider);
   }
 
+  /**
+   * Runs an instance-level (SOP instance) search and returns every matching instance without any
+   * aggregation.
+   *
+   * <p>Unlike {@link #searchStudiesWithUris}, which collapses results to one row per study for
+   * QIDO-RS, this variant preserves one result per {@code SOPInstanceUID}. It backs the legacy
+   * {@code /search} endpoint, which the Dicoogle 3 web API and client expect to list all instances.
+   */
+  public SearchResultSet searchInstancesWithUris(
+      MultiValueMap<String, String> queryParams, String provider) {
+    return search(QueryRetrieveLevel.IMAGE, null, null, queryParams, provider);
+  }
+
   public String searchSeries(String studyInstanceUid, MultiValueMap<String, String> queryParams) {
     return search(QueryRetrieveLevel.SERIES, studyInstanceUid, null, queryParams, null).dicomJson();
   }
