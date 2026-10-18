@@ -70,6 +70,32 @@ class CStoreServiceTest {
   }
 
   @Test
+  void returnsSuccessForImplicitVRLittleEndian() {
+    WritableFilePlugin writable = new WritableFilePlugin();
+    CStoreService service =
+        new CStoreService(new StorageRouter(List.of(new ReadOnlyFilePlugin(), writable)));
+
+    CStoreResult result =
+        service.store(
+            CStoreRequest.ofBytes(
+                105,
+                "file",
+                createImplicitVRLittleEndianDicom(),
+                "application/dicom",
+                "CALLING_AET",
+                "CALLED_AET",
+                UID.SecondaryCaptureImageStorage,
+                "1.2.826.0.1.3680043.2.1125.1",
+                UID.ImplicitVRLittleEndian));
+
+    assertEquals(CStoreDimseStatus.SUCCESS, result.status());
+    assertEquals(1, writable.storedCount);
+    assertEquals(UID.SecondaryCaptureImageStorage, writable.mediaStorageSopClassUid);
+    assertEquals("1.2.826.0.1.3680043.2.1125.1", writable.mediaStorageSopInstanceUid);
+    assertEquals(UID.ImplicitVRLittleEndian, writable.transferSyntaxUid);
+  }
+
+  @Test
   void returnsDimseRefusalWhenNoProviderSupportsScheme() {
     CStoreService service = new CStoreService(new StorageRouter(List.of(new ReadOnlyFilePlugin())));
 
@@ -129,6 +155,36 @@ class CStoreServiceTest {
 
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       try (DicomOutputStream dos = new DicomOutputStream(output, UID.ExplicitVRLittleEndian)) {
+        dos.writeDataset(fmi, attrs);
+      }
+      return output.toByteArray();
+    } catch (IOException ex) {
+      throw new IllegalStateException(ex);
+    }
+  }
+
+  private byte[] createImplicitVRLittleEndianDicom() {
+    try {
+      Attributes fmi = new Attributes();
+      fmi.setString(Tag.TransferSyntaxUID, VR.UI, UID.ImplicitVRLittleEndian);
+      fmi.setString(Tag.MediaStorageSOPClassUID, VR.UI, UID.SecondaryCaptureImageStorage);
+      fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, "1.2.826.0.1.3680043.2.1125.1");
+      fmi.setString(
+          Tag.ImplementationClassUID,
+          VR.UI,
+          org.dicoogle.sdk.ImplementationInfo.IMPLEMENTATION_CLASS_UID);
+
+      Attributes attrs = new Attributes();
+      attrs.setString(Tag.SOPClassUID, VR.UI, UID.SecondaryCaptureImageStorage);
+      attrs.setString(Tag.SOPInstanceUID, VR.UI, "1.2.826.0.1.3680043.2.1125.1");
+      attrs.setString(Tag.StudyInstanceUID, VR.UI, "1.2.826.0.1.3680043.2.1125.2");
+      attrs.setString(Tag.SeriesInstanceUID, VR.UI, "1.2.826.0.1.3680043.2.1125.3");
+      attrs.setString(Tag.PatientID, VR.LO, "PATIENT-1");
+      ByteArrayOutputStream output = new ByteArrayOutputStream();
+      try (DicomOutputStream dos =
+          // Stream starts in Explicit VR LE so FMI writes correctly;
+          // writeDataset(fmi, attrs) switches to Implicit VR LE for the dataset.
+          new DicomOutputStream(output, UID.ExplicitVRLittleEndian)) {
         dos.writeDataset(fmi, attrs);
       }
       return output.toByteArray();
