@@ -27,6 +27,22 @@ export default defineConfig({
       },
     },
   },
+  // Cornerstone's polySeg worker bundle needs top-level await, which the default "iife" worker format can't emit
+  // and @icr/polyseg-wasm does `import wasm from "./ICRPolySeg.wasm"` expecting a URL, not an ES wasm module
+  worker: {
+    format: "es",
+    plugins: () => [
+      {
+        name: "polyseg-wasm-as-url",
+        enforce: "pre",
+        resolveId(id, importer) {
+          if (id.endsWith(".wasm") && importer?.includes("polyseg-wasm")) {
+            return this.resolve(`${id}?url`, importer, { skipSelf: true });
+          }
+        },
+      },
+    ],
+  },
   assetsInclude: ["**/*.wasm"],
   optimizeDeps: {
     exclude: ["@icr/polyseg-wasm"],
