@@ -322,7 +322,10 @@ public class CStoreService {
           org.dicoogle.sdk.ImplementationInfo.IMPLEMENTATION_VERSION_NAME);
 
       try (var fos = new java.io.FileOutputStream(tmpFile.toFile());
-          DicomOutputStream dos = new DicomOutputStream(fos, transferSyntaxUid)) {
+          // File Meta Information must always be written in Explicit VR Little Endian
+          // (PS3.10). DicomOutputStream.writeDataset(fmi, attrs) writes the FMI in Explicit VR LE,
+          // then switches to the transfer syntax declared in the FMI before writing the dataset.
+          DicomOutputStream dos = new DicomOutputStream(fos, UID.ExplicitVRLittleEndian)) {
         dos.writeDataset(fmi, attrs);
       }
       return tmpFile;
