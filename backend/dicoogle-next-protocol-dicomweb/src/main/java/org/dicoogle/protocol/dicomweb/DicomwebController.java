@@ -1,5 +1,6 @@
 package org.dicoogle.protocol.dicomweb;
 
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -19,11 +20,15 @@ public class DicomwebController {
 
   private final DicomwebRetrieveService retrieveService;
   private final DicomwebQidoService qidoService;
+  private final NativeFrameService nativeFrameService;
 
   public DicomwebController(
-      DicomwebRetrieveService retrieveService, DicomwebQidoService qidoService) {
+      DicomwebRetrieveService retrieveService,
+      DicomwebQidoService qidoService,
+      NativeFrameService nativeFrameService) {
     this.retrieveService = retrieveService;
     this.qidoService = qidoService;
+    this.nativeFrameService = nativeFrameService;
   }
 
   @GetMapping(value = "/studies", produces = "application/dicom+json")
@@ -66,6 +71,33 @@ public class DicomwebController {
         retrieveService.retrieveInstance(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
 
     return ResponseEntity.ok().contentType(APPLICATION_DICOM).body(payload);
+  }
+
+  @GetMapping(
+      value =
+          "/studies/{studyInstanceUid}/series/{seriesInstanceUid}/instances/{sopInstanceUid}/frames/{frameList}",
+      produces = "multipart/related")
+  public ResponseEntity<byte[]> retrieveFrames(
+      @PathVariable String studyInstanceUid,
+      @PathVariable String seriesInstanceUid,
+      @PathVariable String sopInstanceUid,
+      @PathVariable String frameList) {
+    NativeFrameResponse frameResponse =
+        nativeFrameService.retrieveFrames(
+            studyInstanceUid, seriesInstanceUid, sopInstanceUid, frameList);
+
+    return ResponseEntity.ok()
+        .contentType(
+            MediaType.parseMediaType(
+                "multipart/related; type=\"application/octet-stream\"; boundary="
+                    + frameResponse.boundary()))
+        .header("X-Frame-Representation", NativeFrameService.REPRESENTATION)
+        .header("X-Frame-Transfer-Syntax", frameResponse.transferSyntaxUID())
+        .header("X-Frame-Number-Basis", "1")
+        .header("X-Frame-Source", "next")
+        .header("X-Frame-Cache", "bypass")
+        .cacheControl(CacheControl.noStore())
+        .body(frameResponse.body());
   }
 
   @GetMapping(value = "/studies/{studyInstanceUid}/metadata", produces = "application/dicom+json")

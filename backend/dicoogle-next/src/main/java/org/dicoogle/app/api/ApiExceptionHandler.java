@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -31,6 +32,18 @@ public class ApiExceptionHandler {
         exception.getBindingResult().getFieldErrors().stream()
             .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
             .toList());
+    addPath(problem, request);
+    return problem;
+  }
+
+  @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+  ProblemDetail handleMediaTypeNotAcceptable(
+      HttpMediaTypeNotAcceptableException exception, HttpServletRequest request) {
+    ProblemDetail problem =
+        ProblemDetail.forStatusAndDetail(
+            HttpStatus.NOT_ACCEPTABLE, "No acceptable response media type is available.");
+    problem.setType(URI.create("https://dicoogle-next.dev/problems/not-acceptable"));
+    problem.setTitle("Not acceptable");
     addPath(problem, request);
     return problem;
   }
