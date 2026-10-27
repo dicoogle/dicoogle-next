@@ -174,6 +174,11 @@ public class DicomwebRetrieveService {
 
   public String instanceMetadata(
       String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
+    return instanceMetadataResult(studyInstanceUid, seriesInstanceUid, sopInstanceUid).dicomJson();
+  }
+
+  public InstanceMetadataResult instanceMetadataResult(
+      String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid) {
     LOGGER.info(
         "WADO-RS instance metadata request: studyUID={}, seriesUID={}, sopUID={}",
         studyInstanceUid,
@@ -181,7 +186,7 @@ public class DicomwebRetrieveService {
         sopInstanceUid);
 
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
-    return toDicomJson(readMetadata(located.location()));
+    return readMetadataWithSourceTransferSyntax(located.location());
   }
 
   /**
@@ -276,6 +281,38 @@ public class DicomwebRetrieveService {
     }
   }
 
+  private InstanceMetadataResult readMetadataWithSourceTransferSyntax(URI location) {
+    try (var stream = storageRouter.requireReadable(location.getScheme()).openForRead(location);
+        DicomInputStream dis = new DicomInputStream(stream)) {
+      Attributes dataset = dis.readDataset(-1, Tag.PixelData);
+      Attributes fileMetaInformation = dis.getFileMetaInformation();
+      String transferSyntaxUid =
+          fileMetaInformation == null
+              ? null
+              : fileMetaInformation.getString(Tag.TransferSyntaxUID, null);
+      return new InstanceMetadataResult(
+          toDicomJson(dataset), validTransferSyntaxUid(transferSyntaxUid));
+    } catch (ResponseStatusException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      LOGGER.error("DICOM parse error for {}: {}", location, ex.toString(), ex);
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR, "Failed to parse DICOM metadata", ex);
+    }
+  }
+
+  private String validTransferSyntaxUid(String transferSyntaxUid) {
+    if (transferSyntaxUid == null || transferSyntaxUid.isBlank()) {
+      return null;
+    }
+    String trimmed = transferSyntaxUid.trim();
+    if (trimmed.length() > 64 || !trimmed.matches("[0-9]+(?:\\.[0-9]+)*")) {
+      LOGGER.warn("Ignoring invalid source Transfer Syntax UID in instance metadata");
+      return null;
+    }
+    return trimmed;
+  }
+
   private String toDicomJson(Attributes attributes) {
     StringWriter output = new StringWriter();
     try (JsonGenerator generator = Json.createGenerator(output)) {
@@ -297,6 +334,8 @@ public class DicomwebRetrieveService {
     }
     return output.toString();
   }
+
+  public record InstanceMetadataResult(String dicomJson, String sourceTransferSyntaxUid) {}
 
   private record LocatedInstance(URI location) {}
 

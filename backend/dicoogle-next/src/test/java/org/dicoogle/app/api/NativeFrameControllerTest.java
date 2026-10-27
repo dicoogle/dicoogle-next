@@ -110,11 +110,12 @@ class NativeFrameControllerTest {
     MvcResult result =
         mockMvc
             .perform(
-                get(framePath(
-                    SyntheticDicomFixtureGenerator.STUDY_INSTANCE_UID,
-                    SyntheticDicomFixtureGenerator.SERIES_A_INSTANCE_UID,
-                    SyntheticDicomFixtureGenerator.INSTANCE_A_UID,
-                    "1")))
+                get(
+                    framePath(
+                        SyntheticDicomFixtureGenerator.STUDY_INSTANCE_UID,
+                        SyntheticDicomFixtureGenerator.SERIES_A_INSTANCE_UID,
+                        SyntheticDicomFixtureGenerator.INSTANCE_A_UID,
+                        "1")))
             .andExpect(status().isUnauthorized())
             .andReturn();
 
@@ -212,13 +213,7 @@ class NativeFrameControllerTest {
 
   @Test
   void inconsistentPixelDataReturns422WithoutMultipartBody() throws Exception {
-    storeDicom(
-        BAD_STUDY,
-        BAD_SERIES,
-        BAD_SOP,
-        UID.ExplicitVRLittleEndian,
-        8,
-        frameBytes(1));
+    storeDicom(BAD_STUDY, BAD_SERIES, BAD_SOP, UID.ExplicitVRLittleEndian, 8, frameBytes(1));
 
     MvcResult result =
         mockMvc
@@ -305,9 +300,7 @@ class NativeFrameControllerTest {
 
       Attributes attributes = new Attributes();
       attributes.setString(
-          Tag.SOPClassUID,
-          VR.UI,
-          UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage);
+          Tag.SOPClassUID, VR.UI, UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage);
       attributes.setString(Tag.SOPInstanceUID, VR.UI, sopInstanceUid);
       attributes.setString(Tag.StudyInstanceUID, VR.UI, studyInstanceUid);
       attributes.setString(Tag.SeriesInstanceUID, VR.UI, seriesInstanceUid);
@@ -340,8 +333,7 @@ class NativeFrameControllerTest {
       int numberOfFrames = attributes.getInt(Tag.NumberOfFrames, 1);
       List<byte[]> frames = new ArrayList<>(numberOfFrames);
       for (int index = 0; index < numberOfFrames; index++) {
-        frames.add(
-            Arrays.copyOfRange(pixelData, index * FRAME_SIZE, (index + 1) * FRAME_SIZE));
+        frames.add(Arrays.copyOfRange(pixelData, index * FRAME_SIZE, (index + 1) * FRAME_SIZE));
       }
       return frames;
     }
@@ -386,7 +378,9 @@ class NativeFrameControllerTest {
       assertFalse(contentType.toLowerCase().contains("multipart/related"));
     }
     byte[] body = result.getResponse().getContentAsByteArray();
-    assertTrue(body.length == 0 || !new String(body, StandardCharsets.ISO_8859_1).contains("X-Frame-Number"));
+    assertTrue(
+        body.length == 0
+            || !new String(body, StandardCharsets.ISO_8859_1).contains("X-Frame-Number"));
   }
 
   private static List<Part> parts(byte[] body, String boundary) {
@@ -409,7 +403,8 @@ class NativeFrameControllerTest {
       }
       result.add(new Part(frameNumber(headers), Arrays.copyOfRange(body, dataStart, next)));
       position = next + 2;
-      if (startsWith(body, ("--" + boundary + "--").getBytes(StandardCharsets.US_ASCII), position)) {
+      if (startsWith(
+          body, ("--" + boundary + "--").getBytes(StandardCharsets.US_ASCII), position)) {
         break;
       }
       if (!startsWith(body, marker, position)) {

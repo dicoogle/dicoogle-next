@@ -62,10 +62,7 @@ public class NativeFrameService {
   }
 
   public NativeFrameResponse retrieveFrames(
-      String studyInstanceUid,
-      String seriesInstanceUid,
-      String sopInstanceUid,
-      String frameList) {
+      String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid, String frameList) {
     increment("dicoogle.nativeframes.requests");
     try {
       NativeFrameResponse response =
@@ -99,10 +96,7 @@ public class NativeFrameService {
   }
 
   private NativeFrameResponse doRetrieve(
-      String studyInstanceUid,
-      String seriesInstanceUid,
-      String sopInstanceUid,
-      String frameList)
+      String studyInstanceUid, String seriesInstanceUid, String sopInstanceUid, String frameList)
       throws IOException {
     List<Integer> requestedFrames = parseFrameList(frameList);
     LocatedInstance located = locate(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
@@ -144,9 +138,7 @@ public class NativeFrameService {
         }
       } catch (IOException ex) {
         throw new ResponseStatusException(
-            HttpStatus.INTERNAL_SERVER_ERROR,
-            "Failed to resolve the stored DICOM instance",
-            ex);
+            HttpStatus.INTERNAL_SERVER_ERROR, "Failed to resolve the stored DICOM instance", ex);
       }
     }
     throw notFound();
@@ -196,14 +188,6 @@ public class NativeFrameService {
       throw unsupported("Unsupported transfer syntax for native-frame retrieval");
     }
 
-    String sopClassUid = attributes.getString(Tag.SOPClassUID);
-    boolean singleFrame = UID.SecondaryCaptureImageStorage.equals(sopClassUid);
-    boolean multiFrame =
-        UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage.equals(sopClassUid);
-    if (!singleFrame && !multiFrame) {
-      throw unsupported("Unsupported SOP class for native-frame retrieval");
-    }
-
     requirePresent(attributes, Tag.Rows);
     requirePresent(attributes, Tag.Columns);
     requirePresent(attributes, Tag.SamplesPerPixel);
@@ -231,7 +215,8 @@ public class NativeFrameService {
     if (photometricInterpretation == null) {
       throw inconsistent();
     }
-    if (!"MONOCHROME2".equals(photometricInterpretation)) {
+    if (!"MONOCHROME1".equals(photometricInterpretation)
+        && !"MONOCHROME2".equals(photometricInterpretation)) {
       throw unsupported("Unsupported pixel organisation for native-frame retrieval");
     }
 
@@ -242,11 +227,14 @@ public class NativeFrameService {
     if (bitsAllocated <= 0 || bitsStored <= 0 || highBit < 0 || pixelRepresentation < 0) {
       throw inconsistent();
     }
-    if (bitsAllocated != 16
-        || bitsStored != 16
-        || highBit != 15
-        || pixelRepresentation != 0) {
-      throw unsupported("Unsupported pixel organisation for native-frame retrieval");
+    if (bitsAllocated != 8 && bitsAllocated != 16) {
+      throw unsupported("Unsupported Bits Allocated for native-frame retrieval");
+    }
+    if (bitsStored > bitsAllocated || highBit != bitsStored - 1) {
+      throw inconsistent();
+    }
+    if (pixelRepresentation != 0 && pixelRepresentation != 1) {
+      throw unsupported("Unsupported Pixel Representation for native-frame retrieval");
     }
 
     Object pixelValue = attributes.getValue(Tag.PixelData);
@@ -259,18 +247,9 @@ public class NativeFrameService {
   }
 
   private FramePlan planFrames(Attributes attributes, List<Integer> requestedFrames) {
-    String sopClassUid = attributes.getString(Tag.SOPClassUID);
-    boolean singleFrame = UID.SecondaryCaptureImageStorage.equals(sopClassUid);
-
-    int frameCount;
-    if (attributes.contains(Tag.NumberOfFrames)) {
-      frameCount = attributes.getInt(Tag.NumberOfFrames, -1);
-      if (frameCount <= 0 || (singleFrame && frameCount != 1)) {
-        throw inconsistent();
-      }
-    } else if (singleFrame) {
-      frameCount = 1;
-    } else {
+    int frameCount =
+        attributes.contains(Tag.NumberOfFrames) ? attributes.getInt(Tag.NumberOfFrames, -1) : 1;
+    if (frameCount <= 0) {
       throw inconsistent();
     }
 
@@ -312,9 +291,10 @@ public class NativeFrameService {
   private static long calculateFrameSize(Attributes attributes) {
     int rows = attributes.getInt(Tag.Rows, -1);
     int columns = attributes.getInt(Tag.Columns, -1);
+    int bytesPerSample = attributes.getInt(Tag.BitsAllocated, -1) / 8;
     try {
       long pixels = Math.multiplyExact((long) rows, columns);
-      return Math.multiplyExact(pixels, 2L);
+      return Math.multiplyExact(pixels, (long) bytesPerSample);
     } catch (ArithmeticException ex) {
       throw inconsistent();
     }

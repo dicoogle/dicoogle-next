@@ -11,6 +11,7 @@ import {
   List,
   Eraser,
   Trash2,
+  ScanLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -26,6 +27,7 @@ interface ImageListProps {
   series: Series;
   onViewQuick: (sopIndex: number, e?: React.MouseEvent) => void;
   onViewAdvanced: (sopIndex: number) => void;
+  onViewNativeFrame: (sopIndex: number) => void;
   onViewDump: (sopInstanceUID: string, e?: React.MouseEvent) => void;
   onBack: () => void;
 }
@@ -88,6 +90,7 @@ export function ImageList({
   study,
   series,
   onViewQuick,
+  onViewNativeFrame,
   onViewDump,
   onBack,
 }: ImageListProps) {
@@ -217,7 +220,7 @@ export function ImageList({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
+                  <div className="grid grid-cols-3 gap-2 mt-auto pt-2">
                     <Button
                       size="sm"
                       variant="outline-solid"
@@ -226,6 +229,15 @@ export function ImageList({
                       title="View in Quick Viewer"
                     >
                       <Eye className="w-3.5 h-3.5 mr-1" /> View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline-solid"
+                      onClick={() => onViewNativeFrame(absoluteIndex)}
+                      className="w-full text-xs px-2"
+                      title="View one native frame"
+                    >
+                      <ScanLine className="w-3.5 h-3.5 mr-1" /> Native
                     </Button>
                     <Button
                       size="sm"
@@ -292,6 +304,14 @@ export function ImageList({
                       title="View in Quick Viewer"
                     >
                       <Eye className="w-4 h-4 mr-2" /> View
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline-solid"
+                      onClick={() => onViewNativeFrame(absoluteIndex)}
+                      title="View one native frame"
+                    >
+                      <ScanLine className="w-4 h-4 mr-2" /> Native
                     </Button>
                     <Button
                       size="sm"

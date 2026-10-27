@@ -18,6 +18,7 @@ import { ImageList } from "./components/ImageList";
 import { DICOMDumpModal } from "./components/DICOMDumpModal";
 import { QuickViewer } from "./components/QuickViewer";
 import { AdvancedViewer } from "./components/AdvancedViewer";
+import { NativeFrameViewer } from "./components/NativeFrameViewer";
 import { ConfirmActionDialog } from "@/components/ui/ConfirmActionDialog";
 import { useEntryActions } from "./hooks";
 import type { Study, Series } from "@/types";
@@ -93,6 +94,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   const [currentSeries, setCurrentSeries] = useState<Series | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showAdvancedViewer, setShowAdvancedViewer] = useState(false);
+  const [nativeFrameIndex, setNativeFrameIndex] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   // DICOM Dump Modal state
@@ -146,6 +148,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
   };
 
   const handleBackToSeries = () => {
+    setNativeFrameIndex(null);
     setSelectedSeriesForImages(null);
   };
 
@@ -168,6 +171,17 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
     setCurrentImageIndex(sopIndex);
     setViewerOpen(false);
     setShowAdvancedViewer(true);
+  };
+
+  const handleViewImageNativeFrame = (sopIndex: number) => {
+    if (!selectedSeriesForImages) return;
+    setViewerOpen(false);
+    setShowAdvancedViewer(false);
+    setNativeFrameIndex(sopIndex);
+  };
+
+  const handleCloseNativeFrame = () => {
+    setNativeFrameIndex(null);
   };
 
   const handleOpenDump = (sopInstanceUID: string, e?: React.MouseEvent) => {
@@ -224,6 +238,7 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
           series={selectedSeriesForImages}
           onViewQuick={handleViewImageQuick}
           onViewAdvanced={handleViewImageAdvanced}
+          onViewNativeFrame={handleViewImageNativeFrame}
           onViewDump={handleOpenDump}
           onBack={handleBackToSeries}
         />
@@ -244,6 +259,19 @@ export function SeriesViewer({ study }: SeriesViewerProps) {
             series={currentSeries}
             initialIndex={currentImageIndex}
             onClose={handleCloseAdvancedViewer}
+          />
+        )}
+
+        {nativeFrameIndex !== null && selectedSeriesForImages.images?.[nativeFrameIndex] && (
+          <NativeFrameViewer
+            locator={{
+              studyInstanceUID: study.studyInstanceUID,
+              seriesInstanceUID: selectedSeriesForImages.seriesInstanceUID,
+              sopInstanceUID:
+                selectedSeriesForImages.images[nativeFrameIndex].sopInstanceUID,
+            }}
+            title={`Series #${selectedSeriesForImages.seriesNumber} — ${selectedSeriesForImages.seriesDescription || "No description"}`}
+            onClose={handleCloseNativeFrame}
           />
         )}
 

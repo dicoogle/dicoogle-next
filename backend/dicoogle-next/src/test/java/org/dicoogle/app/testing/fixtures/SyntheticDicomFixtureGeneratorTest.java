@@ -68,8 +68,7 @@ class SyntheticDicomFixtureGeneratorTest {
     assertThat(attributes.getInt(Tag.Rows, -1)).isEqualTo(64);
     assertThat(attributes.getInt(Tag.Columns, -1)).isEqualTo(64);
     assertThat(attributes.getInt(Tag.SamplesPerPixel, -1)).isEqualTo(1);
-    assertThat(attributes.getString(Tag.PhotometricInterpretation, null))
-        .isEqualTo("MONOCHROME2");
+    assertThat(attributes.getString(Tag.PhotometricInterpretation, null)).isEqualTo("MONOCHROME2");
     assertThat(attributes.getInt(Tag.BitsAllocated, -1)).isEqualTo(16);
     assertThat(attributes.getInt(Tag.BitsStored, -1)).isEqualTo(16);
     assertThat(attributes.getInt(Tag.HighBit, -1)).isEqualTo(15);
@@ -106,8 +105,7 @@ class SyntheticDicomFixtureGeneratorTest {
       assertThat(singleAttributes.getString(Tag.SliceLocationVector, null)).isNull();
       assertThat(singleAttributes.getString(Tag.ConversionType, null)).isEqualTo("SYN");
       assertThat(singleAttributes.getString(Tag.BurnedInAnnotation, null)).isEqualTo("NO");
-      assertThat(singleAttributes.getString(Tag.PresentationLUTShape, null))
-          .isEqualTo("IDENTITY");
+      assertThat(singleAttributes.getString(Tag.PresentationLUTShape, null)).isEqualTo("IDENTITY");
       assertThat(singleAttributes.getInt(Tag.Rows, -1)).isEqualTo(64);
       assertThat(singleAttributes.getInt(Tag.Columns, -1)).isEqualTo(64);
       assertThat(singleAttributes.getInt(Tag.SamplesPerPixel, -1)).isEqualTo(1);
@@ -198,8 +196,7 @@ class SyntheticDicomFixtureGeneratorTest {
         .isEqualTo(SyntheticDicomFixtureGenerator.GENERATOR_VERSION);
     assertThat(manifest.path("studyInstanceUID").asText())
         .isEqualTo(SyntheticDicomFixtureGenerator.STUDY_INSTANCE_UID);
-    assertThat(manifest.path("transferSyntaxUID").asText())
-        .isEqualTo(UID.ExplicitVRLittleEndian);
+    assertThat(manifest.path("transferSyntaxUID").asText()).isEqualTo(UID.ExplicitVRLittleEndian);
     assertThat(manifest.path("pixelProfile").path("rows").asInt()).isEqualTo(64);
     assertThat(manifest.path("pixelProfile").path("columns").asInt()).isEqualTo(64);
     assertThat(manifest.path("pixelProfile").path("samplesPerPixel").asInt()).isEqualTo(1);
@@ -253,12 +250,10 @@ class SyntheticDicomFixtureGeneratorTest {
     }
 
     assertThat(manifest.path("validation").path("passed").asBoolean()).isTrue();
-    assertThat(manifest.path("validation").path("externalIodCertification").asBoolean())
-        .isFalse();
+    assertThat(manifest.path("validation").path("externalIodCertification").asBoolean()).isFalse();
     assertThat(manifest.path("validation").path("scope").asText())
         .contains("no external IOD conformance certification");
-    assertThat(manifest.path("validation").path("structuralAssertions").size())
-        .isGreaterThan(0);
+    assertThat(manifest.path("validation").path("structuralAssertions").size()).isGreaterThan(0);
     assertThat(manifest.path("hashPurpose").asText()).contains("not encryption");
     assertThat(manifest.path("generatedAt").asText()).isNotBlank();
   }
@@ -278,8 +273,7 @@ class SyntheticDicomFixtureGeneratorTest {
             tempDirectory, SyntheticDicomFixtureGenerator.OverwritePolicy.RESET_KNOWN_FILES);
 
     for (int index = 0; index < first.instances().size(); index++) {
-      SyntheticDicomFixtureGenerator.GeneratedInstance firstInstance =
-          first.instances().get(index);
+      SyntheticDicomFixtureGenerator.GeneratedInstance firstInstance = first.instances().get(index);
       SyntheticDicomFixtureGenerator.GeneratedInstance secondInstance =
           second.instances().get(index);
       assertThat(Files.readAllBytes(secondInstance.path()))

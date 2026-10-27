@@ -1,6 +1,7 @@
 package org.dicoogle.protocol.dicomweb;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -53,16 +54,41 @@ class DicomwebRetrieveServiceTest {
             "1.2.826.0.1.3680043.2.1125.1");
     assertEquals(dicom.length, retrieved.length);
 
-    String metadata =
-        service.instanceMetadata(
+    DicomwebRetrieveService.InstanceMetadataResult result =
+        service.instanceMetadataResult(
             "1.2.826.0.1.3680043.2.1125.2",
             "1.2.826.0.1.3680043.2.1125.3",
             "1.2.826.0.1.3680043.2.1125.1");
+    String metadata = result.dicomJson();
+    assertEquals(UID.ExplicitVRLittleEndian, result.sourceTransferSyntaxUid());
     org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("\"00100020\""));
     org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("\"vr\":\"LO\""));
     org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("PATIENT-1"));
     org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("\"0020000D\""));
     org.junit.jupiter.api.Assertions.assertTrue(metadata.contains("1.2.826.0.1.3680043.2.1125.2"));
+    org.junit.jupiter.api.Assertions.assertFalse(metadata.contains("\"00020010\""));
+  }
+
+  @Test
+  void omitsSourceTransferSyntaxWhenFileMetaInformationHasNone() {
+    byte[] dicom = createValidDicom(false);
+    InMemoryHierarchicalStoragePlugin plugin = new InMemoryHierarchicalStoragePlugin(dicom);
+    DicomwebRetrieveService service =
+        new DicomwebRetrieveService(
+            List.<DicomInstanceLocator>of(plugin),
+            emptyRouter(),
+            new StorageRouter(List.of(plugin)),
+            List.<StorageRetrieveEventListener>of(),
+            new SimpleMeterRegistry());
+
+    DicomwebRetrieveService.InstanceMetadataResult result =
+        service.instanceMetadataResult(
+            "1.2.826.0.1.3680043.2.1125.2",
+            "1.2.826.0.1.3680043.2.1125.3",
+            "1.2.826.0.1.3680043.2.1125.1");
+
+    assertNull(result.sourceTransferSyntaxUid());
+    org.junit.jupiter.api.Assertions.assertTrue(result.dicomJson().contains("\"00100020\""));
   }
 
   @Test
@@ -103,9 +129,15 @@ class DicomwebRetrieveServiceTest {
   }
 
   private byte[] createValidDicom() {
+    return createValidDicom(true);
+  }
+
+  private byte[] createValidDicom(boolean includeTransferSyntax) {
     try {
       Attributes fmi = new Attributes();
-      fmi.setString(Tag.TransferSyntaxUID, VR.UI, UID.ExplicitVRLittleEndian);
+      if (includeTransferSyntax) {
+        fmi.setString(Tag.TransferSyntaxUID, VR.UI, UID.ExplicitVRLittleEndian);
+      }
       fmi.setString(Tag.MediaStorageSOPClassUID, VR.UI, UID.SecondaryCaptureImageStorage);
       fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, "1.2.826.0.1.3680043.2.1125.1");
       fmi.setString(
@@ -122,7 +154,12 @@ class DicomwebRetrieveServiceTest {
 
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       try (DicomOutputStream dos = new DicomOutputStream(output, UID.ExplicitVRLittleEndian)) {
-        dos.writeDataset(fmi, attrs);
+        if (includeTransferSyntax) {
+          dos.writeDataset(fmi, attrs);
+        } else {
+          dos.writeFileMetaInformation(fmi);
+          attrs.writeTo(dos);
+        }
       }
       return output.toByteArray();
     } catch (IOException ex) {

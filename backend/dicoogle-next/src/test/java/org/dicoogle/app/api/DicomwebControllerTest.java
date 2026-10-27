@@ -3,6 +3,7 @@ package org.dicoogle.app.api;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,12 +64,24 @@ class DicomwebControllerTest {
                 .with(user("dicoogle").roles("ADMIN")))
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/dicom+json"))
+        .andExpect(header().string("X-Source-Transfer-Syntax", UID.ExplicitVRLittleEndian))
+        .andExpect(jsonPath("$.00020010").doesNotExist())
         .andExpect(jsonPath("$.00100020.vr").value("LO"))
         .andExpect(jsonPath("$.00100020.Value[0]").value("PATIENT-1"))
         .andExpect(jsonPath("$.0020000D.vr").value("UI"))
         .andExpect(jsonPath("$.0020000D.Value[0]").value("1.2.826.0.1.3680043.2.1125.2"))
         .andExpect(jsonPath("$.0020000E.Value[0]").value("1.2.826.0.1.3680043.2.1125.3"))
         .andExpect(jsonPath("$.00080018.Value[0]").value("1.2.826.0.1.3680043.2.1125.1"));
+  }
+
+  @Test
+  void studyMetadataDoesNotExposeSourceTransferSyntaxHeader() throws Exception {
+    mockMvc
+        .perform(
+            get("/dicom-web/studies/1.2.826.0.1.3680043.2.1125.2/metadata")
+                .with(user("dicoogle").roles("ADMIN")))
+        .andExpect(status().isOk())
+        .andExpect(header().doesNotExist("X-Source-Transfer-Syntax"));
   }
 
   @Test

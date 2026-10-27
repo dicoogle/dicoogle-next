@@ -74,8 +74,7 @@ class NativeFrameServiceTest {
   void returnsFrameOneForSingleFrameInstance() {
     byte[] dicom = singleFrame(true);
     NativeFrameResponse response =
-        service(new StubPlugin(dicom))
-            .retrieveFrames(STUDY, SERIES_B, INSTANCE_B, "1");
+        service(new StubPlugin(dicom)).retrieveFrames(STUDY, SERIES_B, INSTANCE_B, "1");
 
     List<Part> parts = parts(response);
     assertEquals(1, parts.size());
@@ -114,84 +113,113 @@ class NativeFrameServiceTest {
         HttpStatus.NOT_FOUND,
         () -> service.retrieveFrames("wrong-study", SERIES_A, INSTANCE_A, "1"));
     expectStatus(
-        HttpStatus.NOT_FOUND,
-        () -> service.retrieveFrames(STUDY, "wrong-series", INSTANCE_A, "1"));
+        HttpStatus.NOT_FOUND, () -> service.retrieveFrames(STUDY, "wrong-series", INSTANCE_A, "1"));
     expectStatus(
-        HttpStatus.NOT_FOUND,
-        () -> service.retrieveFrames(STUDY, SERIES_A, "wrong-sop", "1"));
+        HttpStatus.NOT_FOUND, () -> service.retrieveFrames(STUDY, SERIES_A, "wrong-sop", "1"));
   }
 
   @Test
-  void rejectsUnsupportedPixelProfileAndTransferSyntax() {
-    byte[] monochrome1 =
+  void acceptsCtSignedTwelveBitWithoutNumberOfFrames() {
+    byte[] ct =
         dicom(
-            UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage,
+            UID.CTImageStorage,
             UID.ExplicitVRLittleEndian,
             STUDY,
             SERIES_A,
             INSTANCE_A,
             64,
             64,
+            1,
+            16,
+            12,
+            11,
+            1,
+            "MONOCHROME2",
+            1,
+            frameBytes(1),
+            false);
+
+    NativeFrameResponse response = retrieve(service(new StubPlugin(ct)), "1");
+    assertArrayEquals(frameBytes(1), parts(response).get(0).payload());
+  }
+
+  @Test
+  void acceptsEightBitMonochromeOne() {
+    byte[] frame = Arrays.copyOf(frameBytes(1), FRAME_SIZE / 2);
+    byte[] mr =
+        dicom(
+            UID.MRImageStorage,
+            UID.ExplicitVRLittleEndian,
+            STUDY,
+            SERIES_A,
+            INSTANCE_A,
+            64,
+            64,
+            1,
             8,
-            16,
-            16,
-            15,
+            8,
+            7,
             0,
             "MONOCHROME1",
             1,
-            allFrames(8),
-            true);
+            frame,
+            false);
+
+    NativeFrameResponse response = retrieve(service(new StubPlugin(mr)), "1");
+    assertArrayEquals(frame, parts(response).get(0).payload());
+  }
+
+  @Test
+  void rejectsUnsupportedTransferSyntaxAndBitsAllocated() {
     byte[] implicitVr =
         dicom(
-            UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage,
+            UID.CTImageStorage,
             UID.ImplicitVRLittleEndian,
             STUDY,
             SERIES_A,
             INSTANCE_A,
             64,
             64,
-            8,
+            1,
             16,
             16,
             15,
             0,
             "MONOCHROME2",
             1,
-            allFrames(8),
-            true);
-    byte[] eightBit =
+            frameBytes(1),
+            false);
+    byte[] thirtyTwoBit =
         dicom(
-            UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage,
+            UID.CTImageStorage,
             UID.ExplicitVRLittleEndian,
             STUDY,
             SERIES_A,
             INSTANCE_A,
             64,
             64,
-            8,
-            8,
-            8,
-            7,
+            1,
+            32,
+            16,
+            15,
             0,
             "MONOCHROME2",
             1,
-            allFrames(8),
-            true);
+            frameBytes(1),
+            false);
 
-    expectStatus(
-        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-        () -> retrieve(service(new StubPlugin(monochrome1)), "1"));
     expectStatus(
         HttpStatus.UNSUPPORTED_MEDIA_TYPE,
         () -> retrieve(service(new StubPlugin(implicitVr)), "1"));
     expectStatus(
-        HttpStatus.UNSUPPORTED_MEDIA_TYPE, () -> retrieve(service(new StubPlugin(eightBit)), "1"));
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+        () -> retrieve(service(new StubPlugin(thirtyTwoBit)), "1"));
   }
 
   /**
-   * Intentionally encapsulated, not a supported native-frame fixture. The supported transfer
-   * syntax and valid pixel metadata ensure the request reaches the fragment-specific profile
-   * branch rather than an earlier transfer-syntax or pixel-organisation rejection.
+   * Intentionally encapsulated, not a supported native-frame fixture. The supported transfer syntax
+   * and valid pixel metadata ensure the request reaches the fragment-specific profile branch rather
+   * than an earlier transfer-syntax or pixel-organisation rejection.
    */
   @Test
   void rejectsEncapsulatedPixelDataAsUnsupportedProfile() {
@@ -306,8 +334,10 @@ class NativeFrameServiceTest {
   @Test
   void rejectsPerFrameAndPerResponseLimits() {
     byte[] dicom = multiframe();
-    NativeFrameLimits frameLimit = new NativeFrameLimits(64 * 1024 * 1024, 100, 64 * 1024 * 1024, 8);
-    NativeFrameLimits responseLimit = new NativeFrameLimits(64 * 1024 * 1024, 16 * 1024 * 1024, 100, 8);
+    NativeFrameLimits frameLimit =
+        new NativeFrameLimits(64 * 1024 * 1024, 100, 64 * 1024 * 1024, 8);
+    NativeFrameLimits responseLimit =
+        new NativeFrameLimits(64 * 1024 * 1024, 16 * 1024 * 1024, 100, 8);
 
     expectStatus(
         HttpStatus.PAYLOAD_TOO_LARGE,
@@ -421,14 +451,11 @@ class NativeFrameServiceTest {
           VR.UI,
           UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage);
       fmi.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, INSTANCE_A);
-      fmi.setString(
-          Tag.ImplementationClassUID, VR.UI, ImplementationInfo.IMPLEMENTATION_CLASS_UID);
+      fmi.setString(Tag.ImplementationClassUID, VR.UI, ImplementationInfo.IMPLEMENTATION_CLASS_UID);
 
       Attributes attributes = new Attributes();
       attributes.setString(
-          Tag.SOPClassUID,
-          VR.UI,
-          UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage);
+          Tag.SOPClassUID, VR.UI, UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage);
       attributes.setString(Tag.SOPInstanceUID, VR.UI, INSTANCE_A);
       attributes.setString(Tag.StudyInstanceUID, VR.UI, STUDY);
       attributes.setString(Tag.SeriesInstanceUID, VR.UI, SERIES_A);
@@ -576,7 +603,8 @@ class NativeFrameServiceTest {
       }
       result.add(new Part(frameNumber(headers), Arrays.copyOfRange(body, dataStart, next)));
       position = next + 2;
-      if (startsWith(body, ("--" + boundary + "--").getBytes(StandardCharsets.US_ASCII), position)) {
+      if (startsWith(
+          body, ("--" + boundary + "--").getBytes(StandardCharsets.US_ASCII), position)) {
         break;
       }
       if (!startsWith(body, marker, position)) {

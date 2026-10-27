@@ -17,6 +17,7 @@ public class DicomwebController {
   private static final MediaType APPLICATION_DICOM = MediaType.parseMediaType("application/dicom");
   private static final MediaType APPLICATION_DICOM_JSON =
       MediaType.parseMediaType("application/dicom+json");
+  private static final String SOURCE_TRANSFER_SYNTAX_HEADER = "X-Source-Transfer-Syntax";
 
   private final DicomwebRetrieveService retrieveService;
   private final DicomwebQidoService qidoService;
@@ -125,9 +126,13 @@ public class DicomwebController {
       @PathVariable String studyInstanceUid,
       @PathVariable String seriesInstanceUid,
       @PathVariable String sopInstanceUid) {
-    return ResponseEntity.ok()
-        .contentType(APPLICATION_DICOM_JSON)
-        .body(
-            retrieveService.instanceMetadata(studyInstanceUid, seriesInstanceUid, sopInstanceUid));
+    DicomwebRetrieveService.InstanceMetadataResult metadata =
+        retrieveService.instanceMetadataResult(studyInstanceUid, seriesInstanceUid, sopInstanceUid);
+
+    ResponseEntity.BodyBuilder response = ResponseEntity.ok().contentType(APPLICATION_DICOM_JSON);
+    if (metadata.sourceTransferSyntaxUid() != null) {
+      response.header(SOURCE_TRANSFER_SYNTAX_HEADER, metadata.sourceTransferSyntaxUid());
+    }
+    return response.body(metadata.dicomJson());
   }
 }

@@ -66,8 +66,7 @@ public final class SyntheticDicomFixtureGenerator {
   private static final String SYNTHETIC_PATIENT_ID = "SYNTHETIC-001";
   private static final String SYNTHETIC_STUDY_ID = "SYNTHETIC-001";
   private static final String SYNTHETIC_MANUFACTURER = "Dicoogle-Next Synthetic Fixture";
-  private static final String SYNTHETIC_IMAGE_COMMENT =
-      "SYNTHETIC FIXTURE - NOT CLINICAL DATA";
+  private static final String SYNTHETIC_IMAGE_COMMENT = "SYNTHETIC FIXTURE - NOT CLINICAL DATA";
   private static final String FRAME_INCREMENT_POINTER = "00182005";
   private static final List<String> SLICE_LOCATION_VECTOR =
       List.of("0", "1", "2", "3", "4", "5", "6", "7");
@@ -109,14 +108,15 @@ public final class SyntheticDicomFixtureGenerator {
     return generate(outputBaseDirectory, OverwritePolicy.FAIL_IF_EXISTS);
   }
 
-  public static GeneratedFixture generate(
-      Path outputBaseDirectory, OverwritePolicy overwritePolicy) throws IOException {
+  public static GeneratedFixture generate(Path outputBaseDirectory, OverwritePolicy overwritePolicy)
+      throws IOException {
     Path baseDirectory = outputBaseDirectory.toAbsolutePath().normalize();
     Files.createDirectories(baseDirectory);
     Path realBaseDirectory = baseDirectory.toRealPath();
     Path fixtureDirectory = realBaseDirectory.resolve(FIXTURE_VERSION).normalize();
     if (!realBaseDirectory.equals(fixtureDirectory.getParent())) {
-      throw new IOException("Fixture output escaped the intended base directory: " + fixtureDirectory);
+      throw new IOException(
+          "Fixture output escaped the intended base directory: " + fixtureDirectory);
     }
     if (Files.isSymbolicLink(fixtureDirectory)) {
       throw new IOException("Refusing to use a symlinked fixture directory: " + fixtureDirectory);
@@ -137,11 +137,12 @@ public final class SyntheticDicomFixtureGenerator {
             createFrames(0, MULTIFRAME_COUNT)));
 
     for (int index = 1; index <= 3; index++) {
-      String sopInstanceUid = switch (index) {
-        case 1 -> INSTANCE_B_1_UID;
-        case 2 -> INSTANCE_B_2_UID;
-        default -> INSTANCE_B_3_UID;
-      };
+      String sopInstanceUid =
+          switch (index) {
+            case 1 -> INSTANCE_B_1_UID;
+            case 2 -> INSTANCE_B_2_UID;
+            default -> INSTANCE_B_3_UID;
+          };
       instances.add(
           writeInstance(
               fixtureDirectory
@@ -244,11 +245,11 @@ public final class SyntheticDicomFixtureGenerator {
 
     Files.createDirectories(path.getParent());
     try (DicomOutputStream outputStream = new DicomOutputStream(path.toFile())) {
-      outputStream.writeDataset(
-          createFileMetaInformation(sopClassUid, sopInstanceUid), attributes);
+      outputStream.writeDataset(createFileMetaInformation(sopClassUid, sopInstanceUid), attributes);
     }
 
-    List<String> frameHashes = frames.stream().map(SyntheticDicomFixtureGenerator::sha256Hex).toList();
+    List<String> frameHashes =
+        frames.stream().map(SyntheticDicomFixtureGenerator::sha256Hex).toList();
     return new GeneratedInstance(
         path,
         seriesInstanceUid,
@@ -334,7 +335,8 @@ public final class SyntheticDicomFixtureGenerator {
     if (multiframe) {
       attributes.setInt(Tag.NumberOfFrames, VR.IS, MULTIFRAME_COUNT);
       attributes.setString(Tag.FrameIncrementPointer, VR.AT, FRAME_INCREMENT_POINTER);
-      attributes.setString(Tag.SliceLocationVector, VR.DS, String.join("\\", SLICE_LOCATION_VECTOR));
+      attributes.setString(
+          Tag.SliceLocationVector, VR.DS, String.join("\\", SLICE_LOCATION_VECTOR));
       attributes.setString(Tag.RescaleIntercept, VR.DS, "0");
       attributes.setString(Tag.RescaleSlope, VR.DS, "1");
       attributes.setString(Tag.RescaleType, VR.LO, "US");
@@ -343,11 +345,9 @@ public final class SyntheticDicomFixtureGenerator {
     return attributes;
   }
 
-  private static Attributes createFileMetaInformation(
-      String sopClassUid, String sopInstanceUid) {
+  private static Attributes createFileMetaInformation(String sopClassUid, String sopInstanceUid) {
     Attributes fileMetaInformation = new Attributes();
-    fileMetaInformation.setBytes(
-        Tag.FileMetaInformationVersion, VR.OB, new byte[] {0x00, 0x01});
+    fileMetaInformation.setBytes(Tag.FileMetaInformationVersion, VR.OB, new byte[] {0x00, 0x01});
     fileMetaInformation.setString(Tag.MediaStorageSOPClassUID, VR.UI, sopClassUid);
     fileMetaInformation.setString(Tag.MediaStorageSOPInstanceUID, VR.UI, sopInstanceUid);
     fileMetaInformation.setString(Tag.TransferSyntaxUID, VR.UI, TRANSFER_SYNTAX_UID);
@@ -442,15 +442,16 @@ public final class SyntheticDicomFixtureGenerator {
           instance.instanceNumber() == attributes.getInt(Tag.InstanceNumber, -1),
           "Instance Number matches" + suffix,
           assertions);
-      check("OT".equals(attributes.getString(Tag.Modality, null)), "Modality is OT" + suffix, assertions);
+      check(
+          "OT".equals(attributes.getString(Tag.Modality, null)),
+          "Modality is OT" + suffix,
+          assertions);
       check(
           "SYN".equals(attributes.getString(Tag.ConversionType, null)),
           "Conversion Type is SYN" + suffix,
           assertions);
-      check(
-          ROWS == attributes.getInt(Tag.Rows, -1), "Rows match" + suffix, assertions);
-      check(
-          COLUMNS == attributes.getInt(Tag.Columns, -1), "Columns match" + suffix, assertions);
+      check(ROWS == attributes.getInt(Tag.Rows, -1), "Rows match" + suffix, assertions);
+      check(COLUMNS == attributes.getInt(Tag.Columns, -1), "Columns match" + suffix, assertions);
       check(
           SAMPLES_PER_PIXEL == attributes.getInt(Tag.SamplesPerPixel, -1),
           "Samples per Pixel matches" + suffix,
@@ -467,8 +468,7 @@ public final class SyntheticDicomFixtureGenerator {
           BITS_STORED == attributes.getInt(Tag.BitsStored, -1),
           "Bits Stored is 16" + suffix,
           assertions);
-      check(
-          HIGH_BIT == attributes.getInt(Tag.HighBit, -1), "High Bit is 15" + suffix, assertions);
+      check(HIGH_BIT == attributes.getInt(Tag.HighBit, -1), "High Bit is 15" + suffix, assertions);
       check(
           PIXEL_REPRESENTATION == attributes.getInt(Tag.PixelRepresentation, -1),
           "Pixel Representation is unsigned" + suffix,
@@ -539,7 +539,9 @@ public final class SyntheticDicomFixtureGenerator {
             assertions);
       } else {
         check(
-            frames.size() == 1, "Single-frame companion has exactly one frame" + suffix, assertions);
+            frames.size() == 1,
+            "Single-frame companion has exactly one frame" + suffix,
+            assertions);
         check(
             attributes.getString(Tag.FrameIncrementPointer, null) == null,
             "Single-frame companion has no Frame Increment Pointer" + suffix,
@@ -552,10 +554,7 @@ public final class SyntheticDicomFixtureGenerator {
     }
 
     long distinctFrameHashes =
-        instances.stream()
-            .flatMap(instance -> instance.frameSha256().stream())
-            .distinct()
-            .count();
+        instances.stream().flatMap(instance -> instance.frameSha256().stream()).distinct().count();
     check(distinctFrameHashes == 11, "All eleven frame payloads are distinct", assertions);
     check(
         instances.stream().map(GeneratedInstance::instanceSha256).distinct().count() == 4,
@@ -587,8 +586,7 @@ public final class SyntheticDicomFixtureGenerator {
     manifest.put("pixelProfile", pixelProfile());
     manifest.put("frameOrdering", frameOrdering());
     manifest.put(
-        "hashPurpose",
-        "Content identity only; not encryption, authentication, or freshness.");
+        "hashPurpose", "Content identity only; not encryption, authentication, or freshness.");
     manifest.put("series", series(instances, fixtureDirectory));
     manifest.put("validation", validation(validationAssertions));
     OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValue(manifestPath.toFile(), manifest);
@@ -646,7 +644,9 @@ public final class SyntheticDicomFixtureGenerator {
     series.put("seriesInstanceUID", seriesInstanceUid);
     series.put("seriesNumber", seriesNumber);
     series.put("description", description);
-    series.put("instances", instances.stream().map(instance -> instanceMap(instance, fixtureDirectory)).toList());
+    series.put(
+        "instances",
+        instances.stream().map(instance -> instanceMap(instance, fixtureDirectory)).toList());
     return series;
   }
 
@@ -722,7 +722,8 @@ public final class SyntheticDicomFixtureGenerator {
     allowed.add(fixtureDirectory.resolve(SERIES_B_DIRECTORY));
     try (Stream<Path> paths = Files.walk(fixtureDirectory)) {
       List<Path> unexpected =
-          paths.filter(path -> !path.equals(fixtureDirectory))
+          paths
+              .filter(path -> !path.equals(fixtureDirectory))
               .filter(path -> !allowed.contains(path))
               .toList();
       if (!unexpected.isEmpty()) {

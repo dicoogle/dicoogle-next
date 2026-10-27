@@ -1,7 +1,10 @@
 package org.dicoogle.protocol.dicomweb;
 
 public record NativeFrameLimits(
-    long maxStoredInstanceBytes, long maxFrameBytes, long maxResponseBytes, int maxFramesPerRequest) {
+    long maxStoredInstanceBytes,
+    long maxFrameBytes,
+    long maxResponseBytes,
+    int maxFramesPerRequest) {
 
   public NativeFrameLimits {
     if (maxStoredInstanceBytes <= 0
