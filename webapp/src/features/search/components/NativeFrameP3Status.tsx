@@ -77,7 +77,8 @@ export function NativeFrameP3Status({
       {metrics.status === "cleanup-required" && (
         <div className="mt-2 text-red-300" role="alert">
           Storage cleanup pending: {metrics.storageError ?? "write-in-flight"}. The
-          OPFS disk tier is unavailable/unknown until retry.
+          OPFS disk tier is unavailable/unknown until retry. Plaintext frames may
+          still be present on disk until the retry succeeds.
           <button
             type="button"
             className="ml-2 rounded border border-amber-500 px-2 py-0.5 text-amber-200 disabled:opacity-50"

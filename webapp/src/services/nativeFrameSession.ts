@@ -223,6 +223,11 @@ export interface NativeFrameSessionMetrics {
   opfs: NativeFrameP3Metrics | null;
 }
 
+export interface NativeFrameP3WindowBounds {
+  readonly startFrame: number;
+  readonly endFrame: number;
+}
+
 export interface NativeFrameP3Metrics {
   readonly status: NativeFrameP3Status;
   readonly source: NativeFrameP3Source | null;
@@ -237,6 +242,31 @@ export interface NativeFrameP3Metrics {
   readonly deletedBytes: number;
   readonly errors: Readonly<Record<string, number>>;
   readonly storageError: string | null;
+  readonly frames: readonly number[];
+  readonly pendingWriteFrames: readonly number[];
+  readonly pendingDeleteFrames: readonly number[];
+  readonly errorFrames: readonly number[];
+  readonly ineligibleFrames: readonly number[];
+  readonly readingFrame: number | null;
+  readonly networkPendingFrame: number | null;
+  readonly ramWindow: NativeFrameP3WindowBounds | null;
+  readonly opfsWindow: NativeFrameP3WindowBounds | null;
+}
+
+export interface NativeFrameP3ClearResult {
+  readonly status: "cleared" | "failed" | "unavailable";
+  readonly reason?: string;
+  readonly clearedEntries: number;
+  readonly clearedNativeBytes: number;
+  readonly failedEntries: number;
+  readonly failedFileBytes: number;
+}
+
+export interface NativeFrameP3ClearBothResult {
+  readonly status: "cleared" | "partial" | "failed";
+  readonly ramCleared: boolean;
+  readonly opfs: NativeFrameP3ClearResult | null;
+  readonly reason?: string;
 }
 
 export type NativeFrameResidencyEventType =
@@ -416,6 +446,12 @@ export class NativeFrameSession {
   private p3PublicationPromise: Promise<void> | null = null;
   private p3PendingWrite: P3PendingWrite | null = null;
   private p3PendingDeletes = new Map<string, P3PendingDelete>();
+  private p3ErrorFrames = new Set<number>();
+  private p3IneligibleFrames = new Set<number>();
+  private p3ReadingFrame: number | null = null;
+  private p3NetworkPendingFrame: number | null = null;
+  private p3ClearEpoch = 0;
+  private p3Clearing = false;
   private p3Counters: P3Counters = {
     writes: 0,
     deletes: 0,
@@ -658,6 +694,12 @@ export class NativeFrameSession {
     this.p3PendingPublication = null;
     this.p3PendingWrite = null;
     this.p3PendingDeletes.clear();
+    this.p3ErrorFrames.clear();
+    this.p3IneligibleFrames.clear();
+    this.p3ReadingFrame = null;
+    this.p3NetworkPendingFrame = null;
+    this.p3Clearing = false;
+    this.p3ClearEpoch += 1;
     this.p3EventCursor = 0;
     this.publishResidency();
 
@@ -754,6 +796,12 @@ export class NativeFrameSession {
     this.p3PendingPublication = null;
     this.p3PendingWrite = null;
     this.p3PendingDeletes.clear();
+    this.p3ErrorFrames.clear();
+    this.p3IneligibleFrames.clear();
+    this.p3ReadingFrame = null;
+    this.p3NetworkPendingFrame = null;
+    this.p3Clearing = false;
+    this.p3ClearEpoch += 1;
     this.p3EventCursor = 0;
     this.p3LastSource = null;
     this.p3LastCache = "not-applicable";
@@ -798,6 +846,7 @@ export class NativeFrameSession {
 
     const requestId = ++this.generation;
     const ramEpoch = this.ramEpoch;
+    const p3ClearEpoch = this.p3ClearEpoch;
     const previousFrame = this.requestedFrame;
     this.frameAbort?.abort();
     const controller = new AbortController();
@@ -885,11 +934,25 @@ export class NativeFrameSession {
               this.prefetchCounters.demandJoins += 1;
               bytes = await joinedPrefetch.promise;
             } else {
-              bytes = await this.loadFrameBytes(
-                frameNumber,
-                context,
-                controller.signal,
-              );
+              if (this.mode === "p3") {
+                this.p3NetworkPendingFrame = frameNumber;
+                this.publishResidency();
+              }
+              try {
+                bytes = await this.loadFrameBytes(
+                  frameNumber,
+                  context,
+                  controller.signal,
+                );
+              } finally {
+                if (
+                  this.mode === "p3" &&
+                  this.p3NetworkPendingFrame === frameNumber
+                ) {
+                  this.p3NetworkPendingFrame = null;
+                  this.publishResidency();
+                }
+              }
             }
           }
         }
@@ -982,7 +1045,12 @@ export class NativeFrameSession {
         this.p3LastPromoted = promotedToRam;
         this.p3LastKey = key;
         await this.maintainP3Window();
-        if (source === "network" && opfsSource === null && key !== null) {
+        if (
+          source === "network" &&
+          opfsSource === null &&
+          key !== null &&
+          p3ClearEpoch === this.p3ClearEpoch
+        ) {
           void this.scheduleP3Publication(key, bytes);
         }
       } else {
@@ -1034,9 +1102,11 @@ export class NativeFrameSession {
     }
     const digest = this.p3Digest(this.locator, frameNumber);
     if (!digest) {
-      this.recordP3Error("digest-missing");
+      this.recordP3Error("digest-missing", frameNumber);
       return { opfsCache: "invalid", promotedToRam: false };
     }
+    this.p3ReadingFrame = frameNumber;
+    this.publishResidency();
     try {
       const result = await adapter.get(key, {
         frameSizeBytes: context.frameSizeBytes,
@@ -1044,6 +1114,7 @@ export class NativeFrameSession {
       });
       await this.reconcileP3Events();
       if (result.status === "hit" && result.bytes) {
+        this.p3ErrorFrames.delete(frameNumber);
         const promoted = await this.admitP3Ram(
           this.cache!,
           key,
@@ -1059,11 +1130,16 @@ export class NativeFrameSession {
       if (result.status === "miss") {
         return { opfsCache: "miss", promotedToRam: false };
       }
-      this.recordP3Error(result.reason ?? result.status);
+      this.recordP3Error(result.reason ?? result.status, frameNumber);
       return { opfsCache: "invalid", promotedToRam: false };
     } catch {
-      this.recordP3Error("read-error");
+      this.recordP3Error("read-error", frameNumber);
       return { opfsCache: "invalid", promotedToRam: false };
+    } finally {
+      if (this.p3ReadingFrame === frameNumber) {
+        this.p3ReadingFrame = null;
+        this.publishResidency();
+      }
     }
   }
 
@@ -1087,7 +1163,7 @@ export class NativeFrameSession {
       this.buildP3PolicyInput(key, [incoming]),
     );
     if (plan.status !== "ok") {
-      this.recordP3Error(plan.reason);
+      this.recordP3Error(plan.reason, key.frameNumber);
       return false;
     }
     for (const eviction of plan.ramEvictions) {
@@ -1138,6 +1214,9 @@ export class NativeFrameSession {
     }
     for (const entry of this.p3Map.values()) {
       if (this.p3PendingDeletes.has(keyId(entry.key))) {
+        continue;
+      }
+      if (this.p3IneligibleFrames.has(entry.key.frameNumber)) {
         continue;
       }
       descriptors.push({
@@ -1213,7 +1292,7 @@ export class NativeFrameSession {
       this.buildP3PolicyInput(selectedKey),
     );
     if (plan.status !== "ok") {
-      this.recordP3Error(plan.reason);
+      this.recordP3Error(plan.reason, selectedKey.frameNumber);
       return;
     }
     for (const deletion of plan.opfsPlannedDeletions) {
@@ -1233,11 +1312,14 @@ export class NativeFrameSession {
       if (result.status === "deleted") {
         this.p3Map.delete(fingerprint);
         this.p3AliasKeys.delete(entry.alias);
+        this.p3ErrorFrames.delete(deletion.key.frameNumber);
+        this.p3IneligibleFrames.delete(deletion.key.frameNumber);
         if (this.isP3Current()) {
           this.p3Counters.deletes += 1;
         }
       } else {
-        this.recordP3Error(result.reason ?? "delete-failed");
+        this.p3IneligibleFrames.add(deletion.key.frameNumber);
+        this.recordP3Error(result.reason ?? "delete-failed", deletion.key.frameNumber);
       }
       this.p3PendingDeletes.delete(fingerprint);
     }
@@ -1250,12 +1332,12 @@ export class NativeFrameSession {
     bytes: Uint8Array,
   ): void {
     const adapter = this.p3Adapter;
-    if (!adapter || this.p3Status !== "enabled") {
+    if (!adapter || this.p3Status !== "enabled" || this.p3Clearing) {
       return;
     }
     const existing = this.p3PendingPublication;
     if (existing?.phase === "writing") {
-      this.recordP3Error("publication-busy");
+      this.recordP3Error("publication-busy", key.frameNumber);
       return;
     }
     if (existing) {
@@ -1295,9 +1377,10 @@ export class NativeFrameSession {
     if (!adapter || item.superseded || this.p3Status !== "enabled") {
       return;
     }
+    const clearEpoch = this.p3ClearEpoch;
     const digest = this.p3Digest(this.locator, item.key.frameNumber);
     if (!digest) {
-      this.recordP3Error("digest-missing");
+      this.recordP3Error("digest-missing", item.key.frameNumber);
       return;
     }
     const incoming: NativeFrameDualWindowIncoming = {
@@ -1311,7 +1394,7 @@ export class NativeFrameSession {
       this.buildP3PolicyInput(item.key, [incoming]),
     );
     if (plan.status !== "ok") {
-      this.recordP3Error(plan.reason);
+      this.recordP3Error(plan.reason, item.key.frameNumber);
       return;
     }
     if (plan.opfsPlannedDeletions.length > 0) {
@@ -1332,11 +1415,17 @@ export class NativeFrameSession {
         await this.reconcileP3Events();
         if (result.status !== "deleted") {
           this.p3PendingDeletes.delete(fingerprint);
-          this.recordP3Error(result.reason ?? "delete-failed");
+          this.p3IneligibleFrames.add(deletion.key.frameNumber);
+          this.recordP3Error(
+            result.reason ?? "delete-failed",
+            deletion.key.frameNumber,
+          );
           return;
         }
         this.p3Map.delete(fingerprint);
         this.p3AliasKeys.delete(entry.alias);
+        this.p3ErrorFrames.delete(deletion.key.frameNumber);
+        this.p3IneligibleFrames.delete(deletion.key.frameNumber);
         if (this.isP3Current()) {
           this.p3Counters.deletes += 1;
         }
@@ -1349,7 +1438,7 @@ export class NativeFrameSession {
         this.buildP3PolicyInput(item.key, [incoming]),
       );
       if (plan.status !== "ok") {
-        this.recordP3Error(plan.reason);
+        this.recordP3Error(plan.reason, item.key.frameNumber);
         return;
       }
     }
@@ -1361,7 +1450,7 @@ export class NativeFrameSession {
       const reason =
         plan.incomingRejected[0]?.reason ??
         (plan.rootCapBlocked ? "root-cap" : "capacity");
-      this.recordP3Error(reason);
+      this.recordP3Error(reason, item.key.frameNumber);
       return;
     }
     if (item.superseded) {
@@ -1384,6 +1473,9 @@ export class NativeFrameSession {
       }));
     this.p3PendingWrite = null;
     await this.reconcileP3Events();
+    if (this.p3ClearEpoch !== clearEpoch) {
+      return;
+    }
     const current = this.isP3Current();
     if (
       result.status === "stored" ||
@@ -1403,6 +1495,8 @@ export class NativeFrameSession {
           fileBytes: result.fileBytes ?? item.bytes.byteLength + 80,
           lastAccessOrdinal: ++this.p3AccessOrdinal,
         });
+        this.p3ErrorFrames.delete(item.key.frameNumber);
+        this.p3IneligibleFrames.delete(item.key.frameNumber);
         this.p3MapRevision += 1;
         if (current) {
           this.p3Counters.writes += 1;
@@ -1414,7 +1508,7 @@ export class NativeFrameSession {
         await this.maintainP3Window();
       }
     } else if (current) {
-      this.recordP3Error(result.reason ?? result.status);
+      this.recordP3Error(result.reason ?? result.status, item.key.frameNumber);
     }
   }
 
@@ -1490,13 +1584,16 @@ export class NativeFrameSession {
     }
   }
 
-  private recordP3Error(reason: string | undefined): void {
+  private recordP3Error(reason: string | undefined, frameNumber?: number): void {
     const key = reason ?? "unknown";
     if (this.mode !== "p3" || this.p3Status === "cleanup-required") {
       return;
     }
     this.p3Counters.errors[key] = (this.p3Counters.errors[key] ?? 0) + 1;
     this.p3StorageError = key;
+    if (frameNumber !== undefined) {
+      this.p3ErrorFrames.add(frameNumber);
+    }
     this.publishResidency();
   }
 
@@ -1510,6 +1607,20 @@ export class NativeFrameSession {
     }
     const entries = [...this.p3Map.values()];
     const snapshot = this.p3Adapter?.snapshot();
+    const frames = entries
+      .map((entry) => entry.key.frameNumber)
+      .sort((left, right) => left - right);
+    const pendingWriteFrames = new Set<number>();
+    if (this.p3PendingWrite) {
+      pendingWriteFrames.add(this.p3PendingWrite.key.frameNumber);
+    }
+    if (this.p3PendingPublication && !this.p3PendingPublication.superseded) {
+      pendingWriteFrames.add(this.p3PendingPublication.key.frameNumber);
+    }
+    const pendingDeleteFrames = [...this.p3PendingDeletes.values()]
+      .map((entry) => entry.key.frameNumber)
+      .sort((left, right) => left - right);
+    const windows = this.p3WindowBounds();
     return {
       status: this.p3Status,
       source: this.p3LastSource,
@@ -1524,13 +1635,67 @@ export class NativeFrameSession {
         (total, entry) => total + entry.fileBytes,
         0,
       ),
-      pendingWrites: this.p3PendingWrite ? 1 : 0,
+      pendingWrites: pendingWriteFrames.size,
       pendingDeletes: this.p3PendingDeletes.size,
       rootFileBytes: snapshot?.rootFileBytes ?? 0,
       deletedBytes: snapshot?.failedDeleteBytes ?? 0,
       errors: Object.freeze({ ...this.p3Counters.errors }),
       storageError: this.p3StorageError,
+      frames: Object.freeze(frames),
+      pendingWriteFrames: Object.freeze(
+        [...pendingWriteFrames].sort((left, right) => left - right),
+      ),
+      pendingDeleteFrames: Object.freeze(pendingDeleteFrames),
+      errorFrames: Object.freeze(
+        [...this.p3ErrorFrames].sort((left, right) => left - right),
+      ),
+      ineligibleFrames: Object.freeze(
+        [...this.p3IneligibleFrames].sort((left, right) => left - right),
+      ),
+      readingFrame: this.p3ReadingFrame,
+      networkPendingFrame: this.p3NetworkPendingFrame,
+      ramWindow: windows.ram,
+      opfsWindow: windows.opfs,
     };
+  }
+
+  private p3WindowBounds(): {
+    ram: NativeFrameP3WindowBounds | null;
+    opfs: NativeFrameP3WindowBounds | null;
+  } {
+    const context = this.context;
+    const key = this.p3LastKey;
+    if (!context || !key) {
+      return { ram: null, opfs: null };
+    }
+    const config =
+      this.p3Option?.config ?? DEFAULT_NATIVE_FRAME_DUAL_WINDOW_CONFIG;
+    try {
+      const ram = createNativeRamWindow({
+        selectedKey: key,
+        numberOfFrames: context.numberOfFrames,
+        epoch: 1,
+        config: config.ram,
+      });
+      const opfs = createNativeRamWindow({
+        selectedKey: key,
+        numberOfFrames: context.numberOfFrames,
+        epoch: 1,
+        config: config.opfs,
+      });
+      return {
+        ram: Object.freeze({
+          startFrame: ram.startFrame,
+          endFrame: ram.endFrame,
+        }),
+        opfs: Object.freeze({
+          startFrame: opfs.startFrame,
+          endFrame: opfs.endFrame,
+        }),
+      };
+    } catch {
+      return { ram: null, opfs: null };
+    }
   }
 
   clearRam(): NativeRamCacheClearResult | null {
@@ -1547,6 +1712,132 @@ export class NativeFrameSession {
     this.ramEpoch += 1;
     this.publishResidency();
     return result;
+  }
+
+  async clearP3(): Promise<NativeFrameP3ClearResult> {
+    const unavailable = (reason: string): NativeFrameP3ClearResult => ({
+      status: "unavailable",
+      reason,
+      clearedEntries: 0,
+      clearedNativeBytes: 0,
+      failedEntries: 0,
+      failedFileBytes: 0,
+    });
+    if (this.mode !== "p3") {
+      return unavailable("not-p3");
+    }
+    const adapter = this.p3Adapter;
+    if (!adapter || this.p3Status !== "enabled") {
+      return unavailable(this.p3Status);
+    }
+    this.p3Clearing = true;
+    this.p3ClearEpoch += 1;
+    this.p3PendingPublication = null;
+    try {
+      if (this.p3PublicationPromise) {
+        try {
+          await this.p3PublicationPromise;
+        } catch {
+          // Publication errors are recorded by publishP3.
+        }
+      }
+      if (this.p3Adapter !== adapter || this.p3Status !== "enabled") {
+        return unavailable("storage-changed");
+      }
+      const result = await adapter.clearOwned();
+      this.reconcileP3Snapshot();
+      if (result.status === "cleared") {
+        this.p3Map.clear();
+        this.p3AliasKeys.clear();
+        this.p3PendingPublication = null;
+        this.p3PendingWrite = null;
+        this.p3PendingDeletes.clear();
+        this.p3ErrorFrames.clear();
+        this.p3IneligibleFrames.clear();
+        this.p3StorageError = null;
+        this.p3MapRevision += 1;
+        this.publishResidency();
+        return {
+          status: "cleared",
+          clearedEntries: result.clearedEntries,
+          clearedNativeBytes: result.clearedNativeBytes,
+          failedEntries: 0,
+          failedFileBytes: 0,
+        };
+      }
+      const reason = result.reason ?? result.status;
+      this.recordP3Error(reason);
+      return {
+        status: "failed",
+        reason,
+        clearedEntries: result.clearedEntries,
+        clearedNativeBytes: result.clearedNativeBytes,
+        failedEntries: result.failedEntries,
+        failedFileBytes: result.failedFileBytes,
+      };
+    } catch {
+      this.reconcileP3Snapshot();
+      this.recordP3Error("clear-error");
+      return {
+        status: "failed",
+        reason: "clear-error",
+        clearedEntries: 0,
+        clearedNativeBytes: 0,
+        failedEntries: 0,
+        failedFileBytes: 0,
+      };
+    } finally {
+      this.p3Clearing = false;
+      this.publishResidency();
+    }
+  }
+
+  async clearBoth(): Promise<NativeFrameP3ClearBothResult> {
+    if (this.mode !== "p3") {
+      return {
+        status: "failed",
+        ramCleared: false,
+        opfs: null,
+        reason: "not-p3",
+      };
+    }
+    const ramCleared = this.clearRam() !== null;
+    const opfs = await this.clearP3();
+    const status =
+      opfs.status === "cleared" && ramCleared
+        ? "cleared"
+        : ramCleared || opfs.status === "cleared"
+          ? "partial"
+          : "failed";
+    return {
+      status,
+      ramCleared,
+      opfs,
+      ...(opfs.status === "cleared"
+        ? {}
+        : { reason: opfs.reason ?? opfs.status }),
+    };
+  }
+
+  private reconcileP3Snapshot(): void {
+    const adapter = this.p3Adapter;
+    if (!adapter) {
+      return;
+    }
+    const snapshot = adapter.snapshot();
+    const aliases = new Set(
+      snapshot.entries
+        .filter((entry) => entry.state === "committed")
+        .map((entry) => entry.alias),
+    );
+    for (const [fingerprint, entry] of this.p3Map) {
+      if (!aliases.has(entry.alias)) {
+        this.p3Map.delete(fingerprint);
+        this.p3AliasKeys.delete(entry.alias);
+      }
+    }
+    this.p3MapRevision += 1;
+    this.publishResidency();
   }
 
   residencyEventsSince(

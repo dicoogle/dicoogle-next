@@ -26,6 +26,7 @@ import {
   type NativeFrameResidencyView,
 } from "@/services/nativeFrameResidency";
 import { NativeFrameP3Status } from "./NativeFrameP3Status";
+import { NativeFrameP3ResidencyStrip } from "./NativeFrameP3ResidencyStrip";
 import { createNativeFrameModeGate } from "./NativeFrameModeGate";
 import {
   NativeFrameSession,
@@ -79,6 +80,8 @@ export function NativeFrameViewer({
   const modeGateRef = useRef(createNativeFrameModeGate());
   const [mode, setMode] = useState<NativeFrameMode>("p1");
   const [modeBusy, setModeBusy] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [p3Notice, setP3Notice] = useState<string | null>(null);
   const [status, setStatus] = useState<ViewerStatus>("initializing");
   const [context, setContext] = useState<NativeFrameContext | null>(null);
   const [frameNumber, setFrameNumber] = useState(1);
@@ -224,7 +227,7 @@ export function NativeFrameViewer({
   const changeMode = useCallback(
     async (nextMode: NativeFrameMode) => {
       const session = sessionRef.current;
-      if (!session || nextMode === mode || modeBusy) {
+      if (!session || nextMode === mode || modeBusy || actionBusy) {
         return;
       }
       if (nextMode === "p2" && !p2Available) {
@@ -266,6 +269,7 @@ export function NativeFrameViewer({
           setMetrics(null);
           setError(null);
           setRamNotice(false);
+          setP3Notice(null);
           setSessionMetrics(session.metrics());
           await selectFrame(frameNumber);
         } catch (caught) {
@@ -276,12 +280,12 @@ export function NativeFrameViewer({
         }
       });
     },
-    [frameNumber, mode, modeBusy, p2Available, p3Available, selectFrame],
+    [actionBusy, frameNumber, mode, modeBusy, p2Available, p3Available, selectFrame],
   );
 
   const retryP3 = useCallback(async () => {
     const session = sessionRef.current;
-    if (!session || mode !== "p3" || modeBusy) {
+    if (!session || mode !== "p3" || modeBusy || actionBusy) {
       return;
     }
     await modeGateRef.current.run(async () => {
@@ -296,6 +300,7 @@ export function NativeFrameViewer({
           return;
         }
         setError(null);
+        setP3Notice(null);
         setSessionMetrics(session.metrics());
         setStatus("ready");
         await selectFrame(frameNumber);
@@ -303,11 +308,11 @@ export function NativeFrameViewer({
         setModeBusy(false);
       }
     });
-  }, [frameNumber, mode, modeBusy, selectFrame]);
+  }, [actionBusy, frameNumber, mode, modeBusy, selectFrame]);
 
   const retryCleanup = useCallback(async () => {
     const session = sessionRef.current;
-    if (!session || mode !== "p3" || modeBusy) {
+    if (!session || mode !== "p3" || modeBusy || actionBusy) {
       return;
     }
     await modeGateRef.current.run(async () => {
@@ -322,13 +327,79 @@ export function NativeFrameViewer({
           return;
         }
         setError(null);
+        setP3Notice(null);
         setSessionMetrics(session.metrics());
         setStatus("ready");
       } finally {
         setModeBusy(false);
       }
     });
-  }, [mode, modeBusy]);
+  }, [actionBusy, mode, modeBusy]);
+
+  const clearOpfs = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || mode !== "p3" || actionBusy || modeBusy) {
+      return;
+    }
+    setActionBusy(true);
+    setP3Notice(null);
+    setError(null);
+    try {
+      const result = await session.clearP3();
+      if (result.status === "cleared") {
+        setP3Notice(
+          `OPFS cleared: ${result.clearedEntries} entries, ` +
+            `${result.clearedNativeBytes} B. Application cleanup, not secure erasure.`,
+        );
+      } else if (result.status === "failed") {
+        setError(
+          `OPFS cleanup failed (${result.reason ?? "unknown"}); deletion not confirmed.`,
+        );
+      } else {
+        setError(
+          `OPFS cleanup unavailable (${result.reason ?? "storage-unavailable"}).`,
+        );
+      }
+      setSessionMetrics(session.metrics());
+    } catch (caught) {
+      setError(formatError(caught));
+    } finally {
+      setActionBusy(false);
+    }
+  }, [actionBusy, mode, modeBusy]);
+
+  const clearBoth = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || mode !== "p3" || actionBusy || modeBusy) {
+      return;
+    }
+    setActionBusy(true);
+    setP3Notice(null);
+    setError(null);
+    try {
+      const result = await session.clearBoth();
+      if (result.status === "cleared") {
+        setP3Notice(
+          "RAM and OPFS cleared for this session. The displayed frame remains " +
+            "transient; application cleanup, not secure erasure.",
+        );
+      } else if (result.status === "partial") {
+        setP3Notice(
+          "Partial: RAM cleared; OPFS cleanup did not complete " +
+            `(${result.reason ?? "storage-unavailable"}). Deletion not confirmed.`,
+        );
+      } else {
+        setError(
+          `Clear Both failed (${result.reason ?? "unknown"}); no deletion confirmed.`,
+        );
+      }
+      setSessionMetrics(session.metrics());
+    } catch (caught) {
+      setError(formatError(caught));
+    } finally {
+      setActionBusy(false);
+    }
+  }, [actionBusy, mode, modeBusy]);
 
   const clearRam = useCallback(() => {
     const session = sessionRef.current;
@@ -371,7 +442,7 @@ export function NativeFrameViewer({
         close();
         return;
       }
-      if (modeBusy || !context) {
+      if (modeBusy || actionBusy || !context) {
         return;
       }
       if (event.key === "ArrowLeft" && frameNumber > 1) {
@@ -382,7 +453,7 @@ export function NativeFrameViewer({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [close, context, frameNumber, modeBusy, selectFrame]);
+  }, [close, context, frameNumber, actionBusy, modeBusy, selectFrame]);
 
   const copyMetrics = async () => {
     if (!sessionMetrics) {
@@ -517,7 +588,7 @@ export function NativeFrameViewer({
             <button
               type="button"
               onClick={() => void changeMode("p1")}
-              disabled={busy || modeBusy}
+              disabled={busy || modeBusy || actionBusy}
               aria-pressed={mode === "p1"}
               className={`rounded px-2 py-1 text-xs ${
                 mode === "p1"
@@ -530,7 +601,7 @@ export function NativeFrameViewer({
             <button
               type="button"
               onClick={() => void changeMode("p2")}
-              disabled={busy || modeBusy || !p2Available}
+              disabled={busy || modeBusy || actionBusy || !p2Available}
               aria-pressed={mode === "p2"}
               title={p2Available ? "P2 native RAM window" : p2DisabledTitle}
               className={`rounded px-2 py-1 text-xs ${
@@ -544,7 +615,7 @@ export function NativeFrameViewer({
             <button
               type="button"
               onClick={() => void changeMode("p3")}
-              disabled={busy || modeBusy || !p3Available}
+              disabled={busy || modeBusy || actionBusy || !p3Available}
               aria-pressed={mode === "p3"}
               title={p3Available ? "P3 plaintext OPFS" : p3DisabledTitle}
               className={`rounded px-2 py-1 text-xs ${
@@ -635,9 +706,27 @@ export function NativeFrameViewer({
         <div className="border-t border-gray-800 px-4 py-2">
           <NativeFrameP3Status
             metrics={sessionMetrics.opfs}
-            busy={modeBusy || busy}
+            busy={modeBusy || actionBusy || busy}
             onRetry={() => void retryP3()}
             onRetryCleanup={() => void retryCleanup()}
+          />
+        </div>
+      )}
+
+      {mode === "p3" && residencyView && sessionMetrics?.opfs && (
+        <div className="border-t border-gray-800 px-4 py-2">
+          <NativeFrameP3ResidencyStrip
+            view={residencyView}
+            busy={
+              modeBusy ||
+              actionBusy ||
+              busy ||
+              status === "loading-frame"
+            }
+            onClearOpfs={() => void clearOpfs()}
+            onClearBoth={() => void clearBoth()}
+            notice={p3Notice}
+            error={null}
           />
         </div>
       )}
@@ -754,7 +843,7 @@ export function NativeFrameViewer({
             size="sm"
             variant="ghost"
             onClick={() => void selectFrame(Math.max(1, frameNumber - 1))}
-            disabled={modeBusy || frameNumber <= 1 || frameTotal === 0}
+            disabled={modeBusy || actionBusy || frameNumber <= 1 || frameTotal === 0}
             className="text-gray-200 hover:text-white"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -765,7 +854,7 @@ export function NativeFrameViewer({
             max={Math.max(1, frameTotal)}
             value={frameNumber}
             onChange={(event) => void selectFrame(Number(event.target.value))}
-            disabled={modeBusy || frameTotal <= 1}
+            disabled={modeBusy || actionBusy || frameTotal <= 1}
             className="flex-1 accent-blue-500"
             aria-label="Frame number"
           />
@@ -773,7 +862,7 @@ export function NativeFrameViewer({
             size="sm"
             variant="ghost"
             onClick={() => void selectFrame(Math.min(frameTotal, frameNumber + 1))}
-            disabled={modeBusy || frameTotal === 0 || frameNumber >= frameTotal}
+            disabled={modeBusy || actionBusy || frameTotal === 0 || frameNumber >= frameTotal}
             className="text-gray-200 hover:text-white"
           >
             <ChevronRight className="w-4 h-4" />

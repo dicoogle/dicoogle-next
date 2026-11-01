@@ -25,6 +25,15 @@ function metrics(
     deletedBytes: 0,
     errors: { "publication-busy": 2 },
     storageError: null,
+    frames: [1, 2],
+    pendingWriteFrames: [],
+    pendingDeleteFrames: [],
+    errorFrames: [],
+    ineligibleFrames: [],
+    readingFrame: null,
+    networkPendingFrame: null,
+    ramWindow: { startFrame: 1, endFrame: 2 },
+    opfsWindow: { startFrame: 1, endFrame: 4 },
     ...overrides,
   };
 }
@@ -90,6 +99,8 @@ test("cleanup-required P3 exposes cleanup retry and no false residency", () => {
   });
   assert.match(markup, /cleanup pending/i);
   assert.match(markup, /unavailable\/unknown/);
+  assert.match(markup, /Plaintext frames may still be present on disk/);
+  assert.match(markup, /until the retry succeeds/);
   assert.match(markup, /Retry cleanup/);
   assert.match(markup, /write-in-flight/);
 });

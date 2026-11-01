@@ -10,6 +10,18 @@ export const NATIVE_FRAME_RESIDENCY_TILE_LIMIT = 24;
 export const NATIVE_FRAME_RESIDENCY_DECODED_STATE = "unavailable";
 export const NATIVE_FRAME_OPFS_STATUS = "disabled";
 
+export type NativeFrameResidencyOpfsStatus =
+  | typeof NATIVE_FRAME_OPFS_STATUS
+  | "enabled"
+  | "degraded"
+  | "cleanup-required"
+  | "closed";
+
+export interface NativeFrameResidencyWindowBounds {
+  readonly startFrame: number;
+  readonly endFrame: number;
+}
+
 export interface NativeFrameResidencyState {
   readonly cacheId: string | null;
   readonly cacheRevision: number;
@@ -29,9 +41,9 @@ export interface NativeFrameResidencyRange {
 export interface NativeFrameResidencyTile {
   readonly frameNumber: number;
   readonly nativeRam: boolean;
-  readonly opfs: false;
-  readonly opfsStatus: typeof NATIVE_FRAME_OPFS_STATUS;
-  readonly residency: "absent" | "ram";
+  readonly opfs: boolean;
+  readonly opfsStatus: NativeFrameResidencyOpfsStatus;
+  readonly residency: "absent" | "ram" | "opfs" | "both";
   readonly requested: boolean;
   readonly displayed: boolean;
   readonly pending: boolean;
@@ -39,6 +51,12 @@ export interface NativeFrameResidencyTile {
   readonly prefetchResident: boolean;
   readonly error: boolean;
   readonly inWindow: boolean;
+  readonly opfsPendingWrite: boolean;
+  readonly opfsPendingDelete: boolean;
+  readonly opfsError: boolean;
+  readonly opfsIneligible: boolean;
+  readonly ramInWindow: boolean;
+  readonly opfsInWindow: boolean;
   readonly labels: readonly string[];
 }
 
@@ -72,7 +90,18 @@ export interface NativeFrameResidencyView {
   readonly limit: number;
   readonly tiles: readonly NativeFrameResidencyTile[];
   readonly legend: readonly NativeFrameResidencyLegendItem[];
-  readonly opfsStatus: typeof NATIVE_FRAME_OPFS_STATUS;
+  readonly opfsStatus: NativeFrameResidencyOpfsStatus;
+  readonly opfsAvailable: boolean;
+  readonly opfsUnknown: boolean;
+  readonly opfsFrames: readonly number[];
+  readonly opfsPendingWriteFrames: readonly number[];
+  readonly opfsPendingDeleteFrames: readonly number[];
+  readonly opfsErrorFrames: readonly number[];
+  readonly opfsIneligibleFrames: readonly number[];
+  readonly opfsReadingFrame: number | null;
+  readonly networkPendingFrame: number | null;
+  readonly ramWindow: NativeFrameResidencyWindowBounds | null;
+  readonly opfsWindow: NativeFrameResidencyWindowBounds | null;
   readonly decodedState: typeof NATIVE_FRAME_RESIDENCY_DECODED_STATE;
   readonly mode: NativeFrameSessionMetrics["mode"];
   readonly modeEpoch: number;
@@ -162,6 +191,89 @@ export const NATIVE_FRAME_RESIDENCY_LEGEND: readonly NativeFrameResidencyLegendI
       disabled: false,
     }),
   ]);
+
+function buildP3Legend(
+  opfsAvailable: boolean,
+): readonly NativeFrameResidencyLegendItem[] {
+  return Object.freeze([
+    Object.freeze({
+      key: "absent",
+      label: "Absent (grey) — no committed tier",
+      tone: "absent",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "ram",
+      label: "RAM committed (blue)",
+      tone: "ram",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "opfs",
+      label: opfsAvailable
+        ? "OPFS committed (purple)"
+        : "OPFS unavailable/unknown (hatched)",
+      tone: "opfs",
+      disabled: !opfsAvailable,
+    }),
+    Object.freeze({
+      key: "both",
+      label: opfsAvailable
+        ? "BOTH committed (split blue/purple)"
+        : "BOTH unavailable/unknown (hatched)",
+      tone: "both",
+      disabled: !opfsAvailable,
+    }),
+    Object.freeze({
+      key: "pending-write",
+      label: "Pending write (S)",
+      tone: "pending",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "pending-delete",
+      label: "Pending delete (X)",
+      tone: "pending",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "error",
+      label: "Storage error (red)",
+      tone: "error",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "ineligible",
+      label: "Ineligible after failed delete",
+      tone: "error",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "requested",
+      label: "Requested (R)",
+      tone: "requested",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "displayed",
+      label: "Displayed (D)",
+      tone: "displayed",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "ram-window",
+      label: "RAM window (Wr)",
+      tone: "window",
+      disabled: false,
+    }),
+    Object.freeze({
+      key: "opfs-window",
+      label: "OPFS window (Wo)",
+      tone: "window",
+      disabled: false,
+    }),
+  ]);
+}
 
 export function reduceNativeFrameResidency(
   previous: NativeFrameResidencyState | null,
@@ -268,6 +380,37 @@ export function buildNativeFrameResidencyView(
   const prefetchPending = new Set(state.snapshot.prefetch.pendingFrames);
   const prefetchResident = new Set(state.snapshot.prefetch.residentFrames);
   const window = state.snapshot.window;
+  const opfsMetrics =
+    state.snapshot.mode === "p3" ? state.snapshot.opfs : null;
+  const p3Active = opfsMetrics !== null;
+  const opfsStatus: NativeFrameResidencyOpfsStatus =
+    opfsMetrics?.status ?? NATIVE_FRAME_OPFS_STATUS;
+  const opfsAvailable = opfsMetrics?.status === "enabled";
+  const opfsUnknown = p3Active && !opfsAvailable;
+  const opfsFrames =
+    opfsAvailable && opfsMetrics
+      ? new Set(opfsMetrics.frames)
+      : new Set<number>();
+  const pendingWriteFrames = new Set(
+    opfsAvailable && opfsMetrics ? opfsMetrics.pendingWriteFrames : [],
+  );
+  const pendingDeleteFrames = new Set(
+    opfsAvailable && opfsMetrics ? opfsMetrics.pendingDeleteFrames : [],
+  );
+  const opfsErrorFrames = new Set(opfsMetrics?.errorFrames ?? []);
+  const opfsIneligibleFrames = new Set(opfsMetrics?.ineligibleFrames ?? []);
+  const opfsReadingFrame = opfsMetrics?.readingFrame ?? null;
+  const networkPendingFrame = opfsMetrics?.networkPendingFrame ?? null;
+  const ramWindow: NativeFrameResidencyWindowBounds | null = opfsMetrics
+    ? opfsMetrics.ramWindow
+    : window === null
+      ? null
+      : Object.freeze({
+          startFrame: window.startFrame,
+          endFrame: window.endFrame,
+        });
+  const opfsWindow: NativeFrameResidencyWindowBounds | null =
+    opfsMetrics?.opfsWindow ?? null;
   const tiles: NativeFrameResidencyTile[] = [];
   for (let frameNumber = range.startFrame; frameNumber <= range.endFrame; frameNumber += 1) {
     const nativeRam = resident.has(frameNumber);
@@ -277,34 +420,76 @@ export function buildNativeFrameResidencyView(
     const prefetching = prefetchPending.has(frameNumber);
     const prefetched = prefetchResident.has(frameNumber);
     const error = state.snapshot.errorFrame === frameNumber;
-    const inWindow =
-      window !== null &&
-      frameNumber >= window.startFrame &&
-      frameNumber <= window.endFrame;
-    const labels = [
-      nativeRam ? "RAM" : "Absent",
-      ...(requested ? ["Requested"] : []),
-      ...(displayed ? ["Displayed"] : []),
-      ...(pending ? ["Pending"] : []),
-      ...(prefetching ? ["Prefetching"] : []),
-      ...(prefetched ? ["Prefetched"] : []),
-      ...(error ? ["Error"] : []),
-      ...(inWindow ? ["Window"] : []),
-    ];
+    const opfsResident = opfsFrames.has(frameNumber);
+    const residency = nativeRam && opfsResident
+      ? "both"
+      : opfsResident
+        ? "opfs"
+        : nativeRam
+          ? "ram"
+          : "absent";
+    const opfsPendingWrite = pendingWriteFrames.has(frameNumber);
+    const opfsPendingDelete = pendingDeleteFrames.has(frameNumber);
+    const opfsError = opfsErrorFrames.has(frameNumber);
+    const opfsIneligible = opfsIneligibleFrames.has(frameNumber);
+    const ramInWindow =
+      ramWindow !== null &&
+      frameNumber >= ramWindow.startFrame &&
+      frameNumber <= ramWindow.endFrame;
+    const opfsInWindow =
+      opfsWindow !== null &&
+      frameNumber >= opfsWindow.startFrame &&
+      frameNumber <= opfsWindow.endFrame;
+    const labels = p3Active
+      ? [
+          residency === "both"
+            ? "BOTH"
+            : residency === "opfs"
+              ? "OPFS"
+              : residency === "ram"
+                ? "RAM"
+                : "Absent",
+          ...(requested ? ["R"] : []),
+          ...(displayed ? ["D"] : []),
+          ...(opfsPendingWrite ? ["S"] : []),
+          ...(opfsPendingDelete ? ["X"] : []),
+          ...(opfsError ? ["Error"] : []),
+          ...(opfsIneligible ? ["Ineligible"] : []),
+          ...(opfsReadingFrame === frameNumber ? ["OPFS read"] : []),
+          ...(networkPendingFrame === frameNumber ? ["Network"] : []),
+          ...(ramInWindow ? ["Wr"] : []),
+          ...(opfsInWindow ? ["Wo"] : []),
+        ]
+      : [
+          nativeRam ? "RAM" : "Absent",
+          ...(requested ? ["Requested"] : []),
+          ...(displayed ? ["Displayed"] : []),
+          ...(pending ? ["Pending"] : []),
+          ...(prefetching ? ["Prefetching"] : []),
+          ...(prefetched ? ["Prefetched"] : []),
+          ...(error ? ["Error"] : []),
+          ...(ramInWindow ? ["Window"] : []),
+        ];
     tiles.push(
       Object.freeze({
         frameNumber,
         nativeRam,
-        opfs: false,
-        opfsStatus: NATIVE_FRAME_OPFS_STATUS,
-        residency: nativeRam ? "ram" : "absent",
+        opfs: opfsResident,
+        opfsStatus,
+        residency,
         requested,
         displayed,
         pending,
         prefetchPending: prefetching,
         prefetchResident: prefetched,
         error,
-        inWindow,
+        inWindow: ramInWindow,
+        opfsPendingWrite,
+        opfsPendingDelete,
+        opfsError,
+        opfsIneligible,
+        ramInWindow,
+        opfsInWindow,
         labels: Object.freeze(labels),
       }),
     );
@@ -321,8 +506,31 @@ export function buildNativeFrameResidencyView(
     totalFrames: range.totalFrames,
     limit: range.limit,
     tiles: Object.freeze(tiles),
-    legend: NATIVE_FRAME_RESIDENCY_LEGEND,
-    opfsStatus: NATIVE_FRAME_OPFS_STATUS,
+    legend: p3Active
+      ? buildP3Legend(opfsAvailable)
+      : NATIVE_FRAME_RESIDENCY_LEGEND,
+    opfsStatus,
+    opfsAvailable,
+    opfsUnknown,
+    opfsFrames: Object.freeze(
+      opfsAvailable ? [...opfsFrames].sort((left, right) => left - right) : [],
+    ),
+    opfsPendingWriteFrames: Object.freeze(
+      [...pendingWriteFrames].sort((left, right) => left - right),
+    ),
+    opfsPendingDeleteFrames: Object.freeze(
+      [...pendingDeleteFrames].sort((left, right) => left - right),
+    ),
+    opfsErrorFrames: Object.freeze(
+      [...opfsErrorFrames].sort((left, right) => left - right),
+    ),
+    opfsIneligibleFrames: Object.freeze(
+      [...opfsIneligibleFrames].sort((left, right) => left - right),
+    ),
+    opfsReadingFrame,
+    networkPendingFrame,
+    ramWindow,
+    opfsWindow,
     decodedState: NATIVE_FRAME_RESIDENCY_DECODED_STATE,
     mode: state.snapshot.mode,
     modeEpoch: state.snapshot.modeEpoch,
