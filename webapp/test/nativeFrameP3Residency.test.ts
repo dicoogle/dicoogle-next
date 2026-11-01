@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   MULTIFRAME_GRAYSCALE_WORD_SC_SOP_CLASS_UID,
   NATIVE_FRAME_TRANSFER_SYNTAX_UID,
+  NativeFrameError,
   type NativeFrameContext,
   type NativeFrameLocator,
   type NativeFramePayload,
@@ -87,6 +88,12 @@ function bytesFor(frameNumber: number): Uint8Array {
   for (let index = 0; index < bytes.length; index += 1) {
     bytes[index] = (index * 17 + frameNumber * 31) & 0xff;
   }
+  return bytes;
+}
+
+function bytesOfSize(frameNumber: number, size: number): Uint8Array {
+  const bytes = new Uint8Array(size);
+  bytes.fill((frameNumber * 37) & 0xff);
   return bytes;
 }
 
@@ -375,17 +382,20 @@ async function makeHarness(
     opfs: { behind: 3, ahead: 3 },
   },
   options: Partial<NativeFrameSessionOptions> = {},
+  locatorValue: NativeFrameLocator = locator,
+  contextValue: NativeFrameContext = context,
+  bytesFactory: (frameNumber: number) => Uint8Array = bytesFor,
 ): Promise<Harness> {
   const presenter = new TestPresenter();
   const networkCalls: number[] = [];
-  const session = new NativeFrameSession(locator, {
+  const session = new NativeFrameSession(locatorValue, {
     baseUrl: "https://example.test/next/api",
     token: "test-token",
     presenter,
     mode: "p1",
     cacheScope: CACHE_SCOPE,
     loadMetadata: async () => ({
-      context,
+      context: contextValue,
       sourceTransferSyntaxUID: NATIVE_FRAME_TRANSFER_SYNTAX_UID,
     }),
     loadFrame: async (
@@ -396,14 +406,14 @@ async function makeHarness(
         representation: "native-frame-v1",
         frameNumber: request.frameNumber,
         transferSyntaxUID: NATIVE_FRAME_TRANSFER_SYNTAX_UID,
-        bytes: bytesFor(request.frameNumber),
+        bytes: bytesFactory(request.frameNumber),
       };
     },
     p3: {
       adapter: adapter as unknown as NativeFramePlaintextOpfs,
       config,
     },
-    p3Digest: () => "synthetic-digest",
+    p3Digest: () => null,
     now: () => 0,
     ...options,
   });
@@ -1018,6 +1028,133 @@ test("snapshot stays fresh through network pending, dropped and failed publicati
   assert.equal(retried.status, "closed");
   harness.assertFresh("close retry");
   harness.assertFresh("end");
+  harness.session.close();
+});
+
+
+test("non-fixture 512x512 instance enters P2 and P3", async () => {
+  const genericLocator: NativeFrameLocator = {
+    studyInstanceUID: "1.3.6.1.4.1.5962.1.2.5006.1166546115.14677",
+    seriesInstanceUID: "1.3.6.1.4.1.5962.1.3.5006.7001.1166546115.14677",
+    sopInstanceUID: "1.3.6.1.4.1.5962.1.1.5006.7001.1.1.1166546115.14677",
+  };
+  const genericContext: NativeFrameContext = {
+    ...context,
+    rows: 512,
+    columns: 512,
+    numberOfFrames: 30,
+    frameSizeBytes: 524288,
+  };
+  const p2 = await makeHarness(
+    new FakeP3Adapter(),
+    undefined,
+    {},
+    genericLocator,
+    genericContext,
+    (frame) => bytesOfSize(frame, 524288),
+  );
+  p2.session.setMode("p2");
+  presented(await p2.session.selectFrame(1));
+  const p2Metrics = p2.session.metrics();
+  assert.equal(p2Metrics.cache?.entryCount, 1);
+  assert.equal(p2Metrics.cache?.limits.maxTotalNativeBytes, 4 * 524288);
+  p2.assertFresh("generic p2");
+  p2.session.close();
+
+  const p3 = await makeHarness(
+    new FakeP3Adapter(),
+    undefined,
+    {},
+    genericLocator,
+    genericContext,
+    (frame) => bytesOfSize(frame, 524288),
+  );
+  const entered = await p3.session.setModeAsync("p3");
+  assert.equal(entered.status, "enabled");
+  presented(await p3.session.selectFrame(1));
+  await waitFor(() => p3.session.metrics().opfs?.entries === 1);
+  assert.equal(p3.session.metrics().opfs?.committedNativeBytes, 524288);
+  assert.equal(p3.session.metrics().opfs?.digestEntries, 1);
+  p3.session.clearRam();
+  const revisit = presented(await p3.session.selectFrame(1));
+  assert.equal(revisit.opfsCache, "hit");
+  assert.equal(revisit.promotedToRam, true);
+  p3.assertFresh("generic p3");
+  p3.session.close();
+});
+
+test("equal frame numbers in two instances do not share cache entries", async () => {
+  const base = {
+    study: "1.3.6.1.4.1.5962.1.2.5006.1166546115.14677",
+    series: "1.3.6.1.4.1.5962.1.3.5006.7001.1166546115.14677",
+  };
+  const contextA: NativeFrameContext = {
+    ...context,
+    rows: 512,
+    columns: 512,
+    numberOfFrames: 30,
+    frameSizeBytes: 524288,
+  };
+  const first = await makeHarness(
+    new FakeP3Adapter(),
+    undefined,
+    {},
+    { ...locator, studyInstanceUID: base.study, seriesInstanceUID: base.series, sopInstanceUID: `${base.study}.1` },
+    contextA,
+    (frame) => bytesOfSize(frame, 524288),
+  );
+  await enterP3(first);
+  presented(await first.session.selectFrame(1));
+  await waitFor(() => first.session.metrics().opfs?.entries === 1);
+  first.session.close();
+
+  const second = await makeHarness(
+    new FakeP3Adapter(),
+    undefined,
+    {},
+    { ...locator, studyInstanceUID: base.study, seriesInstanceUID: base.series, sopInstanceUID: `${base.study}.2` },
+    contextA,
+    (frame) => bytesOfSize(frame, 524288),
+  );
+  await enterP3(second);
+  const result = presented(await second.session.selectFrame(1));
+  assert.equal(result.source, "network");
+  assert.equal(result.opfsCache, "miss");
+  assert.equal(second.networkCalls.length, 1);
+  second.assertFresh("second instance");
+  second.session.close();
+});
+
+test("four-frame instance rejects a frame past the end without changing the display", async () => {
+  const fourFrameContext: NativeFrameContext = {
+    ...context,
+    rows: 512,
+    columns: 512,
+    numberOfFrames: 4,
+    frameSizeBytes: 524288,
+  };
+  const harness = await makeHarness(
+    new FakeP3Adapter(),
+    undefined,
+    {},
+    locator,
+    fourFrameContext,
+    (frame) => bytesOfSize(frame, 524288),
+  );
+  await enterP3(harness);
+  for (const frame of [1, 2, 3, 4]) {
+    presented(await harness.session.selectFrame(frame));
+  }
+  assert.equal(harness.session.metrics().displayedFrame, 4);
+  await assert.rejects(
+    () => harness.session.selectFrame(5),
+    (error: unknown) =>
+      error instanceof NativeFrameError &&
+      error.message.includes("outside the instance frame range"),
+  );
+  assert.equal(harness.session.metrics().displayedFrame, 4);
+  assert.equal(harness.session.metrics().errorFrame, 5);
+  harness.assertFresh("past end");
   harness.session.close();
 });
 

@@ -23,6 +23,7 @@ services:
         BASE_PATH: "/next/"
         VITE_BASE_PATH: "/next"
         VITE_FILESYSTEM_START_PATH: "/"
+        VITE_NATIVE_FRAME_P3_ENABLED: "true"
     container_name: dicoogle-frontend
     restart: unless-stopped
     ports:

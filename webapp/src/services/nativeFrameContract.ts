@@ -5,6 +5,23 @@ export const SECONDARY_CAPTURE_SOP_CLASS_UID =
   "1.2.840.10008.5.1.4.1.1.7";
 export const MULTIFRAME_GRAYSCALE_WORD_SC_SOP_CLASS_UID =
   "1.2.840.10008.5.1.4.1.1.7.3";
+export const CT_IMAGE_STORAGE_SOP_CLASS_UID =
+  "1.2.840.10008.5.1.4.1.1.2";
+export const MR_IMAGE_STORAGE_SOP_CLASS_UID =
+  "1.2.840.10008.5.1.4.1.1.4";
+export const ENHANCED_MR_IMAGE_STORAGE_SOP_CLASS_UID =
+  "1.2.840.10008.5.1.4.1.1.4.1";
+
+export const SUPPORTED_NATIVE_FRAME_SOP_CLASS_UIDS: ReadonlySet<string> =
+  Object.freeze(
+    new Set([
+      SECONDARY_CAPTURE_SOP_CLASS_UID,
+      MULTIFRAME_GRAYSCALE_WORD_SC_SOP_CLASS_UID,
+      CT_IMAGE_STORAGE_SOP_CLASS_UID,
+      MR_IMAGE_STORAGE_SOP_CLASS_UID,
+      ENHANCED_MR_IMAGE_STORAGE_SOP_CLASS_UID,
+    ]),
+  );
 
 export const MAX_NATIVE_FRAME_BYTES = 16 * 1024 * 1024;
 export const MAX_MULTIPART_RESPONSE_BYTES =
@@ -115,6 +132,9 @@ export function validateNativeFrameContext(context: NativeFrameContext): void {
     throw invalidRequest("Unsupported native-frame transfer syntax");
   }
   assertDicomUid(context.sopClassUID, "sopClassUID");
+  if (!SUPPORTED_NATIVE_FRAME_SOP_CLASS_UIDS.has(context.sopClassUID)) {
+    throw invalidRequest("Unsupported SOP class for native-frame retrieval");
+  }
   assertPositiveInteger(context.rows, "rows");
   assertPositiveInteger(context.columns, "columns");
   assertPositiveInteger(context.samplesPerPixel, "samplesPerPixel");

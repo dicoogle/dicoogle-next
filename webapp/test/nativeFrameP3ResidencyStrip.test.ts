@@ -71,6 +71,7 @@ function opfsMetrics(
     errorFrames: [],
     ineligibleFrames: [],
     readingFrame: null,
+    digestEntries: 0,
     networkPendingFrame: null,
     ramWindow: { startFrame: 1, endFrame: 2 },
     opfsWindow: { startFrame: 1, endFrame: 4 },

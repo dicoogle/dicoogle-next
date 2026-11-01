@@ -15,7 +15,7 @@ import type {
   NativeFrameContext,
   NativeFrameLocator,
 } from "@/services/nativeFrameContract";
-import { resolveNativeFrameSourceVersion } from "@/services/nativeFrameFixture";
+import { resolveNativeFrameP3Enabled } from "@/services/nativeFrameFeatureFlags";
 import { resolveNativeFrameOwnership } from "@/services/nativeFrameOwnership";
 import { CornerstoneFramePresenter } from "@/services/nativeFramePresenter";
 import {
@@ -96,10 +96,11 @@ export function NativeFrameViewer({
   const [copied, setCopied] = useState(false);
   const [ramNotice, setRamNotice] = useState(false);
 
-  const p2Available = Boolean(
-    ownerId && resolveNativeFrameSourceVersion(locator),
+  const p3Enabled = resolveNativeFrameP3Enabled(
+    import.meta.env.VITE_NATIVE_FRAME_P3_ENABLED,
   );
-  const p3Available = p2Available;
+  const p2Available = Boolean(ownerId);
+  const p3Available = p2Available && p3Enabled;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -510,10 +511,12 @@ export function NativeFrameViewer({
   const windowBounds = sessionMetrics?.window ?? null;
   const p2DisabledTitle = !principalId
     ? "P2 requires an authenticated user"
-    : "P2 is available only for recognised synthetic fixture instances";
+    : "P2 native RAM window";
   const p3DisabledTitle = !principalId
     ? "P3 requires an authenticated user"
-    : "P3 is available only for recognised synthetic fixture instances";
+    : !p3Enabled
+      ? "P3 plaintext persistence is disabled in this build"
+      : "P3 plaintext OPFS";
 
   useEffect(() => {
     setStripStart(null);

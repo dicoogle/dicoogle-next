@@ -8,7 +8,12 @@ import {
   type NativeFrameLocator,
   type WrappedSingleFrame,
 } from "./nativeFrameContract";
-import { resolveNativeFrameSourceVersion } from "./nativeFrameFixture";
+import { deriveNativeFrameSourceIdentity } from "./nativeFrameSourceIdentity";
+import {
+  computeNativeFrameP3Digest,
+  NativeFrameP3DigestMap,
+} from "./nativeFrameP3Digests";
+import { deriveNativeFrameBudgets } from "./nativeFrameBudget";
 import {
   calculateNativeFramePrefetchTarget,
   DEFAULT_NATIVE_FRAME_PREFETCH_LIMITS,
@@ -56,7 +61,9 @@ import {
 } from "./nativeFrameDualWindowPolicy";
 import {
   NativeFramePlaintextOpfs,
+  DEFAULT_NATIVE_FRAME_PLAINTEXT_OPFS_LIMITS,
   type NativeFramePlaintextOpfsEventBatch,
+  type NativeFramePlaintextOpfsLimits,
   type NativeFramePlaintextOpfsSnapshot,
 } from "./nativeFramePlaintextOpfs";
 import { getNativeFrameFixtureDigest } from "./nativeFrameFixtureDigests";
@@ -249,6 +256,7 @@ export interface NativeFrameP3Metrics {
   readonly ineligibleFrames: readonly number[];
   readonly readingFrame: number | null;
   readonly networkPendingFrame: number | null;
+  readonly digestEntries: number;
   readonly ramWindow: NativeFrameP3WindowBounds | null;
   readonly opfsWindow: NativeFrameP3WindowBounds | null;
 }
@@ -378,7 +386,14 @@ export class NativeFrameSession {
   private readonly wrapperBuilder: WrapperBuilder;
   private readonly now: () => number;
   private readonly p2Scope: NativeFrameP2Scope | null;
-  private readonly cacheLimits: NativeRamCacheLimits;
+  private readonly cacheLimitsOption: NativeRamCacheLimits | null;
+  private cacheLimits: NativeRamCacheLimits;
+  private readonly p3LimitsOption: NativeFrameDualWindowLimits | null;
+  private p3Limits: NativeFrameDualWindowLimits;
+  private opfsLimits: NativeFramePlaintextOpfsLimits =
+    DEFAULT_NATIVE_FRAME_PLAINTEXT_OPFS_LIMITS;
+  private sourceIdentity: string | null = null;
+  private readonly p3Digests = new NativeFrameP3DigestMap();
   private readonly windowConfig: NativeRamWindowPolicyConfig;
   private readonly residentKeys = new Map<string, NativeFrameCacheKey>();
   private readonly residencyListeners = new Set<() => void>();
@@ -475,7 +490,11 @@ export class NativeFrameSession {
     this.p2Scope = options.cacheScope ?? null;
     this.p3Option = options.p3 ?? null;
     this.p3Digest = options.p3Digest ?? getNativeFrameFixtureDigest;
+    this.cacheLimitsOption = options.cacheLimits ?? null;
     this.cacheLimits = options.cacheLimits ?? DEFAULT_NATIVE_RAM_CACHE_LIMITS;
+    this.p3LimitsOption = this.p3Option?.limits ?? null;
+    this.p3Limits =
+      this.p3Option?.limits ?? DEFAULT_NATIVE_FRAME_DUAL_WINDOW_LIMITS;
     this.windowConfig =
       options.windowConfig ?? DEFAULT_NATIVE_RAM_WINDOW_POLICY;
     if (
@@ -493,8 +512,7 @@ export class NativeFrameSession {
     }
     this.mode = mode;
     if (this.mode === "p2") {
-      this.assertP2Available();
-      this.cache = this.createP2Cache();
+      this.assertP2Scope();
       this.prefetchEnabled = options.prefetchEnabled === true;
     }
   }
@@ -520,7 +538,23 @@ export class NativeFrameSession {
     }
 
     this.metadataAbort = null;
+    const sourceIdentity = await deriveNativeFrameSourceIdentity({
+      locator: this.locator,
+      context: metadata.context,
+    });
+    const budgets = deriveNativeFrameBudgets(metadata.context.frameSizeBytes);
+    this.sourceIdentity = sourceIdentity;
+    if (!this.cacheLimitsOption) {
+      this.cacheLimits = budgets.cache;
+    }
+    if (!this.p3LimitsOption) {
+      this.p3Limits = budgets.dual;
+    }
+    this.opfsLimits = budgets.opfs;
     this.context = metadata.context;
+    if (this.mode === "p2" && !this.cache) {
+      this.cache = this.createP2Cache();
+    }
     return metadata.context;
   }
 
@@ -609,8 +643,8 @@ export class NativeFrameSession {
     if (!this.p2Scope || !this.p3Option) {
       throw invalidRequest("P3 requires an authenticated cache scope and P3 options");
     }
-    if (!resolveNativeFrameSourceVersion(this.locator)) {
-      throw invalidRequest("P3 is available only for recognised synthetic fixture instances");
+    if (!this.sourceIdentity) {
+      throw invalidRequest("Native-frame session must be opened before P3");
     }
   }
 
@@ -622,6 +656,7 @@ export class NativeFrameSession {
       namespaceId: this.p3Option?.namespaceId ?? randomOpaqueId("p3-ns"),
       ownerId: this.p3Option?.ownerId ?? randomOpaqueId("p3-owner"),
       generation: this.p3Option?.generation ?? 1,
+      limits: this.opfsLimits,
     });
   }
 
@@ -803,6 +838,7 @@ export class NativeFrameSession {
     this.p3PendingDeletes.clear();
     this.p3ErrorFrames.clear();
     this.p3IneligibleFrames.clear();
+    this.p3Digests.clear();
     this.p3ReadingFrame = null;
     this.p3NetworkPendingFrame = null;
     this.p3Clearing = false;
@@ -977,6 +1013,22 @@ export class NativeFrameSession {
         return { status: "stale" };
       }
 
+      if (this.mode === "p3" && source === "network" && key !== null) {
+        const computedDigest = await computeNativeFrameP3Digest(bytes);
+        const fixtureDigest = this.p3Digest(this.locator, frameNumber);
+        if (fixtureDigest && fixtureDigest !== computedDigest) {
+          this.recordP3Error("digest-mismatch", frameNumber);
+          throw new NativeFrameError(
+            "invalid-response",
+            "Native-frame digest does not match the fixture digest",
+          );
+        }
+        if (this.isStale(requestId)) {
+          return { status: "stale" };
+        }
+        this.p3Digests.set(frameNumber, computedDigest);
+      }
+
       if (
         this.mode === "p2" &&
         source === "network" &&
@@ -1105,10 +1157,10 @@ export class NativeFrameSession {
     if (this.p3Status !== "enabled" || !adapter) {
       return { opfsCache: "not-applicable", promotedToRam: false };
     }
-    const digest = this.p3Digest(this.locator, frameNumber);
+    const digest = this.p3Digests.get(frameNumber);
     if (!digest) {
-      this.recordP3Error("digest-missing", frameNumber);
-      return { opfsCache: "invalid", promotedToRam: false };
+      // No request-side expectation: do not read/return OPFS bytes.
+      return { opfsCache: "miss", promotedToRam: false };
     }
     this.p3ReadingFrame = frameNumber;
     this.publishResidency();
@@ -1281,7 +1333,7 @@ export class NativeFrameSession {
       pendingDeletes,
       incoming,
       config: this.p3Option?.config ?? DEFAULT_NATIVE_FRAME_DUAL_WINDOW_CONFIG,
-      limits: this.p3Option?.limits ?? DEFAULT_NATIVE_FRAME_DUAL_WINDOW_LIMITS,
+      limits: this.p3Limits,
     };
   }
 
@@ -1388,7 +1440,7 @@ export class NativeFrameSession {
       return;
     }
     const clearEpoch = this.p3ClearEpoch;
-    const digest = this.p3Digest(this.locator, item.key.frameNumber);
+    const digest = this.p3Digests.get(item.key.frameNumber);
     if (!digest) {
       this.recordP3Error("digest-missing", item.key.frameNumber);
       return;
@@ -1673,6 +1725,7 @@ export class NativeFrameSession {
       ),
       readingFrame: this.p3ReadingFrame,
       networkPendingFrame: this.p3NetworkPendingFrame,
+      digestEntries: this.p3Digests.size,
       ramWindow: windows.ram,
       opfsWindow: windows.opfs,
     };
@@ -1774,6 +1827,7 @@ export class NativeFrameSession {
         this.p3PendingDeletes.clear();
         this.p3ErrorFrames.clear();
         this.p3IneligibleFrames.clear();
+        this.p3Digests.clear();
         this.p3StorageError = null;
         this.p3MapRevision += 1;
         this.publishResidency();
@@ -2570,9 +2624,9 @@ export class NativeFrameSession {
     frameNumber: number,
     context: NativeFrameContext,
   ): NativeFrameCacheKey {
-    const sourceVersion = resolveNativeFrameSourceVersion(this.locator);
+    const sourceVersion = this.sourceIdentity;
     if (!sourceVersion || !this.p2Scope) {
-      throw invalidRequest("P2 source-version scope is unavailable");
+      throw invalidRequest("P2 source-identity scope is unavailable");
     }
     return createNativeFrameCacheKey({
       principalId: this.p2Scope.principalId,
@@ -2613,21 +2667,23 @@ export class NativeFrameSession {
     });
   }
 
-  private assertP2Available(): void {
+  private assertP2Scope(): void {
     if (!this.p2Scope) {
       throw invalidRequest("P2 requires an authenticated cache scope");
     }
-    if (!resolveNativeFrameSourceVersion(this.locator)) {
-      throw invalidRequest(
-        "P2 is available only for recognised synthetic fixture instances",
-      );
+  }
+
+  private assertP2Available(): void {
+    this.assertP2Scope();
+    if (!this.sourceIdentity) {
+      throw invalidRequest("Native-frame session must be opened before P2");
     }
   }
 
   private createP2Cache(): NativeRamCache {
-    const sourceVersion = resolveNativeFrameSourceVersion(this.locator);
+    const sourceVersion = this.sourceIdentity;
     if (!sourceVersion || !this.p2Scope) {
-      throw invalidRequest("P2 source-version scope is unavailable");
+      throw invalidRequest("P2 source-identity scope is unavailable");
     }
     return new NativeRamCache(
       {

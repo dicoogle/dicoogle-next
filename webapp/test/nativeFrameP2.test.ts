@@ -17,10 +17,8 @@ import {
   type NativeFrameSessionOptions,
 } from "../src/services/nativeFrameSession";
 import {
-  resolveNativeFrameSourceVersion,
   SYNTHETIC_FIXTURE_INSTANCE_A_UID,
   SYNTHETIC_FIXTURE_SERIES_A_UID,
-  SYNTHETIC_FIXTURE_SOURCE_VERSION,
   SYNTHETIC_FIXTURE_STUDY_UID,
 } from "../src/services/nativeFrameFixture";
 
@@ -263,25 +261,6 @@ async function flush(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-test("resolves synthetic-study-v1 only for the known fixture instances", () => {
-  assert.equal(resolveNativeFrameSourceVersion(locator), SYNTHETIC_FIXTURE_SOURCE_VERSION);
-  assert.equal(
-    resolveNativeFrameSourceVersion({
-      studyInstanceUID: STUDY,
-      seriesInstanceUID: SERIES,
-      sopInstanceUID: "1.2.826.0.1.3680043.2.1125.100.1.1.9",
-    }),
-    null,
-  );
-  assert.equal(
-    resolveNativeFrameSourceVersion({
-      studyInstanceUID: "1.2.826.0.1.3680043.2.1125.100.9",
-      seriesInstanceUID: SERIES,
-      sopInstanceUID: INSTANCE,
-    }),
-    null,
-  );
-});
 
 test("P1 sequence 1,2,1 makes three frame requests", async () => {
   const requests: number[] = [];
@@ -588,22 +567,3 @@ test("malformed P2 transport does not cache and records an error", async () => {
   session.close();
 });
 
-test("P2 is unavailable outside the recognised synthetic fixture", () => {
-  const unknownLocator: NativeFrameLocator = {
-    studyInstanceUID: "1.2.826.0.1.3680043.2.1125.100.9",
-    seriesInstanceUID: SERIES,
-    sopInstanceUID: INSTANCE,
-  };
-  assert.equal(resolveNativeFrameSourceVersion(unknownLocator), null);
-  assert.throws(
-    () =>
-      makeSession(new TestPresenter(), {
-        mode: "p2",
-        cacheScope: CACHE_SCOPE,
-      }, unknownLocator),
-    (error: unknown) =>
-      error instanceof NativeFrameError &&
-      error.code === "invalid-request" &&
-      error.message.includes("recognised synthetic fixture"),
-  );
-});
