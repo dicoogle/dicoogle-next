@@ -124,6 +124,7 @@ function render(
     React.createElement(NativeFrameP3ResidencyStrip, {
       view,
       busy: false,
+      onClearRam: () => undefined,
       onClearOpfs: () => undefined,
       onClearBoth: () => undefined,
       notice: null,
@@ -258,6 +259,33 @@ test("Clear OPFS is disabled when busy or the disk tier is unavailable", () => {
   markup = render(cleanup);
   assert.match(buttonMarkup(markup, "Clear OPFS"), /disabled=""/);
   assert.match(buttonMarkup(markup, "Clear Both"), /disabled=""/);
+});
+
+test("P3 Clear RAM is present and disabled only by busy or cleanup-required", () => {
+  const enabled = makeView();
+  let markup = render(enabled);
+  assert.match(markup, /Clear RAM/);
+  assert.doesNotMatch(buttonMarkup(markup, "Clear RAM"), /disabled=""/);
+  assert.doesNotMatch(buttonMarkup(markup, "Clear OPFS"), /disabled=""/);
+
+  markup = render(enabled, { busy: true });
+  assert.match(buttonMarkup(markup, "Clear RAM"), /disabled=""/);
+
+  const cleanup = makeView({
+    opfs: {
+      status: "cleanup-required",
+      frames: [],
+      storageError: "write-in-flight",
+    },
+  });
+  markup = render(cleanup);
+  assert.match(buttonMarkup(markup, "Clear RAM"), /disabled=""/);
+
+  const degraded = makeView({
+    opfs: { status: "degraded", frames: [], storageError: "move-unavailable" },
+  });
+  markup = render(degraded);
+  assert.doesNotMatch(buttonMarkup(markup, "Clear RAM"), /disabled=""/);
 });
 
 test("P3 strip reports notice and partial state without claiming deletion", () => {

@@ -7,6 +7,7 @@ import type {
 export interface NativeFrameP3ResidencyStripProps {
   readonly view: NativeFrameResidencyView;
   readonly busy: boolean;
+  readonly onClearRam: () => void;
   readonly onClearOpfs: () => void;
   readonly onClearBoth: () => void;
   readonly notice: string | null;
@@ -93,11 +94,16 @@ function markers(tile: NativeFrameResidencyTile): string[] {
 export function NativeFrameP3ResidencyStrip({
   view,
   busy,
+  onClearRam,
   onClearOpfs,
   onClearBoth,
   notice,
   error,
 }: NativeFrameP3ResidencyStripProps) {
+  const ramClearDisabled =
+    busy ||
+    view.opfsStatus === "cleanup-required" ||
+    view.opfsStatus === "closed";
   const opfsClearDisabled = busy || !view.opfsAvailable;
   const bothClearDisabled =
     busy ||
@@ -114,6 +120,15 @@ export function NativeFrameP3ResidencyStrip({
           {view.totalFrames} · bounded {view.limit} tiles · no fetch
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onClearRam}
+            disabled={ramClearDisabled}
+            className="rounded border border-blue-500 px-2 py-0.5 text-blue-200 disabled:opacity-50"
+            title="Clear owned reusable native RAM; OPFS and the displayed frame remain"
+          >
+            Clear RAM
+          </button>
           <button
             type="button"
             onClick={onClearOpfs}

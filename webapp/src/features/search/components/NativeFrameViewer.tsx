@@ -336,6 +336,23 @@ export function NativeFrameViewer({
     });
   }, [actionBusy, mode, modeBusy]);
 
+  const clearRamP3 = useCallback(() => {
+    const session = sessionRef.current;
+    if (!session || mode !== "p3" || actionBusy || modeBusy) {
+      return;
+    }
+    const result = session.clearRam();
+    if (!result) {
+      return;
+    }
+    setError(null);
+    setP3Notice(
+      "Reusable native RAM cleared; OPFS entries remain. The displayed frame " +
+        "remains transient.",
+    );
+    setSessionMetrics(session.metrics());
+  }, [actionBusy, mode, modeBusy]);
+
   const clearOpfs = useCallback(async () => {
     const session = sessionRef.current;
     if (!session || mode !== "p3" || actionBusy || modeBusy) {
@@ -723,6 +740,7 @@ export function NativeFrameViewer({
               busy ||
               status === "loading-frame"
             }
+            onClearRam={() => clearRamP3()}
             onClearOpfs={() => void clearOpfs()}
             onClearBoth={() => void clearBoth()}
             notice={p3Notice}

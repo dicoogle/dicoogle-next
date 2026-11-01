@@ -503,6 +503,31 @@ test("P3 revisit 1 promotes to RAM and Clear RAM leaves purple only", async () =
   harness.session.close();
 });
 
+test("P3 Clear RAM keeps the OPFS map and revisiting 2 is an OPFS hit with promotion", async () => {
+  const harness = await makeHarness();
+  await enterP3(harness);
+  for (const frame of [1, 2, 3]) {
+    presented(await harness.session.selectFrame(frame));
+  }
+  await waitFor(() => harness.session.metrics().opfs?.entries === 3);
+
+  harness.session.clearRam();
+  const cleared = harness.session.metrics();
+  assert.deepEqual(cleared.opfs?.frames, [1, 2, 3]);
+  assert.equal(cleared.opfs?.entries, 3);
+  assert.deepEqual(cleared.cache?.frames ?? [], []);
+
+  const revisit = presented(await harness.session.selectFrame(2));
+  assert.equal(revisit.source, "ram");
+  assert.equal(revisit.opfsSource, "opfs");
+  assert.equal(revisit.opfsCache, "hit");
+  assert.equal(revisit.promotedToRam, true);
+  assert.equal(harness.networkCalls.length, 3);
+  assert.deepEqual(harness.session.metrics().opfs?.frames, [1, 2, 3]);
+  assert.ok(harness.session.metrics().cache?.frames.includes(2));
+  harness.session.close();
+});
+
 test("P3 Clear OPFS keeps RAM blue and removes only committed OPFS", async () => {
   const harness = await makeHarness();
   await enterP3(harness);
