@@ -712,6 +712,7 @@ export class NativeFrameSession {
       } catch {
         // The mode/generation check below leaves the state visible.
       }
+      this.p3Publish();
       return { mode: this.mode, status: "failed", reason: "stale-mode-entry" };
     }
     if (opened.status === "opened" && opened.capabilities.move) {
@@ -751,6 +752,7 @@ export class NativeFrameSession {
       if (closed.status === "failed") {
         this.p3Status = "cleanup-required";
         this.p3StorageError = closed.reason ?? "OPFS cleanup pending";
+        this.p3Publish();
         return {
           mode: "p3",
           status: "failed",
@@ -762,6 +764,7 @@ export class NativeFrameSession {
     this.disposeP3AdapterState();
     this.p3Status = "disabled";
     this.p3StorageError = null;
+    this.p3Publish();
     return { mode: this.mode, status: "closed" };
   }
 
@@ -776,6 +779,7 @@ export class NativeFrameSession {
       if (closed.status === "failed") {
         this.p3Status = "cleanup-required";
         this.p3StorageError = closed.reason ?? "OPFS cleanup pending";
+        this.p3Publish();
         return {
           mode: "p3",
           status: "failed",
@@ -786,6 +790,7 @@ export class NativeFrameSession {
     }
     this.disposeP3AdapterState();
     this.p3Status = "closed";
+    this.p3Publish();
     return { mode: "p3", status: "closed" };
   }
 
@@ -1182,6 +1187,7 @@ export class NativeFrameSession {
       this.residentKeys.set(put.entry.entryId, key);
       if (this.isP3Current()) {
         this.p3Counters.promotions += 1;
+        this.p3Publish();
       }
       return true;
     }
@@ -1307,6 +1313,7 @@ export class NativeFrameSession {
         nativeBytes: entry.nativeBytes,
         fileBytes: entry.fileBytes,
       });
+      this.p3Publish();
       const result = await adapter.invalidate(deletion.key);
       await this.reconcileP3Events();
       if (result.status === "deleted") {
@@ -1322,6 +1329,7 @@ export class NativeFrameSession {
         this.recordP3Error(result.reason ?? "delete-failed", deletion.key.frameNumber);
       }
       this.p3PendingDeletes.delete(fingerprint);
+      this.p3Publish();
     }
     this.p3MapRevision += 1;
     this.publishResidency();
@@ -1350,6 +1358,7 @@ export class NativeFrameSession {
       phase: "planned",
       superseded: false,
     };
+    this.p3Publish();
     if (!this.p3PublicationPromise) {
       this.p3PublicationPromise = this.runP3Publications().finally(() => {
         this.p3PublicationPromise = null;
@@ -1368,6 +1377,7 @@ export class NativeFrameSession {
       await this.publishP3(item);
       if (this.p3PendingPublication === item) {
         this.p3PendingPublication = null;
+        this.p3Publish();
       }
     }
   }
@@ -1411,6 +1421,7 @@ export class NativeFrameSession {
           nativeBytes: entry.nativeBytes,
           fileBytes: entry.fileBytes,
         });
+        this.p3Publish();
         const result = await adapter.invalidate(deletion.key);
         await this.reconcileP3Events();
         if (result.status !== "deleted") {
@@ -1430,6 +1441,7 @@ export class NativeFrameSession {
           this.p3Counters.deletes += 1;
         }
         this.p3PendingDeletes.delete(fingerprint);
+        this.p3Publish();
       }
       if (item.superseded) {
         return;
@@ -1462,6 +1474,7 @@ export class NativeFrameSession {
       nativeBytes: item.bytes.byteLength,
       fileBytes: item.bytes.byteLength + 80,
     };
+    this.p3Publish();
     const result = await adapter
       .put(item.key, item.bytes, {
         frameSizeBytes: item.bytes.byteLength,
@@ -1472,6 +1485,7 @@ export class NativeFrameSession {
         reason: "write-failed" as const,
       }));
     this.p3PendingWrite = null;
+    this.p3Publish();
     await this.reconcileP3Events();
     if (this.p3ClearEpoch !== clearEpoch) {
       return;
@@ -1501,6 +1515,7 @@ export class NativeFrameSession {
         if (current) {
           this.p3Counters.writes += 1;
         }
+        this.p3Publish();
         if (this.p3Adapter) {
           await this.maintainP3Window();
         }
@@ -1578,10 +1593,14 @@ export class NativeFrameSession {
         }
       }
     }
-    if (changed) {
+    if (changed || batch.resynchronize || batch.events.length > 0) {
       this.p3MapRevision += 1;
-      this.publishResidency();
+      this.p3Publish();
     }
+  }
+
+  private p3Publish(): void {
+    this.publishResidency();
   }
 
   private recordP3Error(reason: string | undefined, frameNumber?: number): void {
@@ -1594,7 +1613,7 @@ export class NativeFrameSession {
     if (frameNumber !== undefined) {
       this.p3ErrorFrames.add(frameNumber);
     }
-    this.publishResidency();
+    this.p3Publish();
   }
 
   private isP3Current(): boolean {
@@ -1733,6 +1752,7 @@ export class NativeFrameSession {
     this.p3Clearing = true;
     this.p3ClearEpoch += 1;
     this.p3PendingPublication = null;
+    this.p3Publish();
     try {
       if (this.p3PublicationPromise) {
         try {
@@ -2412,6 +2432,9 @@ export class NativeFrameSession {
     this.demandFrameBodyRequests += 1;
     this.frameBodyRequests += 1;
     this.pendingFrameRequests += 1;
+    if (this.mode === "p3") {
+      this.p3Publish();
+    }
     try {
       const payload = await this.frameLoader(
         {
@@ -2430,6 +2453,9 @@ export class NativeFrameSession {
     } finally {
       if (lifecycleEpoch === this.frameLifecycleEpoch) {
         this.pendingFrameRequests -= 1;
+        if (this.mode === "p3") {
+          this.p3Publish();
+        }
       }
     }
   }

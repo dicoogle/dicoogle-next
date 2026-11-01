@@ -143,6 +143,7 @@ class FakeP3Adapter {
   putFailure: string | null = null;
   invalidateFailure: string | null = null;
   clearFailure: string | null = null;
+  closeFailure: string | null = null;
   entries = new Map<string, FakeEntry>();
   events: Array<{
     sequence: number;
@@ -281,6 +282,9 @@ class FakeP3Adapter {
   }
   async close() {
     this.closeCalls += 1;
+    if (this.closeFailure) {
+      return { status: "failed" as const, reason: this.closeFailure as never };
+    }
     this.entries.clear();
     return { status: "closed" as const };
   }
@@ -361,6 +365,7 @@ interface Harness {
   session: NativeFrameSession;
   adapter: FakeP3Adapter;
   networkCalls: number[];
+  assertFresh: (label?: string) => void;
 }
 
 async function makeHarness(
@@ -403,7 +408,21 @@ async function makeHarness(
     ...options,
   });
   await session.open();
-  return { session, adapter, networkCalls };
+  const snapshots: NativeFrameSessionMetrics[] = [];
+  session.subscribeResidency(({ snapshot }) => snapshots.push(snapshot));
+  return {
+    session,
+    adapter,
+    networkCalls,
+    assertFresh: (label = "snapshot") => {
+      assert.ok(snapshots.length > 0, `${label}: no snapshot`);
+      assert.deepEqual(
+        snapshots[snapshots.length - 1],
+        session.metrics(),
+        `${label}: last emitted snapshot is stale`,
+      );
+    },
+  };
 }
 
 async function enterP3(harness: Harness): Promise<void> {
@@ -471,6 +490,7 @@ test("P3 trace 1,2,3: frame 1 is purple and frames 2-3 are BOTH", async () => {
   const serialized = JSON.stringify(harness.session.metrics().opfs);
   assert.equal(serialized.includes("alias-"), false);
   assert.equal(serialized.includes(SYNTHETIC_FIXTURE_STUDY_UID), false);
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -500,6 +520,7 @@ test("P3 revisit 1 promotes to RAM and Clear RAM leaves purple only", async () =
   for (const frame of [1, 2, 3]) {
     assert.equal(tile(view, frame).residency, "opfs");
   }
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -525,6 +546,7 @@ test("P3 Clear RAM keeps the OPFS map and revisiting 2 is an OPFS hit with promo
   assert.equal(harness.networkCalls.length, 3);
   assert.deepEqual(harness.session.metrics().opfs?.frames, [1, 2, 3]);
   assert.ok(harness.session.metrics().cache?.frames.includes(2));
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -549,6 +571,7 @@ test("P3 Clear OPFS keeps RAM blue and removes only committed OPFS", async () =>
   assert.equal(tile(view, 2).residency, "ram");
   assert.equal(tile(view, 3).residency, "absent");
   assert.deepEqual(view.opfsFrames, []);
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -571,6 +594,7 @@ test("P3 Clear Both is partial when OPFS cleanup fails after RAM clear", async (
   assert.equal(view.opfsAvailable, true);
   assert.deepEqual(view.opfsFrames, []);
   assert.ok((harness.session.metrics().opfs?.errors["delete-failed"] ?? 0) >= 1);
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -610,6 +634,7 @@ test("P3 moving beyond the disk window shows X then grey after confirmed removal
   for (const frame of [1, 2, 3]) {
     assert.equal(tile(after, frame).residency, "absent");
   }
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -633,6 +658,7 @@ test("P3 quota failure never paints purple and marks the frame", async () => {
     assert.notEqual(item.residency, "opfs");
     assert.notEqual(item.residency, "both");
   }
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -658,6 +684,7 @@ test("P3 degraded marks the disk tier unavailable and never purple", async () =>
   const opfsLegend = view.legend.find((item) => item.key === "opfs");
   assert.equal(opfsLegend?.disabled, true);
   assert.match(opfsLegend?.label ?? "", /unavailable\/unknown/);
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -698,6 +725,7 @@ test("pending publication never paints purple; pending replacement keeps committ
   view = buildNativeFrameResidencyView(state, 8);
   assert.equal(tile(view, 2).residency, "opfs");
   assert.equal(tile(view, 2).opfsPendingWrite, true);
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -726,6 +754,7 @@ test("clear during an in-flight publication does not repopulate OPFS", async () 
     assert.notEqual(item.residency, "opfs");
     assert.notEqual(item.residency, "both");
   }
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -757,6 +786,7 @@ test("stale P2 or old-namespace snapshots cannot paint OPFS residency", async ()
   );
   assert.equal(view.opfsStatus, "disabled");
   assert.deepEqual(view.opfsFrames, []);
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -788,6 +818,7 @@ test("failed delete keeps physical presence, shows error and marks ineligible", 
     assert.equal(item.opfsIneligible, true);
     assert.ok(item.labels.includes("Ineligible"));
   }
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -809,6 +840,7 @@ test("Clear OPFS failure stays visible and never claims deletion", async () => {
   );
   assert.equal(view.opfsAvailable, true);
   assert.deepEqual(view.opfsFrames, []);
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -856,6 +888,136 @@ test("session exposes OPFS-reading and network-pending frames independently", as
   presented(await pending);
   assert.equal(harness.session.metrics().opfs?.networkPendingFrame, null);
   assert.deepEqual(networkCalls, [1, 2]);
+  harness.assertFresh("end");
+  harness.session.close();
+});
+
+test("last emitted snapshot clears pending writes after publication quiesces", async () => {
+  const harness = await makeHarness();
+  await enterP3(harness);
+  harness.assertFresh("entry");
+  presented(await harness.session.selectFrame(1));
+  await waitFor(() => {
+    const opfs = harness.session.metrics().opfs;
+    return (opfs?.entries ?? 0) === 1 && (opfs?.pendingWrites ?? 0) === 0;
+  });
+  harness.assertFresh("publication quiesced");
+  const opfs = harness.session.metrics().opfs;
+  assert.deepEqual(opfs?.pendingWriteFrames, []);
+  assert.equal(opfs?.pendingWrites, 0);
+  harness.assertFresh("end");
+  harness.session.close();
+});
+
+test("snapshot stays fresh through reading and pending delete frames", async () => {
+  const harness = await makeHarness();
+  await enterP3(harness);
+  for (const frame of [1, 2, 3]) {
+    presented(await harness.session.selectFrame(frame));
+  }
+  await waitFor(() => harness.session.metrics().opfs?.entries === 3);
+
+  const gate = deferred();
+  harness.adapter.invalidateGate = gate.promise;
+  const moving = harness.session.selectFrame(8);
+  await waitFor(
+    () => (harness.session.metrics().opfs?.pendingDeletes ?? 0) > 0,
+  );
+  harness.assertFresh("pending delete");
+  assert.ok(
+    (harness.session.metrics().opfs?.pendingDeleteFrames ?? []).length > 0,
+  );
+  gate.resolve();
+  presented(await moving);
+  await waitFor(
+    () => (harness.session.metrics().opfs?.pendingDeletes ?? 0) === 0,
+  );
+  harness.assertFresh("delete settled");
+
+  harness.session.clearRam();
+  const getGate = deferred();
+  harness.adapter.getGate = getGate.promise;
+  const reading = harness.session.selectFrame(1);
+  await waitFor(
+    () => harness.session.metrics().opfs?.readingFrame === 1,
+  );
+  harness.assertFresh("reading frame");
+  getGate.resolve();
+  presented(await reading);
+  assert.equal(harness.session.metrics().opfs?.readingFrame, null);
+  harness.assertFresh("reading cleared");
+  harness.assertFresh("end");
+  harness.session.close();
+});
+
+test("snapshot stays fresh through network pending, dropped and failed publication, clear and close", async () => {
+  let networkGate: Promise<void> | null = null;
+  const harness = await makeHarness(new FakeP3Adapter(), undefined, {
+    loadFrame: async (request: NativeFrameRequest) => {
+      if (networkGate) await networkGate;
+      return {
+        representation: "native-frame-v1",
+        frameNumber: request.frameNumber,
+        transferSyntaxUID: NATIVE_FRAME_TRANSFER_SYNTAX_UID,
+        bytes: bytesFor(request.frameNumber),
+      };
+    },
+  });
+  await enterP3(harness);
+
+  const netGate = deferred();
+  networkGate = netGate.promise;
+  const pending = harness.session.selectFrame(2);
+  await waitFor(
+    () => harness.session.metrics().opfs?.networkPendingFrame === 2,
+  );
+  harness.assertFresh("network pending");
+  netGate.resolve();
+  networkGate = null;
+  presented(await pending);
+  assert.equal(harness.session.metrics().opfs?.networkPendingFrame, null);
+  harness.assertFresh("network cleared");
+
+  const putGate = deferred();
+  harness.adapter.putGate = putGate.promise;
+  presented(await harness.session.selectFrame(3));
+  presented(await harness.session.selectFrame(4));
+  await waitFor(
+    () => (harness.session.metrics().opfs?.errors["publication-busy"] ?? 0) > 0,
+  );
+  harness.assertFresh("publication-busy dropped");
+  putGate.resolve();
+  await waitFor(
+    () => (harness.session.metrics().opfs?.pendingWrites ?? 0) === 0,
+  );
+  harness.assertFresh("publication settled");
+
+  harness.adapter.putFailure = "quota-exceeded";
+  presented(await harness.session.selectFrame(5));
+  await waitFor(
+    () => (harness.session.metrics().opfs?.errors["quota-exceeded"] ?? 0) > 0,
+  );
+  await waitFor(
+    () => (harness.session.metrics().opfs?.pendingWrites ?? 0) === 0,
+  );
+  harness.assertFresh("failed publication");
+
+  const cleared = await harness.session.clearP3();
+  assert.equal(cleared.status, "cleared");
+  harness.assertFresh("clear OPFS");
+  assert.deepEqual(harness.session.metrics().opfs?.pendingWriteFrames, []);
+  assert.deepEqual(harness.session.metrics().opfs?.pendingDeleteFrames, []);
+
+  harness.adapter.closeFailure = "delete-failed";
+  const failed = await harness.session.setModeAsync("p2");
+  assert.equal(failed.status, "failed");
+  assert.equal(harness.session.metrics().opfs?.status, "cleanup-required");
+  harness.assertFresh("cleanup-required");
+  harness.adapter.closeFailure = null;
+  const retried = await harness.session.retryCloseP3();
+  assert.equal(retried.status, "closed");
+  harness.assertFresh("close retry");
+  harness.assertFresh("end");
   harness.session.close();
 });
 
@@ -869,5 +1031,6 @@ test("P3 strip is bounded and building it never fetches", async () => {
   assert.equal(view.tiles.length, 24);
   assert.equal(view.limit, 24);
   assert.equal(harness.networkCalls.length, before);
+  harness.assertFresh("end");
   harness.session.close();
 });

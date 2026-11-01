@@ -25,6 +25,7 @@ import {
   type NativeFrameResidencyTile,
   type NativeFrameResidencyView,
 } from "@/services/nativeFrameResidency";
+import { buildNativeFrameMetricsExport } from "@/services/nativeFrameMetricsExport";
 import { NativeFrameP3Status } from "./NativeFrameP3Status";
 import { NativeFrameP3ResidencyStrip } from "./NativeFrameP3ResidencyStrip";
 import { createNativeFrameModeGate } from "./NativeFrameModeGate";
@@ -476,68 +477,13 @@ export function NativeFrameViewer({
     if (!sessionMetrics) {
       return;
     }
-    const payload = {
-      fixtureAliases: {
-        study: alias(locator.studyInstanceUID, "ST"),
-        series: alias(locator.seriesInstanceUID, "SE"),
-        instance: alias(locator.sopInstanceUID, "IN"),
-      },
+    const payload = buildNativeFrameMetricsExport({
+      locator,
       sourceTransferSyntaxUID: context?.transferSyntaxUID ?? null,
-      frameNumber: metrics?.frameNumber ?? sessionMetrics.displayedFrame,
-      mode: sessionMetrics.mode,
-      modeEpoch: sessionMetrics.modeEpoch,
-      source: metrics?.source ?? sessionMetrics.lastSource,
-      opfsSource: metrics?.opfsSource ?? null,
-      opfsCache: metrics?.opfsCache ?? "not-applicable",
-      promotedToRam: metrics?.promotedToRam ?? false,
-      nativeCache: metrics?.nativeCache ?? null,
-      requestedFrame: sessionMetrics.requestedFrame,
-      displayedFrame: sessionMetrics.displayedFrame,
-      pendingFrame: sessionMetrics.pendingFrame,
-      errorFrame: sessionMetrics.errorFrame,
-      acceptedSelections: sessionMetrics.acceptedSelections,
-      frameBodyRequests: sessionMetrics.frameBodyRequests,
-      demandFrameBodyRequests: sessionMetrics.demandFrameBodyRequests,
-      prefetchFrameBodyRequests: sessionMetrics.prefetchFrameBodyRequests,
-      metadataRequests: sessionMetrics.metadataRequests,
-      pendingFrameRequests: sessionMetrics.pendingFrameRequests,
-      errors: sessionMetrics.errors,
-      window: sessionMetrics.window,
-      prefetch: sessionMetrics.prefetch,
-      opfs: sessionMetrics.opfs,
-      cache: sessionMetrics.cache
-        ? {
-            hits: sessionMetrics.cache.hits,
-            misses: sessionMetrics.cache.misses,
-            removals: sessionMetrics.cache.evictions,
-            invalidations: sessionMetrics.cache.invalidations,
-            bypasses: sessionMetrics.cache.bypasses,
-            entryCount: sessionMetrics.cache.entryCount,
-            retainedNativeBytes: sessionMetrics.cache.retainedNativeBytes,
-            maxTotalNativeBytes:
-              sessionMetrics.cache.limits.maxTotalNativeBytes,
-            frames: sessionMetrics.cache.frames,
-          }
-        : null,
-      residency: residencyView
-        ? {
-            startFrame: residencyView.startFrame,
-            endFrame: residencyView.endFrame,
-            totalFrames: residencyView.totalFrames,
-            resynchronized: residencyView.resynchronized,
-            opfsStatus: residencyView.opfsStatus,
-            decodedState: residencyView.decodedState,
-            ramFrames: residencyView.cache?.frames ?? [],
-            removals: residencyView.removals,
-            invalidations: residencyView.invalidations,
-          }
-        : null,
-      selectionToFrameResponseMs: metrics?.selectionToFrameResponseMs ?? null,
-      selectionToFrameCommittedMs: metrics?.selectionToFrameCommittedMs ?? null,
-      timingBasis: "selection-to-source-ready-and-committed",
-      physicalPaintVerified: false,
-      decodedCacheObserved: false,
-    };
+      frameMetrics: metrics,
+      sessionMetrics,
+      residencyView,
+    });
     try {
       await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
       setCopied(true);
@@ -1032,13 +978,4 @@ function createSessionId(): string {
     return crypto.randomUUID();
   }
   return `viewer-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
-
-function alias(value: string, prefix: string): string {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return `${prefix}-${hash.toString(16).padStart(8, "0")}`;
 }
