@@ -698,6 +698,21 @@ test("P3 clear RAM keeps OPFS residency and the next read is an OPFS hit", async
   assert.equal(adapter.entries.size, 1);
 });
 
+test("P3 degraded retry re-runs entry instead of being a no-op", async () => {
+  const adapter = new FakeP3Adapter();
+  adapter.opened = false;
+  adapter.move = false;
+  const { session } = await makeHarness(adapter);
+  assert.equal((await session.setModeAsync("p3")).status, "degraded");
+  assert.equal(session.metrics().opfs?.status, "degraded");
+  adapter.opened = true;
+  adapter.move = true;
+  const retry = await session.setModeAsync("p3");
+  assert.equal(retry.status, "enabled");
+  assert.equal(session.metrics().opfs?.status, "enabled");
+  assert.equal(adapter.openCalls, 2);
+});
+
 test("P3 publication failures are visible with counters and no false residency", async () => {
   for (const failure of [
     "quota-exceeded",

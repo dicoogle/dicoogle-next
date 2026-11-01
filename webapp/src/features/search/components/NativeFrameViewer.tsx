@@ -25,6 +25,8 @@ import {
   type NativeFrameResidencyTile,
   type NativeFrameResidencyView,
 } from "@/services/nativeFrameResidency";
+import { NativeFrameP3Status } from "./NativeFrameP3Status";
+import { createNativeFrameModeGate } from "./NativeFrameModeGate";
 import {
   NativeFrameSession,
   type FrameSelectionResult,
@@ -48,6 +50,9 @@ type ViewerStatus =
 interface FrameMetrics {
   frameNumber: number;
   source: "network" | "ram";
+  opfsSource: "opfs" | null;
+  opfsCache: "hit" | "miss" | "invalid" | "not-applicable";
+  promotedToRam: boolean;
   nativeCache: "hit" | "miss" | "not-applicable";
   selectionToFrameResponseMs: number;
   selectionToFrameCommittedMs: number;
@@ -71,7 +76,9 @@ export function NativeFrameViewer({
   const sessionRef = useRef<NativeFrameSession | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const selectionRef = useRef(0);
+  const modeGateRef = useRef(createNativeFrameModeGate());
   const [mode, setMode] = useState<NativeFrameMode>("p1");
+  const [modeBusy, setModeBusy] = useState(false);
   const [status, setStatus] = useState<ViewerStatus>("initializing");
   const [context, setContext] = useState<NativeFrameContext | null>(null);
   const [frameNumber, setFrameNumber] = useState(1);
@@ -88,6 +95,7 @@ export function NativeFrameViewer({
   const p2Available = Boolean(
     ownerId && resolveNativeFrameSourceVersion(locator),
   );
+  const p3Available = p2Available;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -130,6 +138,7 @@ export function NativeFrameViewer({
             presenter,
             mode: "p1",
             cacheScope: { principalId, sessionId: ramSessionId },
+            p3: {},
           },
         );
         sessionRef.current = session;
@@ -215,26 +224,111 @@ export function NativeFrameViewer({
   const changeMode = useCallback(
     async (nextMode: NativeFrameMode) => {
       const session = sessionRef.current;
-      if (!session || nextMode === mode) {
+      if (!session || nextMode === mode || modeBusy) {
         return;
       }
       if (nextMode === "p2" && !p2Available) {
         return;
       }
-      try {
-        session.setMode(nextMode);
-        setMode(nextMode);
-        setMetrics(null);
-        setError(null);
-        setRamNotice(false);
-        await selectFrame(frameNumber);
-      } catch (caught) {
-        setError(formatError(caught));
-        setStatus("error");
+      if (nextMode === "p3" && !p3Available) {
+        return;
       }
+      await modeGateRef.current.run(async () => {
+        setModeBusy(true);
+        try {
+          if (nextMode === "p3") {
+            const result = await session.setModeAsync("p3");
+            if (result.status === "failed") {
+              setError(
+                result.storageError ?? result.reason ?? "P3 storage entry failed",
+              );
+              setStatus("error");
+              return;
+            }
+            setMode("p3");
+          } else {
+            if (session.metrics().mode === "p3") {
+              const result = await session.setModeAsync(nextMode);
+              if (result.status === "failed") {
+                setError(
+                  result.storageError ??
+                    result.reason ??
+                    "P3 cleanup pending; retry before switching",
+                );
+                setStatus("error");
+                return;
+              }
+            } else {
+              session.setMode(nextMode);
+            }
+            setMode(nextMode);
+          }
+          setMetrics(null);
+          setError(null);
+          setRamNotice(false);
+          setSessionMetrics(session.metrics());
+          await selectFrame(frameNumber);
+        } catch (caught) {
+          setError(formatError(caught));
+          setStatus("error");
+        } finally {
+          setModeBusy(false);
+        }
+      });
     },
-    [frameNumber, mode, p2Available, selectFrame],
+    [frameNumber, mode, modeBusy, p2Available, p3Available, selectFrame],
   );
+
+  const retryP3 = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || mode !== "p3" || modeBusy) {
+      return;
+    }
+    await modeGateRef.current.run(async () => {
+      setModeBusy(true);
+      try {
+        const result = await session.setModeAsync("p3");
+        if (result.status === "failed") {
+          setError(
+            result.storageError ?? result.reason ?? "P3 storage entry failed",
+          );
+          setStatus("error");
+          return;
+        }
+        setError(null);
+        setSessionMetrics(session.metrics());
+        setStatus("ready");
+        await selectFrame(frameNumber);
+      } finally {
+        setModeBusy(false);
+      }
+    });
+  }, [frameNumber, mode, modeBusy, selectFrame]);
+
+  const retryCleanup = useCallback(async () => {
+    const session = sessionRef.current;
+    if (!session || mode !== "p3" || modeBusy) {
+      return;
+    }
+    await modeGateRef.current.run(async () => {
+      setModeBusy(true);
+      try {
+        const result = await session.retryCloseP3();
+        if (result.status === "failed") {
+          setError(
+            result.storageError ?? result.reason ?? "OPFS cleanup still pending",
+          );
+          setStatus("error");
+          return;
+        }
+        setError(null);
+        setSessionMetrics(session.metrics());
+        setStatus("ready");
+      } finally {
+        setModeBusy(false);
+      }
+    });
+  }, [mode, modeBusy]);
 
   const clearRam = useCallback(() => {
     const session = sessionRef.current;
@@ -277,7 +371,7 @@ export function NativeFrameViewer({
         close();
         return;
       }
-      if (!context) {
+      if (modeBusy || !context) {
         return;
       }
       if (event.key === "ArrowLeft" && frameNumber > 1) {
@@ -288,7 +382,7 @@ export function NativeFrameViewer({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [close, context, frameNumber, selectFrame]);
+  }, [close, context, frameNumber, modeBusy, selectFrame]);
 
   const copyMetrics = async () => {
     if (!sessionMetrics) {
@@ -305,6 +399,9 @@ export function NativeFrameViewer({
       mode: sessionMetrics.mode,
       modeEpoch: sessionMetrics.modeEpoch,
       source: metrics?.source ?? sessionMetrics.lastSource,
+      opfsSource: metrics?.opfsSource ?? null,
+      opfsCache: metrics?.opfsCache ?? "not-applicable",
+      promotedToRam: metrics?.promotedToRam ?? false,
       nativeCache: metrics?.nativeCache ?? null,
       requestedFrame: sessionMetrics.requestedFrame,
       displayedFrame: sessionMetrics.displayedFrame,
@@ -319,6 +416,7 @@ export function NativeFrameViewer({
       errors: sessionMetrics.errors,
       window: sessionMetrics.window,
       prefetch: sessionMetrics.prefetch,
+      opfs: sessionMetrics.opfs,
       cache: sessionMetrics.cache
         ? {
             hits: sessionMetrics.cache.hits,
@@ -379,6 +477,9 @@ export function NativeFrameViewer({
   const p2DisabledTitle = !principalId
     ? "P2 requires an authenticated user"
     : "P2 is available only for recognised synthetic fixture instances";
+  const p3DisabledTitle = !principalId
+    ? "P3 requires an authenticated user"
+    : "P3 is available only for recognised synthetic fixture instances";
 
   useEffect(() => {
     setStripStart(null);
@@ -398,7 +499,13 @@ export function NativeFrameViewer({
             {frameTotal > 0
               ? `Frame ${frameNumber} / ${frameTotal}`
               : "Loading instance metadata"}
-            {` · ${mode === "p2" ? "P2 RAM window" : "P1 one-frame stream"}`}
+            {` · ${
+              mode === "p3"
+                ? "P3 plaintext OPFS"
+                : mode === "p2"
+                  ? "P2 RAM window"
+                  : "P1 one-frame stream"
+            }`}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -410,7 +517,7 @@ export function NativeFrameViewer({
             <button
               type="button"
               onClick={() => void changeMode("p1")}
-              disabled={busy}
+              disabled={busy || modeBusy}
               aria-pressed={mode === "p1"}
               className={`rounded px-2 py-1 text-xs ${
                 mode === "p1"
@@ -423,7 +530,7 @@ export function NativeFrameViewer({
             <button
               type="button"
               onClick={() => void changeMode("p2")}
-              disabled={busy || !p2Available}
+              disabled={busy || modeBusy || !p2Available}
               aria-pressed={mode === "p2"}
               title={p2Available ? "P2 native RAM window" : p2DisabledTitle}
               className={`rounded px-2 py-1 text-xs ${
@@ -433,6 +540,20 @@ export function NativeFrameViewer({
               }`}
             >
               P2
+            </button>
+            <button
+              type="button"
+              onClick={() => void changeMode("p3")}
+              disabled={busy || modeBusy || !p3Available}
+              aria-pressed={mode === "p3"}
+              title={p3Available ? "P3 plaintext OPFS" : p3DisabledTitle}
+              className={`rounded px-2 py-1 text-xs ${
+                mode === "p3"
+                  ? "bg-amber-600 text-white"
+                  : "text-gray-300 hover:text-white disabled:text-gray-600"
+              }`}
+            >
+              P3
             </button>
           </div>
           {mode === "p2" && (
@@ -510,7 +631,18 @@ export function NativeFrameViewer({
         )}
       </div>
 
-      {residencyView && (
+      {mode === "p3" && sessionMetrics?.opfs && (
+        <div className="border-t border-gray-800 px-4 py-2">
+          <NativeFrameP3Status
+            metrics={sessionMetrics.opfs}
+            busy={modeBusy || busy}
+            onRetry={() => void retryP3()}
+            onRetryCleanup={() => void retryCleanup()}
+          />
+        </div>
+      )}
+
+      {residencyView && mode !== "p3" && (
         <div className="border-t border-gray-800 px-4 py-2 text-white">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="text-gray-300">
@@ -622,7 +754,7 @@ export function NativeFrameViewer({
             size="sm"
             variant="ghost"
             onClick={() => void selectFrame(Math.max(1, frameNumber - 1))}
-            disabled={frameNumber <= 1 || frameTotal === 0}
+            disabled={modeBusy || frameNumber <= 1 || frameTotal === 0}
             className="text-gray-200 hover:text-white"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -633,7 +765,7 @@ export function NativeFrameViewer({
             max={Math.max(1, frameTotal)}
             value={frameNumber}
             onChange={(event) => void selectFrame(Number(event.target.value))}
-            disabled={frameTotal <= 1}
+            disabled={modeBusy || frameTotal <= 1}
             className="flex-1 accent-blue-500"
             aria-label="Frame number"
           />
@@ -641,7 +773,7 @@ export function NativeFrameViewer({
             size="sm"
             variant="ghost"
             onClick={() => void selectFrame(Math.min(frameTotal, frameNumber + 1))}
-            disabled={frameTotal === 0 || frameNumber >= frameTotal}
+            disabled={modeBusy || frameTotal === 0 || frameNumber >= frameTotal}
             className="text-gray-200 hover:text-white"
           >
             <ChevronRight className="w-4 h-4" />
@@ -768,6 +900,9 @@ function toMetrics(
   return {
     frameNumber: result.frameNumber,
     source: result.source,
+    opfsSource: result.opfsSource,
+    opfsCache: result.opfsCache,
+    promotedToRam: result.promotedToRam,
     nativeCache: result.nativeCache,
     selectionToFrameResponseMs: result.selectionToFrameResponseMs,
     selectionToFrameCommittedMs: result.selectionToFrameCommittedMs,
