@@ -36,6 +36,13 @@ public class NativeFrameService {
   private static final Logger LOGGER = LoggerFactory.getLogger(NativeFrameService.class);
   private static final Pattern FRAME_TOKEN = Pattern.compile("\\d+");
   private static final int READ_BUFFER_BYTES = 8192;
+  private static final Set<String> SUPPORTED_SOP_CLASSES =
+      Set.of(
+          UID.SecondaryCaptureImageStorage,
+          UID.MultiFrameGrayscaleWordSecondaryCaptureImageStorage,
+          UID.CTImageStorage,
+          UID.MRImageStorage,
+          UID.EnhancedMRImageStorage);
 
   private final List<DicomInstanceLocator> locators;
   private final StorageRouter storageRouter;
@@ -184,6 +191,10 @@ public class NativeFrameService {
   }
 
   private static void validateSupportedProfile(String transferSyntaxUid, Attributes attributes) {
+    String sopClassUid = attributes.getString(Tag.SOPClassUID);
+    if (sopClassUid == null || !SUPPORTED_SOP_CLASSES.contains(sopClassUid)) {
+      throw unsupported("Unsupported SOP class for native-frame retrieval");
+    }
     if (!UID.ExplicitVRLittleEndian.equals(transferSyntaxUid)) {
       throw unsupported("Unsupported transfer syntax for native-frame retrieval");
     }

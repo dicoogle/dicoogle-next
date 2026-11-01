@@ -144,6 +144,61 @@ class NativeFrameServiceTest {
   }
 
   @Test
+  void acceptsEnhancedMrImageStorage() {
+    byte[] enhancedMr =
+        dicom(
+            UID.EnhancedMRImageStorage,
+            UID.ExplicitVRLittleEndian,
+            STUDY,
+            SERIES_A,
+            INSTANCE_A,
+            64,
+            64,
+            2,
+            16,
+            16,
+            15,
+            0,
+            "MONOCHROME2",
+            1,
+            allFrames(2),
+            true);
+
+    NativeFrameResponse response = retrieve(service(new StubPlugin(enhancedMr)), "1,2");
+    assertArrayEquals(frameBytes(1), parts(response).get(0).payload());
+    assertArrayEquals(frameBytes(2), parts(response).get(1).payload());
+  }
+
+  @Test
+  void rejectsUnlistedSopClass() {
+    byte[] ultrasound =
+        dicom(
+            UID.UltrasoundImageStorage,
+            UID.ExplicitVRLittleEndian,
+            STUDY,
+            SERIES_A,
+            INSTANCE_A,
+            64,
+            64,
+            1,
+            16,
+            16,
+            15,
+            0,
+            "MONOCHROME2",
+            1,
+            frameBytes(1),
+            true);
+
+    ResponseStatusException error =
+        assertThrows(
+            ResponseStatusException.class,
+            () -> retrieve(service(new StubPlugin(ultrasound)), "1"));
+    assertEquals(HttpStatus.UNSUPPORTED_MEDIA_TYPE, error.getStatusCode());
+    assertTrue(error.getReason().contains("Unsupported SOP class"));
+  }
+
+  @Test
   void acceptsEightBitMonochromeOne() {
     byte[] frame = Arrays.copyOf(frameBytes(1), FRAME_SIZE / 2);
     byte[] mr =
