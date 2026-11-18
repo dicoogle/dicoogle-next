@@ -6,7 +6,7 @@ The backend now starts without an external database dependency.
 
 ```bash
 mvn install
-java -jar dicoogle-next/target/dicoogle-next-0.0.1-SNAPSHOT.jar
+java -jar dicoogle-next/target/dicoogle-next-0.0.1-SNAPSHOT-exec.jar
 ```
 
 Default profile is `dev`, which enables:
