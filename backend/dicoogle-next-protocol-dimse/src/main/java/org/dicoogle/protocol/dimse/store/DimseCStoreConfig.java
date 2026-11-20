@@ -92,21 +92,17 @@ public class DimseCStoreConfig {
   @Bean
   DimseCStoreServer dimseCStoreServer(
       CStoreService cStoreService,
-      StorageRouter storageRouter,
       DimseCStoreProperties properties,
       List<DimseAssociationEventListener> associationEventListeners,
       List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies,
       @org.springframework.beans.factory.annotation.Qualifier("primaryStorageScheme")
-          String primaryStorageScheme,
-      @Autowired(required = false) LegacyProxyService legacyProxyService) {
+          String primaryStorageScheme) {
     return new DimseCStoreServer(
         cStoreService,
-        storageRouter,
         properties,
         primaryStorageScheme,
         associationEventListeners,
-        associationAccessPolicies,
-        legacyProxyService);
+        associationAccessPolicies);
   }
 
   @Bean
