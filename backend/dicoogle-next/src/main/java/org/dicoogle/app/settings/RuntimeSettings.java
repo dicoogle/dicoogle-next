@@ -2,8 +2,10 @@ package org.dicoogle.app.settings;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.dicoogle.protocol.dimse.DimseTlsProperties;
 import org.dicoogle.protocol.dimse.queryretrieve.DimseCMoveProperties;
 import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.store.DimseTlsCStoreProperties;
 
 public class RuntimeSettings {
 
@@ -18,7 +20,10 @@ public class RuntimeSettings {
   }
 
   public static RuntimeSettings fromProperties(
-      DimseCStoreProperties cstoreProperties, DimseCMoveProperties moveProperties) {
+      DimseCStoreProperties cstoreProperties,
+      DimseCMoveProperties moveProperties,
+      DimseTlsProperties tlsProperties,
+      DimseTlsCStoreProperties tlsCstoreProperties) {
     RuntimeSettings settings = new RuntimeSettings();
     DimseSettings dimse = settings.getDimse();
 
@@ -29,6 +34,13 @@ public class RuntimeSettings {
     cstore.setPort(cstoreProperties.getPort());
     cstore.setStorageScheme(cstoreProperties.getStorageScheme());
     dimse.setCstore(cstore);
+
+    DimseTlsCStoreSettings cstoreTls = new DimseTlsCStoreSettings();
+    cstoreTls.setEnabled(tlsCstoreProperties.isEnabled());
+    cstoreTls.setAeTitle(tlsCstoreProperties.getAeTitle());
+    cstoreTls.setBindAddress(tlsCstoreProperties.getBindAddress());
+    cstoreTls.setPort(tlsCstoreProperties.getPort());
+    dimse.setCstoreTls(cstoreTls);
 
     Map<String, MoveDestinationSetting> destinations = new LinkedHashMap<>();
     for (Map.Entry<String, DimseCMoveProperties.Destination> entry :
@@ -46,6 +58,7 @@ public class RuntimeSettings {
   public static class DimseSettings {
 
     private DimseCStoreSettings cstore = new DimseCStoreSettings();
+    private DimseTlsCStoreSettings cstoreTls = new DimseTlsCStoreSettings();
     private DimseQueryRetrieveSettings queryRetrieveServer = new DimseQueryRetrieveSettings();
     private DicomQueryRetrieveSettings queryRetrieve = new DicomQueryRetrieveSettings();
     private Map<String, MoveDestinationSetting> moveDestinations = new LinkedHashMap<>();
@@ -56,6 +69,14 @@ public class RuntimeSettings {
 
     public void setCstore(DimseCStoreSettings cstore) {
       this.cstore = cstore == null ? new DimseCStoreSettings() : cstore;
+    }
+
+    public DimseTlsCStoreSettings getCstoreTls() {
+      return cstoreTls;
+    }
+
+    public void setCstoreTls(DimseTlsCStoreSettings cstoreTls) {
+      this.cstoreTls = cstoreTls == null ? new DimseTlsCStoreSettings() : cstoreTls;
     }
 
     public DimseQueryRetrieveSettings getQueryRetrieveServer() {
@@ -85,6 +106,7 @@ public class RuntimeSettings {
     }
   }
 
+  /** Runtime settings for the DIMSE Store server without TLS */
   public static class DimseCStoreSettings {
 
     private boolean enabled;
@@ -131,6 +153,47 @@ public class RuntimeSettings {
 
     public void setStorageScheme(String storageScheme) {
       this.storageScheme = storageScheme;
+    }
+  }
+
+  /** Runtime settings for the DIMSE Store server with TLS */
+  public static class DimseTlsCStoreSettings {
+
+    private boolean enabled;
+    private String aeTitle;
+    private String bindAddress;
+    private int port = 41112;
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    public String getAeTitle() {
+      return aeTitle;
+    }
+
+    public void setAeTitle(String aeTitle) {
+      this.aeTitle = aeTitle;
+    }
+
+    public String getBindAddress() {
+      return bindAddress;
+    }
+
+    public void setBindAddress(String bindAddress) {
+      this.bindAddress = bindAddress;
+    }
+
+    public int getPort() {
+      return port;
+    }
+
+    public void setPort(int port) {
+      this.port = port;
     }
   }
 

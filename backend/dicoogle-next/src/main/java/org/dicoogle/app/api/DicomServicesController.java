@@ -3,6 +3,7 @@ package org.dicoogle.app.api;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.dicoogle.app.settings.RuntimeSettings;
+import org.dicoogle.app.settings.RuntimeSettings.DimseTlsCStoreSettings;
 import org.dicoogle.app.settings.RuntimeSettingsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +24,7 @@ public class DicomServicesController {
 
   @GetMapping("/storage")
   @Operation(
-      summary = "Get C-STORE (DICOM Storage) service state",
+      summary = "Get DICOM Storage (C-STORE without TLS) service state",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> getStorage() {
     RuntimeSettings.DimseCStoreSettings cstore =
@@ -38,7 +39,7 @@ public class DicomServicesController {
 
   @PostMapping("/storage")
   @Operation(
-      summary = "Update C-STORE (DICOM Storage) service state",
+      summary = "Update DICOM Storage (C-STORE without TLS) service state",
       security = @SecurityRequirement(name = "bearerAuth"))
   public ResponseEntity<ServiceStatusResponse> updateStorage(
       @RequestParam(required = false) Integer port,
@@ -50,6 +51,39 @@ public class DicomServicesController {
     return ResponseEntity.ok(
         new ServiceStatusResponse(
             settingsService.isCStoreRunning(),
+            cstore.getPort(),
+            cstore.isEnabled(),
+            cstore.getBindAddress()));
+  }
+
+  @GetMapping("/storage-tls")
+  @Operation(
+      summary = "Get TLS DICOM Storage (C-STORE with TLS) service state",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  public ResponseEntity<ServiceStatusResponse> getStorageTls() {
+    DimseTlsCStoreSettings cstore = settingsService.getCurrent().getDimse().getCstoreTls();
+    return ResponseEntity.ok(
+        new ServiceStatusResponse(
+            settingsService.isTlsCStoreRunning(),
+            cstore.getPort(),
+            cstore.isEnabled(),
+            cstore.getBindAddress()));
+  }
+
+  @PostMapping("/storage-tls")
+  @Operation(
+      summary = "Update TLS DICOM Storage (C-STORE with TLS) service state",
+      security = @SecurityRequirement(name = "bearerAuth"))
+  public ResponseEntity<ServiceStatusResponse> updateStorageTls(
+      @RequestParam(required = false) Integer port,
+      @RequestParam(required = false) Boolean autostart,
+      @RequestParam(required = false) Boolean running,
+      @RequestParam(required = false) String hostname) {
+    RuntimeSettings updated = settingsService.updateCStoreTls(port, hostname, autostart, running);
+    var cstore = updated.getDimse().getCstoreTls();
+    return ResponseEntity.ok(
+        new ServiceStatusResponse(
+            settingsService.isTlsCStoreRunning(),
             cstore.getPort(),
             cstore.isEnabled(),
             cstore.getBindAddress()));

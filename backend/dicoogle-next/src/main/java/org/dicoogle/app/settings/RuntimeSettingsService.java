@@ -2,11 +2,14 @@ package org.dicoogle.app.settings;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import org.dicoogle.protocol.dimse.DimseTlsProperties;
 import org.dicoogle.protocol.dimse.queryretrieve.DimseCMoveProperties;
 import org.dicoogle.protocol.dimse.queryretrieve.DimseQueryRetrieveProperties;
 import org.dicoogle.protocol.dimse.queryretrieve.DimseQueryRetrieveServer;
 import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
 import org.dicoogle.protocol.dimse.store.DimseCStoreServer;
+import org.dicoogle.protocol.dimse.store.DimseTlsCStoreProperties;
+import org.dicoogle.protocol.dimse.store.DimseTlsCStoreServer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -15,9 +18,11 @@ public class RuntimeSettingsService {
 
   private final SettingsStore store;
   private final DimseCStoreProperties cstoreProperties;
+  private final DimseTlsCStoreProperties tlsCstoreProperties;
   private final DimseCMoveProperties moveProperties;
   private final DimseQueryRetrieveProperties qrProperties;
   private final ObjectProvider<DimseCStoreServer> cstoreServerProvider;
+  private final ObjectProvider<DimseTlsCStoreServer> tlsCstoreServerProvider;
   private final ObjectProvider<DimseQueryRetrieveServer> qrServerProvider;
   private final AtomicReference<RuntimeSettings> cached = new AtomicReference<>();
 
@@ -26,16 +31,23 @@ public class RuntimeSettingsService {
       DimseCStoreProperties cstoreProperties,
       DimseCMoveProperties moveProperties,
       DimseQueryRetrieveProperties qrProperties,
+      DimseTlsProperties tlsProperties,
+      DimseTlsCStoreProperties tlsCstoreProperties,
       ObjectProvider<DimseCStoreServer> cstoreServerProvider,
+      ObjectProvider<DimseTlsCStoreServer> tlsCstoreServerProvider,
       ObjectProvider<DimseQueryRetrieveServer> qrServerProvider) {
     this.store = store;
     this.cstoreProperties = cstoreProperties;
+    this.tlsCstoreProperties = tlsCstoreProperties;
     this.moveProperties = moveProperties;
     this.qrProperties = qrProperties;
     this.cstoreServerProvider = cstoreServerProvider;
+    this.tlsCstoreServerProvider = tlsCstoreServerProvider;
     this.qrServerProvider = qrServerProvider;
 
-    RuntimeSettings settings = RuntimeSettings.fromProperties(cstoreProperties, moveProperties);
+    RuntimeSettings settings =
+        RuntimeSettings.fromProperties(
+            cstoreProperties, moveProperties, tlsProperties, tlsCstoreProperties);
     settings
         .getDimse()
         .setQueryRetrieveServer(
@@ -76,6 +88,28 @@ public class RuntimeSettingsService {
     }
     if (running != null) {
       cstore.setEnabled(running);
+    }
+    saveAndApply(settings);
+    return settings;
+  }
+
+  public synchronized RuntimeSettings updateCStoreTls(
+      Integer port, String hostname, Boolean autostart, Boolean running) {
+    RuntimeSettings settings = cloneSettings(cached.get());
+    RuntimeSettings.DimseTlsCStoreSettings cstoreTls = settings.getDimse().getCstoreTls();
+
+    if (port != null) {
+      validatePort(port);
+      cstoreTls.setPort(port);
+    }
+    if (hostname != null) {
+      cstoreTls.setBindAddress(hostname);
+    }
+    if (autostart != null) {
+      cstoreTls.setEnabled(autostart);
+    }
+    if (running != null) {
+      cstoreTls.setEnabled(running);
     }
     saveAndApply(settings);
     return settings;
@@ -183,6 +217,11 @@ public class RuntimeSettingsService {
     return server != null && server.isRunning();
   }
 
+  public boolean isTlsCStoreRunning() {
+    DimseTlsCStoreServer server = tlsCstoreServerProvider.getIfAvailable();
+    return server != null && server.isRunning();
+  }
+
   public boolean isQueryRetrieveRunning() {
     DimseQueryRetrieveServer server = qrServerProvider.getIfAvailable();
     return server != null && server.isRunning();
@@ -202,6 +241,12 @@ public class RuntimeSettingsService {
     cstoreProperties.setAeTitle(cstore.getAeTitle());
     cstoreProperties.setStorageScheme(cstore.getStorageScheme());
 
+    RuntimeSettings.DimseTlsCStoreSettings cstoreTls = settings.getDimse().getCstoreTls();
+    tlsCstoreProperties.setEnabled(cstoreTls.isEnabled());
+    tlsCstoreProperties.setPort(cstoreTls.getPort());
+    tlsCstoreProperties.setBindAddress(cstoreTls.getBindAddress());
+    tlsCstoreProperties.setAeTitle(cstoreTls.getAeTitle());
+
     RuntimeSettings.DimseQueryRetrieveSettings qr = settings.getDimse().getQueryRetrieveServer();
     qrProperties.setEnabled(qr.isEnabled());
     qrProperties.setPort(qr.getPort());
@@ -219,7 +264,7 @@ public class RuntimeSettingsService {
     }
     moveProperties.setDestinations(destinations);
 
-    // Apply C-STORE server
+    // Apply new STORE server settings
     DimseCStoreServer cstoreServer = cstoreServerProvider.getIfAvailable();
     if (cstoreServer != null) {
       if (cstore.isEnabled()) {
@@ -231,6 +276,21 @@ public class RuntimeSettingsService {
         }
       } else if (cstoreServer.isRunning()) {
         cstoreServer.stop();
+      }
+    }
+
+    // Apply new TLS STORE server settings
+    DimseTlsCStoreServer tlsCstoreServer = tlsCstoreServerProvider.getIfAvailable();
+    if (tlsCstoreServer != null) {
+      if (cstoreTls.isEnabled()) {
+        if (!tlsCstoreServer.isRunning()) {
+          tlsCstoreServer.start();
+        } else {
+          tlsCstoreServer.stop();
+          tlsCstoreServer.start();
+        }
+      } else if (tlsCstoreServer.isRunning()) {
+        tlsCstoreServer.stop();
       }
     }
 
@@ -257,6 +317,7 @@ public class RuntimeSettingsService {
     RuntimeSettings copy = new RuntimeSettings();
     RuntimeSettings.DimseSettings dimse = new RuntimeSettings.DimseSettings();
     RuntimeSettings.DimseCStoreSettings cstore = new RuntimeSettings.DimseCStoreSettings();
+    RuntimeSettings.DimseTlsCStoreSettings cstoreTls = new RuntimeSettings.DimseTlsCStoreSettings();
 
     RuntimeSettings.DimseCStoreSettings original = source.getDimse().getCstore();
     cstore.setEnabled(original.isEnabled());
@@ -265,6 +326,13 @@ public class RuntimeSettingsService {
     cstore.setPort(original.getPort());
     cstore.setStorageScheme(original.getStorageScheme());
     dimse.setCstore(cstore);
+
+    RuntimeSettings.DimseTlsCStoreSettings originalTls = source.getDimse().getCstoreTls();
+    cstoreTls.setEnabled(originalTls.isEnabled());
+    cstoreTls.setAeTitle(originalTls.getAeTitle());
+    cstoreTls.setBindAddress(originalTls.getBindAddress());
+    cstoreTls.setPort(originalTls.getPort());
+    dimse.setCstoreTls(cstoreTls);
 
     // Clone QR server settings
     RuntimeSettings.DimseQueryRetrieveSettings origQrSrv =
