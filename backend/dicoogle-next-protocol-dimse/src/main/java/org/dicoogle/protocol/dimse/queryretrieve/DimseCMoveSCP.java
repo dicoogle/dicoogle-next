@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.queryretrieve;
 
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.data.Tag;
@@ -12,6 +12,7 @@ import org.dcm4che3.net.service.BasicCMoveSCP;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dcm4che3.net.service.RetrieveTask;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

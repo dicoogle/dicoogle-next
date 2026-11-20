@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.queryretrieve;
 
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;

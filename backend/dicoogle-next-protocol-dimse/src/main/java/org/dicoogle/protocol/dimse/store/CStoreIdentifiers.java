@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.store;
 
 public record CStoreIdentifiers(
     String patientId,

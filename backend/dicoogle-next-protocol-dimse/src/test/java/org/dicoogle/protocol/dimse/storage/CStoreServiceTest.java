@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -15,6 +15,10 @@ import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.dimse.store.CStoreDimseStatus;
+import org.dicoogle.protocol.dimse.store.CStoreRequest;
+import org.dicoogle.protocol.dimse.store.CStoreResult;
+import org.dicoogle.protocol.dimse.store.CStoreService;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StoredObject;

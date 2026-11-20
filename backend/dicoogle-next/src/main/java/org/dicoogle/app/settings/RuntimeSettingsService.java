@@ -2,11 +2,11 @@ package org.dicoogle.app.settings;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import org.dicoogle.protocol.dimse.DimseCMoveProperties;
-import org.dicoogle.protocol.dimse.DimseCStoreProperties;
-import org.dicoogle.protocol.dimse.DimseCStoreServer;
-import org.dicoogle.protocol.dimse.DimseQueryRetrieveProperties;
-import org.dicoogle.protocol.dimse.DimseQueryRetrieveServer;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseCMoveProperties;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseQueryRetrieveProperties;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseQueryRetrieveServer;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.store.DimseCStoreServer;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 

@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import org.dicoogle.app.config.DimseTransferCapabilityConfigProperties;
-import org.dicoogle.protocol.dimse.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 

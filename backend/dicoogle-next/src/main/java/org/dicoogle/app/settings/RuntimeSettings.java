@@ -2,8 +2,8 @@ package org.dicoogle.app.settings;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import org.dicoogle.protocol.dimse.DimseCMoveProperties;
-import org.dicoogle.protocol.dimse.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseCMoveProperties;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
 
 public class RuntimeSettings {
 
@@ -144,7 +144,7 @@ public class RuntimeSettings {
     public DimseQueryRetrieveSettings() {}
 
     public static DimseQueryRetrieveSettings fromProperties(
-        org.dicoogle.protocol.dimse.DimseQueryRetrieveProperties props) {
+        org.dicoogle.protocol.dimse.queryretrieve.DimseQueryRetrieveProperties props) {
       DimseQueryRetrieveSettings settings = new DimseQueryRetrieveSettings();
       settings.setEnabled(props.isEnabled());
       settings.setAeTitle(props.getAeTitle());

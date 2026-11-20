@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.queryretrieve;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,6 +34,9 @@ import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.dimse.DimseProperties;
+import org.dicoogle.protocol.dimse.store.CStoreService;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryService;
 import org.dicoogle.sdk.storage.StoredObject;

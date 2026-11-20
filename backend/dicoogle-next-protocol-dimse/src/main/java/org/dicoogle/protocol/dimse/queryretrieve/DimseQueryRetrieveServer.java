@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.queryretrieve;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -13,6 +13,7 @@ import org.dcm4che3.net.TransferCapability;
 import org.dcm4che3.net.service.BasicCEchoSCP;
 import org.dcm4che3.net.service.DicomServiceRegistry;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
