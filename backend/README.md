@@ -85,6 +85,56 @@ For JDBC mode, configure:
 - `app.dimse.cstore.config.jdbc.username`
 - `app.dimse.cstore.config.jdbc.password`
 
+## DICOM TLS
+
+DICOM TLS is supported for storage.
+Configure DICOM TLS in DIMSE services with the properties in `app.dimse.tls`
+
+```yaml
+app:
+  dimse:
+    tls:
+      protocols:
+        - TLSv1.2
+        - TLSv1.3
+      keystore-type: pkcs12
+      keystore: "keystore.p12"
+      keystore-password: "password"
+      truststore-type: pkcs12
+      truststore: "truststore.p12"
+      truststore-password: "password"
+      peer-certificate-required: true
+```
+
+A Java keystore should be prepared with
+the intended private key and certificate for the TLS servers.
+A truststore can be specified to support client authentication,
+in which case it is important to set `peer-certificate-required`.
+TLS protocols and cipher suites can also be configured
+via `app.dimse.tls.protocols` and `app.dimse.tls.cipher-suites`.
+
+Then a separate TLS server running in another port
+can be enabled for storage.
+If not specified, AE title and bind address are assumed to be
+the same as the non-TLS counterpart.
+
+```yaml
+app:
+  dimse:
+    # ...
+    cstore:
+      # C-STORE SCP without TLS: DICOOGLE-STORE@127.0.0.1:6666
+      enabled: true
+      ae-title: DICOOGLE-STORE
+      bind-address: 127.0.0.1
+      port: 6666
+      # C-STORE SCP with TLS: DICOOGLE-TLS@127.0.0.1:46666
+      tls:
+        enabled: true
+        ae-title: DICOOGLE-TLS
+        port: 46666
+```
+
 ## Legacy Proxy
 
 dicoogle-next can proxy operations to a legacy Dicoogle v3 instance, enabling incremental migration. When enabled, unmatched HTTP routes and selected operations (search, store, index) are forwarded to the legacy server automatically.
