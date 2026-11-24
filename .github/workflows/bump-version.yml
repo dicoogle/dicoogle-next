@@ -2,7 +2,8 @@ name: Bump version
 
 # Manually triggered: runs scripts/bump-version.sh on a new branch
 # (release/v<version>) cut from the branch selected in "Use workflow from",
-# pushes it and opens a PR back into that branch.
+# pushes it and opens a PR back into that branch (or, if Actions is not
+# allowed to create PRs, leaves a compare link in the run summary).
 #
 #   gh workflow run bump-version.yml --ref dev -f version=0.0.1 -f next=0.0.2-SNAPSHOT
 
@@ -105,6 +106,21 @@ jobs:
             echo
             echo "Triggered by @${GITHUB_ACTOR} from \`$BASE\`."
           } > pr-body.md
-          gh pr create --base "$BASE" --head "$BRANCH" \
-            --title "chore: release $VERSION" --body-file pr-body.md
-          rm pr-body.md
+          # Opening the PR needs "Allow GitHub Actions to create and approve pull requests".
+          # If that is disabled, fall back to a compare link in the job summary.
+          if URL=$(gh pr create --base "$BASE" --head "$BRANCH" \
+                     --title "chore: release $VERSION" --body-file pr-body.md 2>pr-error.txt); then
+            echo "### Pull request opened: $URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat pr-error.txt
+            COMPARE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${BASE}...${BRANCH}?expand=1"
+            echo "::warning::Could not open the PR automatically (Actions may not be allowed to create PRs). Open it manually: $COMPARE"
+            {
+              echo "### Branch \`$BRANCH\` pushed"
+              echo
+              echo "Actions could not open the PR. [Create it here]($COMPARE) with this description:"
+              echo
+              cat pr-body.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          rm -f pr-body.md pr-error.txt
