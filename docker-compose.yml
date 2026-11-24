@@ -12,7 +12,8 @@ services:
       APP_STORAGE_FILE_RO_ROOT_DIR: /
     volumes:
       - dicoogle-data:/app/data
-      - /home/jotalma13/FELIX:/home/jotalma13/FELIX
+      # Host DICOM folder (override with DICOM_DIR=/path/to/dicom)
+      - ${DICOM_DIR:-./dicom}:/data/dicom
 
   frontend:
     build:
