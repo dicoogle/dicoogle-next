@@ -36,4 +36,4 @@ See [`backend/README.md`](backend/README.md) for details.
 
 ## License
 
-The same license as [Dicoogle](https://github.com/dicoogle/dicoogle) applies.
+The same license as [Dicoogle](https://github.com/dicoogle/dicoogle) applies. See [`license.md`](license.md).
