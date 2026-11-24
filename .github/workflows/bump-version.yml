@@ -1,0 +1,110 @@
+name: Bump version
+
+# Manually triggered: runs scripts/bump-version.sh on a new branch
+# (release/v<version>) cut from the branch selected in "Use workflow from",
+# pushes it and opens a PR back into that branch.
+#
+#   gh workflow run bump-version.yml --ref dev -f version=0.0.1 -f next=0.0.2-SNAPSHOT
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to set (e.g. 0.0.1)"
+        required: true
+        type: string
+      next:
+        description: "Next development version (e.g. 0.0.2-SNAPSHOT). Leave empty to skip."
+        required: false
+        type: string
+        default: ""
+      push_tag:
+        description: "Push the v<version> tag (only for non-SNAPSHOT versions). Requires merging the PR with a merge commit."
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: bump-version
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERSION: ${{ inputs.version }}
+      NEXT: ${{ inputs.next }}
+      PUSH_TAG: ${{ inputs.push_tag }}
+      BASE: ${{ github.ref_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create release branch
+        run: |
+          BRANCH="release/v${VERSION}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            echo "::error::Branch $BRANCH already exists on origin"
+            exit 1
+          fi
+          git switch -c "$BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Bump version
+        run: |
+          args=("$VERSION")
+          [[ -n "$NEXT" ]] && args+=(--next "$NEXT")
+          # Invoke the wrapper through bash so no chmod is needed (keeps the tree clean).
+          MVN="bash ./mvnw" bash scripts/bump-version.sh "${args[@]}"
+
+      - name: Push branch and tag
+        run: |
+          git push origin "$BRANCH"
+          TAG="v${VERSION}"
+          if [[ "$PUSH_TAG" == "true" ]] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            git push origin "$TAG"
+            echo "TAG=$TAG" >> "$GITHUB_ENV"
+          fi
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Automated version bump via \`scripts/bump-version.sh\`."
+            echo
+            echo "- Version: \`$VERSION\`"
+            [[ -n "$NEXT" ]] && echo "- Next development version: \`$NEXT\`"
+            [[ -n "${TAG:-}" ]] && echo "- Tag \`$TAG\` pushed; **merge with a merge commit** (not squash/rebase) so the tag stays on \`$BASE\`."
+            echo
+            echo "Triggered by @${GITHUB_ACTOR} from \`$BASE\`."
+          } > pr-body.md
+          gh pr create --base "$BASE" --head "$BRANCH" \
+            --title "chore: release $VERSION" --body-file pr-body.md
+          rm pr-body.md
