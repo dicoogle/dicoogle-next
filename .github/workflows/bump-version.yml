@@ -24,6 +24,11 @@ on:
         required: false
         type: boolean
         default: true
+      publish_images:
+        description: "Build and push Docker images to ghcr.io for the pushed tag"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -37,6 +42,8 @@ jobs:
   bump:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.push.outputs.tag }}
     env:
       VERSION: ${{ inputs.version }}
       NEXT: ${{ inputs.next }}
@@ -85,12 +92,14 @@ jobs:
           MVN="bash ./mvnw" bash scripts/bump-version.sh "${args[@]}"
 
       - name: Push branch and tag
+        id: push
         run: |
           git push origin "$BRANCH"
           TAG="v${VERSION}"
           if [[ "$PUSH_TAG" == "true" ]] && git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
             git push origin "$TAG"
             echo "TAG=$TAG" >> "$GITHUB_ENV"
+            echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Open pull request
@@ -124,3 +133,14 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
           rm -f pr-body.md pr-error.txt
+
+  # Tags pushed with GITHUB_TOKEN don't trigger docker-publish.yml, so call it directly.
+  images:
+    needs: bump
+    if: inputs.publish_images && needs.bump.outputs.tag != ''
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker-publish.yml
+    with:
+      ref: ${{ needs.bump.outputs.tag }}
