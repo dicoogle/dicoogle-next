@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -96,9 +96,7 @@ class DimseCStoreSCPIntegrationTest {
     cstoreProps.setPort(port);
     cstoreProps.setStorageScheme("mem");
 
-    server =
-        new DimseCStoreServer(
-            cStoreService, new StorageRouter(List.of(storage)), cstoreProps, "mem");
+    server = new DimseCStoreServer(cStoreService, cstoreProps, "mem");
     server.start();
   }
 
