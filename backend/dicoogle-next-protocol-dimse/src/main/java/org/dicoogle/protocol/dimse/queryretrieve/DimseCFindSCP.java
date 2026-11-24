@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.queryretrieve;
 
 import java.util.Set;
 import org.dcm4che3.data.Attributes;

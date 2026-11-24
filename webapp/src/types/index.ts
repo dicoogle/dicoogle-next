@@ -68,6 +68,7 @@ export interface DICOMAttribute {
 }
 
 export interface ServiceStatus {
+  supported?: boolean;
   isRunning: boolean;
   port: number;
   hostname: string;

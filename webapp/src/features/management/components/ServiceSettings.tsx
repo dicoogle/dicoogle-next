@@ -11,22 +11,30 @@ import {
   type StorageServer,
   type QuerySettings,
 } from "@/types/index";
+import { cn } from "@/utils/cn";
 
 interface ServiceConfig {
-  id: "storage" | "query";
+  id: "storage" | "storage-tls" | "query";
   name: string;
   description: string;
   getStatus: () => Promise<ServiceStatus>;
-  setStatus: (status: Partial<ServiceStatus>) => Promise<void>;
+  setStatus: (status: Partial<ServiceRequest>) => Promise<void>;
 }
 
 const serviceConfigs: ServiceConfig[] = [
   {
     id: "storage",
     name: "DICOM Storage Service",
-    description: "DICOM C-STORE service for receiving medical images",
+    description: "DICOM C-STORE service for receiving medical images (plain TCP, no TLS)",
     getStatus: () => dicoogleService.getStorageStatus(),
     setStatus: (status) => dicoogleService.setStorageStatus(status),
+  },
+  {
+    id: "storage-tls",
+    name: "DICOM TLS Storage Service",
+    description: "DICOM C-STORE service for receiving medical images securely over TLS",
+    getStatus: () => dicoogleService.getStorageTlsStatus(),
+    setStatus: (status) => dicoogleService.setStorageTlsStatus(status),
   },
   {
     id: "query",
@@ -174,13 +182,7 @@ export function ServiceSettings() {
     const newValue = !service.isRunning;
 
     try {
-      await config.setStatus({ isRunning: newValue });
-
-      if (id === "storage") {
-        await dicoogleService.setStorageStatus({ running: newValue });
-      } else if (id === "query") {
-        await dicoogleService.setQueryStatus({ running: newValue });
-      }
+      await config.setStatus({ running: newValue });
 
       await loadServices();
 
@@ -188,7 +190,7 @@ export function ServiceSettings() {
     } catch (err) {
       toast.error(`Failed to toggle ${config.name}`);
       console.error(err);
-      await config.setStatus({ isRunning: !service.isRunning });
+      await config.setStatus({ running: !service.isRunning });
 
       await loadServices();
     }
@@ -206,11 +208,6 @@ export function ServiceSettings() {
     try {
       await config.setStatus(newValue);
 
-      if (id === "storage") {
-        await dicoogleService.setStorageStatus(newValue);
-      } else if (id === "query") {
-        await dicoogleService.setQueryStatus(newValue);
-      }
       await loadServices();
       setEditingService(null);
       toast.success(`${config.name} settings updated`);
@@ -376,8 +373,11 @@ export function ServiceSettings() {
             if (!service) return null;
             const isEditing = editingService === config.id;
 
+            const unsupported = service.supported === false;
+
+            const className = cn("p-5 flex-1 min-w-[400px]", unsupported ? "disabled": "");
             return (
-              <Card key={config.id} className="p-5 flex-1 min-w-[400px]">
+              <Card key={config.id} className={className}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -391,7 +391,7 @@ export function ServiceSettings() {
                             : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
                         }`}
                       >
-                        {service.isRunning ? "✓ Running" : "✕ Stopped"}
+                        {unsupported ? "✕ Not Supported" : service.isRunning ? "✓ Running" : "✕ Stopped"}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground mb-4">
@@ -683,6 +683,7 @@ export function ServiceSettings() {
                   {/* Control Buttons */}
                   <div className="ml-4 flex flex-col gap-2">
                     <Button
+                      disabled={unsupported}
                       size="sm"
                       variant={service.isRunning ? "destructive" : "default"}
                       onClick={() => handleToggleService(config.id)}
@@ -691,6 +692,7 @@ export function ServiceSettings() {
                     </Button>
                     {!isEditing && (
                       <Button
+                        disabled={unsupported}
                         size="sm"
                         variant="outline-solid"
                         onClick={() => handleStartEdit(config.id)}

@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

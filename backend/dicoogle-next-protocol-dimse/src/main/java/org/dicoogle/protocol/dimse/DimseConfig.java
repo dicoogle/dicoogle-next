@@ -4,6 +4,15 @@ import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import org.dicoogle.core.query.QueryRouter;
 import org.dicoogle.core.storage.StorageRouter;
+import org.dicoogle.protocol.dimse.queryretrieve.CFindService;
+import org.dicoogle.protocol.dimse.queryretrieve.CMoveService;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseCFindProperties;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseCMoveProperties;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseQueryRetrieveProperties;
+import org.dicoogle.protocol.dimse.queryretrieve.DimseQueryRetrieveServer;
+import org.dicoogle.protocol.dimse.store.CStoreService;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.store.DimseCStoreServer;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.dicoogle.sdk.query.DimseAccessPolicy;
@@ -25,7 +34,7 @@ import org.springframework.context.annotation.Configuration;
   DimseProperties.class,
   DimseQueryRetrieveProperties.class
 })
-public class DimseCStoreConfig {
+public class DimseConfig {
 
   @Bean
   CStoreService cStoreService(
@@ -85,21 +94,17 @@ public class DimseCStoreConfig {
   @Bean
   DimseCStoreServer dimseCStoreServer(
       CStoreService cStoreService,
-      StorageRouter storageRouter,
       DimseCStoreProperties properties,
       List<DimseAssociationEventListener> associationEventListeners,
       List<DimseAccessPolicy<DimseAssociationAcceptedEvent>> associationAccessPolicies,
       @org.springframework.beans.factory.annotation.Qualifier("primaryStorageScheme")
-          String primaryStorageScheme,
-      @Autowired(required = false) LegacyProxyService legacyProxyService) {
+          String primaryStorageScheme) {
     return new DimseCStoreServer(
         cStoreService,
-        storageRouter,
         properties,
         primaryStorageScheme,
         associationEventListeners,
-        associationAccessPolicies,
-        legacyProxyService);
+        associationAccessPolicies);
   }
 
   @Bean

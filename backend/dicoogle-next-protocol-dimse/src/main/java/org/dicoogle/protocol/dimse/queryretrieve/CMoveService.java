@@ -1,4 +1,4 @@
-package org.dicoogle.protocol.dimse;
+package org.dicoogle.protocol.dimse.queryretrieve;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import java.util.ArrayList;
@@ -13,6 +13,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Status;
 import org.dcm4che3.net.service.DicomServiceException;
 import org.dicoogle.core.query.QueryRouter;
+import org.dicoogle.protocol.dimse.DimseProperties;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
 import org.dicoogle.sdk.query.DimseAccessPolicy;

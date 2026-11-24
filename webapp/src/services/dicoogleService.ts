@@ -454,6 +454,47 @@ class DicoogleService {
     });
   }
 
+  async getStorageTlsStatus(): Promise<ServiceStatus> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+
+    try {
+      const response = await dicoogleClient.request('GET', 'management/dicom/storage-tls');
+      if (response.statusCode === 404) {
+        throw new Error("Resource not found, storage TLS settings not supported");
+      }
+      const status: DicoogleServiceStatus = response.body as DicoogleServiceStatus;
+
+      return {
+        supported: true,
+        isRunning: status.isRunning,
+        port: status.port,
+        hostname: status.hostname || "0.0.0.0",
+        autostart: status.autostart,
+      };
+    } catch (error: any) {
+        // not supported, likely a version of Dicoogle without TLS support
+        console.warn(error.message);
+        return {
+          supported: false,
+          isRunning: false,
+          port: 0,
+          hostname: "",
+          autostart: false,
+        }
+    }
+  }
+
+  async setStorageTlsStatus(status: Partial<ServiceRequest>): Promise<void> {
+    if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
+
+    await dicoogleClient.request('POST', 'management/dicom/storage-tls').query({
+      running: status.running,
+      autostart: status.autostart,
+      port: status.port,
+      hostname: status.hostname,
+    });
+  }
+
   async getQueryStatus(): Promise<ServiceStatus> {
     if (!dicoogleClient) throw new Error("Dicoogle client not initialized");
 

@@ -1,7 +1,7 @@
 package org.dicoogle.app.service;
 
 import java.util.List;
-import org.dicoogle.protocol.dimse.DimseCStoreProperties;
+import org.dicoogle.protocol.dimse.store.DimseCStoreProperties;
 
 public interface DimseTransferCapabilityStore {
 
