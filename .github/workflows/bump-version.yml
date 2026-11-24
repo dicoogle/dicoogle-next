@@ -29,6 +29,11 @@ on:
         required: false
         type: boolean
         default: true
+      publish_maven:
+        description: "Deploy dicoogle-next and dicoogle-next-sdk to GitHub Packages (Maven) for the pushed tag"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -142,5 +147,15 @@ jobs:
       contents: read
       packages: write
     uses: ./.github/workflows/docker-publish.yml
+    with:
+      ref: ${{ needs.bump.outputs.tag }}
+
+  maven:
+    needs: bump
+    if: inputs.publish_maven && needs.bump.outputs.tag != ''
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/maven-publish.yml
     with:
       ref: ${{ needs.bump.outputs.tag }}

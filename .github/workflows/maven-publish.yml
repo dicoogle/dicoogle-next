@@ -1,0 +1,92 @@
+name: Publish Maven artifacts
+
+# Deploys org.dicoogle:dicoogle-next (plain jar + exec classifier) and
+# org.dicoogle:dicoogle-next-sdk to GitHub Packages (Maven), together with the
+# modules and parent POM they depend on (-am), so consumers can resolve them.
+#
+# The version is whatever backend/pom.xml says at the built ref. GitHub Packages
+# rejects re-publishing an existing release version; SNAPSHOTs can be re-published.
+#
+# Triggers:
+#   - pushing a v* tag (from a machine; tags pushed by GITHUB_TOKEN do not trigger workflows)
+#   - manually:      gh workflow run maven-publish.yml --ref dev [-f ref=v0.0.1]
+#   - from bump-version.yml after it pushes a release tag (workflow_call)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to build (defaults to the branch selected above)"
+        required: false
+        type: string
+        default: ""
+  workflow_call:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to build"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: maven-publish-${{ inputs.ref || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      # Writes ~/.m2/settings.xml with <server id="github"> using GITHUB_TOKEN.
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(awk '/<\/parent>/ {p=1; next} p && /<version>/ {gsub(/.*<version>|<\/version>.*/, ""); print; exit}' pom.xml)
+          [[ -n "$VERSION" ]] || { echo "::error::Could not read version from backend/pom.xml"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      # Tests already run in ci.yml.
+      - name: Deploy dicoogle-next and dicoogle-next-sdk
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash ./mvnw -B -ntp -DskipTests -pl dicoogle-next,dicoogle-next-sdk -am deploy
+
+      - name: Summary
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          {
+            echo "### Maven artifacts published (version \`$V\`)"
+            echo
+            echo "- \`org.dicoogle:dicoogle-next:$V\` (+ \`exec\` classifier)"
+            echo "- \`org.dicoogle:dicoogle-next-sdk:$V\`"
+            echo "- plus the parent POM and the modules they depend on"
+            echo
+            echo "Repository: \`https://maven.pkg.github.com/${GITHUB_REPOSITORY}\`"
+          } >> "$GITHUB_STEP_SUMMARY"

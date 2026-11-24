@@ -85,6 +85,47 @@ For JDBC mode, configure:
 - `app.dimse.cstore.config.jdbc.username`
 - `app.dimse.cstore.config.jdbc.password`
 
+## Maven Artifacts (GitHub Packages)
+
+`org.dicoogle:dicoogle-next` (plain jar, plus the runnable `exec` classifier) and
+`org.dicoogle:dicoogle-next-sdk` are published to GitHub Packages by the
+**Publish Maven artifacts** workflow (on `v*` tags, manually, or from **Bump version**).
+
+GitHub Packages requires authentication even for reads. Add a token with `read:packages`
+to `~/.m2/settings.xml`:
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>github</id>
+      <username>YOUR_GITHUB_USER</username>
+      <password>YOUR_TOKEN</password>
+    </server>
+  </servers>
+</settings>
+```
+
+Then reference the repository and dependency in your project:
+
+```xml
+<repositories>
+  <repository>
+    <id>github</id>
+    <url>https://maven.pkg.github.com/dicoogle/dicoogle-next</url>
+  </repository>
+</repositories>
+
+<dependency>
+  <groupId>org.dicoogle</groupId>
+  <artifactId>dicoogle-next-sdk</artifactId>
+  <version>0.0.1</version>
+</dependency>
+```
+
+To deploy from a machine (with a token that has `write:packages` in the `github` server entry):
+`./mvnw -DskipTests -pl dicoogle-next,dicoogle-next-sdk -am deploy`.
+
 ## DICOM TLS
 
 DICOM TLS is supported for storage.
