@@ -24,7 +24,7 @@ Dicoogle deployments.
 cd backend && ./mvnw package -DskipTests
 java -jar dicoogle-next/target/dicoogle-next-*-exec.jar
 
-# Or everything with Docker
+# Or with Docker (after building the backend jar above)
 docker compose up --build
 ```
 
