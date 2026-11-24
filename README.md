@@ -1,6 +1,6 @@
 # Dicoogle Next
 
-**Dicoogle Next** is the new generation of [Dicoogle](https://github.com/bioinformatics-ua/dicoogle),
+**Dicoogle Next** is the new generation of [Dicoogle](https://github.com/dicoogle/dicoogle),
 the open-source PACS archive, and the path towards **Dicoogle 4**.
 
 It is a rewrite on a modern stack, with a plugin-based architecture for storage, indexing/query
@@ -28,9 +28,12 @@ java -jar dicoogle-next/target/dicoogle-next-*-exec.jar
 docker compose up --build
 ```
 
+By default Docker Compose mounts `./dicom` into the backend at `/data/dicom`. Point it at your own
+DICOM folder with `DICOM_DIR=/path/to/dicom docker compose up --build`.
+
 Prebuilt Docker images and Maven artifacts are published to GitHub Packages.
 See [`backend/README.md`](backend/README.md) for details.
 
 ## License
 
-GPL-3.0. See [`license.md`](license.md).
+The same license as [Dicoogle](https://github.com/dicoogle/dicoogle) applies.
