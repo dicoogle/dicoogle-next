@@ -188,7 +188,7 @@ The legacy container runs Dicoogle v3 with its bundled plugins (`filestorage-3.5
 ```dockerfile
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY dicoogle-next-0.0.1-SNAPSHOT.jar app.jar
+COPY dicoogle-next-*-exec.jar app.jar
 CMD java -jar app.jar
 ```
 
