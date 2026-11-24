@@ -50,7 +50,7 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo and branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-lg h-32 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center h-32 rounded-2xl mb-4">
             <img
               src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Dicoogle Logo"
