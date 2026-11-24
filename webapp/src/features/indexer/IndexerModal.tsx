@@ -232,7 +232,7 @@ export function IndexerModal({ open, onClose }: IndexerModalProps) {
       await dicoogleService.stopTask(taskUid);
       listTasks();
       toast.warning("Task Canceled");
-    } catch (err) {
+    } catch {
       toast.error("Failed to cancel task");
     } finally {
       setCancellingTasks((prev) => {

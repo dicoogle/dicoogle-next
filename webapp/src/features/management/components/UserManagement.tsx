@@ -28,7 +28,7 @@ export function UserManagement() {
     try {
       const list = await dicoogleService.getUsers();
       setUsers(list);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load users");
     } finally {
       setLoading(false);
@@ -44,7 +44,7 @@ export function UserManagement() {
       toast.success(`User ${newUser.username} created${newUser.admin ? ' as admin' : ''}`);
       setNewUser({ username: "", password: "", admin: false });
       loadUsers();
-    } catch (err) {
+    } catch {
       toast.error("Failed to create user");
     }
   };
@@ -55,7 +55,7 @@ export function UserManagement() {
       await dicoogleService.deleteUser(username);
       toast.success("User deleted");
       loadUsers();
-    } catch (err) {
+    } catch {
       toast.error("Failed to delete user");
     }
   };
@@ -87,7 +87,7 @@ export function UserManagement() {
       setEditModalOpen(false);
       setEditingUser(null);
       loadUsers();
-    } catch (err) {
+    } catch {
       toast.error("Failed to update user");
     } finally {
       setEditLoading(false);
