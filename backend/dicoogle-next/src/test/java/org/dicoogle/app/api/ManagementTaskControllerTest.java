@@ -1,6 +1,6 @@
 package org.dicoogle.app.api;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,7 +54,7 @@ class ManagementTaskControllerTest {
   }
 
   @Test
-  void removeStillDeletesLocalFilesWhenNoFilePluginCanDelete() throws Exception {
+  void removeNeverDeletesLocalFilesBehindTheStoragePlugins() throws Exception {
     Path file = Files.writeString(tempDir.resolve("x.dcm"), "data");
 
     mockMvc
@@ -62,10 +62,9 @@ class ManagementTaskControllerTest {
             post("/management/tasks/remove")
                 .with(user("dicoogle").roles("ADMIN"))
                 .param("uri", file.toUri().toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.deleted").value(1));
+        .andExpect(status().isNotImplemented())
+        .andExpect(jsonPath("$.error").value("No storage plugin can delete file: URIs"));
 
-    assertFalse(Files.exists(file));
+    assertTrue(Files.exists(file));
   }
 }

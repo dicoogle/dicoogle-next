@@ -4,9 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -118,16 +115,13 @@ public class ManagementTaskController {
     }
 
     Optional<DeletableStoragePlugin> plugin = storageRouter.findDeletable(scheme);
+    if (plugin.isEmpty()) {
+      return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
+          .body(Map.of("error", "No storage plugin can delete " + scheme + ": URIs"));
+    }
     int deleted;
     try {
-      if (plugin.isPresent()) {
-        deleted = plugin.get().delete(parsedUri);
-      } else if ("file".equalsIgnoreCase(scheme)) {
-        deleted = deleteLocalPath(parsedUri); // no file plugin can delete: previous behaviour
-      } else {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED)
-            .body(Map.of("error", "No storage plugin can delete " + scheme + ": URIs"));
-      }
+      deleted = plugin.get().delete(parsedUri);
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("error", "Bad path: " + uri));
     } catch (IOException e) {
@@ -153,29 +147,5 @@ public class ManagementTaskController {
       }
     }
     return total;
-  }
-
-  private static int deleteLocalPath(URI location) throws IOException {
-    Path path = Path.of(location);
-    if (!Files.isDirectory(path)) {
-      return Files.deleteIfExists(path) ? 1 : 0;
-    }
-    int[] count = {0};
-    try (var stream = Files.walk(path)) {
-      stream
-          .sorted(Comparator.reverseOrder())
-          .forEach(
-              p -> {
-                try {
-                  boolean isFile = Files.isRegularFile(p);
-                  if (Files.deleteIfExists(p) && isFile) {
-                    count[0]++;
-                  }
-                } catch (IOException ex) {
-                  // ignore per-file errors
-                }
-              });
-    }
-    return count[0];
   }
 }
