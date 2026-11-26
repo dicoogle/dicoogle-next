@@ -3,6 +3,7 @@ package org.dicoogle.core.storage;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.dicoogle.sdk.storage.DeletableStoragePlugin;
 import org.dicoogle.sdk.storage.ListableStoragePlugin;
 import org.dicoogle.sdk.storage.ReadableStoragePlugin;
 import org.dicoogle.sdk.storage.StoragePlugin;
@@ -29,6 +30,14 @@ public class StorageRouter {
     return plugins.stream()
         .filter(ListableStoragePlugin.class::isInstance)
         .map(ListableStoragePlugin.class::cast)
+        .filter(plugin -> plugin.scheme().equalsIgnoreCase(scheme))
+        .findFirst();
+  }
+
+  public Optional<DeletableStoragePlugin> findDeletable(String scheme) {
+    return plugins.stream()
+        .filter(DeletableStoragePlugin.class::isInstance)
+        .map(DeletableStoragePlugin.class::cast)
         .filter(plugin -> plugin.scheme().equalsIgnoreCase(scheme))
         .findFirst();
   }

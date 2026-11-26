@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -17,6 +18,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.io.DicomInputStream;
 import org.dicoogle.sdk.PluginMetadata;
 import org.dicoogle.sdk.query.QueryIndexStorageLocator;
+import org.dicoogle.sdk.storage.DeletableStoragePlugin;
 import org.dicoogle.sdk.storage.DicomInstanceLocator;
 import org.dicoogle.sdk.storage.ListableStoragePlugin;
 import org.dicoogle.sdk.storage.StoredObject;
@@ -25,6 +27,7 @@ import org.dicoogle.sdk.storage.WritableStoragePlugin;
 public class FileReadWriteStoragePlugin
     implements ListableStoragePlugin,
         WritableStoragePlugin,
+        DeletableStoragePlugin,
         DicomInstanceLocator,
         QueryIndexStorageLocator {
 
@@ -112,6 +115,32 @@ public class FileReadWriteStoragePlugin
             : URI.create(scheme + ":" + target.toAbsolutePath());
 
     return new StoredObject(location, bytes.length, contentType);
+  }
+
+  @Override
+  public int delete(URI location) throws IOException {
+    if (!location.getScheme().equalsIgnoreCase(scheme)) {
+      throw new IOException("Unsupported URI scheme: " + location.getScheme());
+    }
+    Path path = toPath(location);
+    if (path.equals(rootDirectory)) {
+      throw new IOException("Refusing to delete the storage root");
+    }
+    if (!Files.isDirectory(path)) {
+      return Files.deleteIfExists(path) ? 1 : 0;
+    }
+    int deleted = 0;
+    List<Path> below;
+    try (var walk = Files.walk(path)) {
+      below = walk.sorted(Comparator.reverseOrder()).toList();
+    }
+    for (Path p : below) {
+      boolean isFile = Files.isRegularFile(p);
+      if (Files.deleteIfExists(p) && isFile) {
+        deleted++;
+      }
+    }
+    return deleted;
   }
 
   @Override

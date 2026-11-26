@@ -15,6 +15,7 @@ import org.dicoogle.sdk.DicooglePlugin;
  * <ul>
  *   <li>{@link ReadableStoragePlugin} — can open stored instances for reading.
  *   <li>{@link WritableStoragePlugin} — can accept and persist new instances.
+ *   <li>{@link DeletableStoragePlugin} — can permanently delete stored instances.
  * </ul>
  */
 public interface StoragePlugin extends DicooglePlugin {
