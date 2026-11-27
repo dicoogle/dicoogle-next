@@ -29,7 +29,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Storage providers are <em>not</em> selected here. Each {@link QueryService} returns a {@link
  * QueryService.QueryResult} whose {@code storageUri()} carries the storage URI. The URI scheme
- * implicitly selects the storage provider at retrieve time via {@code StorageRouter}.
+ * implicitly selects the storage provider at retrieve time via {@link
+ * org.dicoogle.core.storage.StorageRouter}.
  *
  * @see QueryService
  * @see QueryMoveService

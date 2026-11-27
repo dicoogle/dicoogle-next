@@ -13,12 +13,12 @@ public record CStoreResult(int status, String detail, CStoreIdentifiers identifi
         CStoreDimseStatus.SUCCESS, "Stored successfully", identifiers, location);
   }
 
+  public static CStoreResult outOfResources(String detail) {
+    return new CStoreResult(CStoreDimseStatus.REFUSED_OUT_OF_RESOURCES, detail, null, null);
+  }
+
   public static CStoreResult noWritableProvider(String scheme) {
-    return new CStoreResult(
-        CStoreDimseStatus.REFUSED_OUT_OF_RESOURCES,
-        "No writable storage plugin available for scheme '%s'".formatted(scheme),
-        null,
-        null);
+    return outOfResources("No writable storage plugin available for scheme '%s'".formatted(scheme));
   }
 
   public static CStoreResult cannotUnderstand(String detail) {

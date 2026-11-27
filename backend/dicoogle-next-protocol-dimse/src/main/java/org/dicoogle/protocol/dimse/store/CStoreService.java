@@ -15,8 +15,7 @@ import org.dcm4che3.data.UID;
 import org.dcm4che3.data.VR;
 import org.dcm4che3.io.DicomInputStream;
 import org.dcm4che3.io.DicomOutputStream;
-import org.dicoogle.core.storage.NoWritableStoragePluginException;
-import org.dicoogle.core.storage.StoragePluginNotFoundException;
+import org.dicoogle.core.PluginNotFoundException;
 import org.dicoogle.core.storage.StorageRouter;
 import org.dicoogle.protocol.legacyproxy.LegacyProxyService;
 import org.dicoogle.protocol.legacyproxy.config.LegacyProxyProperties;
@@ -24,6 +23,7 @@ import org.dicoogle.sdk.query.StorageIngestEventListener;
 import org.dicoogle.sdk.storage.StorageIngestFailureEvent;
 import org.dicoogle.sdk.storage.StorageIngestSuccessEvent;
 import org.dicoogle.sdk.storage.StoredObject;
+import org.dicoogle.sdk.storage.WritableStoragePlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,8 +154,92 @@ public class CStoreService {
         return result;
       }
 
+      // check whether to route through legacy proxy
+      WritableStoragePlugin plugin = null;
+      boolean hasLocalPlugin;
       try {
-        var plugin = storageRouter.requireWritable(scheme);
+        plugin = storageRouter.requireWritable(scheme);
+        hasLocalPlugin = true;
+      } catch (PluginNotFoundException _ex) {
+        hasLocalPlugin = false;
+      }
+      if (legacyProxyProperties != null
+          && legacyProxyProperties.shouldUseLegacyForStorageRetrieve(hasLocalPlugin)) {
+        // forward data to legacy proxy
+        try {
+          LOGGER.info(
+              "C-STORE via legacy: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
+              nullSafe(request.callingAet()),
+              nullSafe(request.calledAet()),
+              identifiers.studyInstanceUid(),
+              identifiers.seriesInstanceUid(),
+              identifiers.sopInstanceUid(),
+              scheme);
+          long fileSize = Files.size(normalizedFile);
+          try (InputStream legacyStream = Files.newInputStream(normalizedFile)) {
+            URI legacyUri = legacyProxyService.postStorage(legacyStream, fileSize);
+            if (legacyUri != null) {
+              CStoreResult result = CStoreResult.success(identifiers, legacyUri);
+              emitIngestSuccess(
+                  request,
+                  identifiers,
+                  new StoredObject(legacyUri, fileSize, "application/dicom"),
+                  scheme);
+              increment("dicoogle.cstore.success", scheme);
+              recordOutcome("success", scheme, startNs);
+              LOGGER.info(
+                  "C-STORE stored via legacy proxy: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
+                  nullSafe(request.callingAet()),
+                  nullSafe(request.calledAet()),
+                  identifiers.studyInstanceUid(),
+                  identifiers.seriesInstanceUid(),
+                  identifiers.sopInstanceUid(),
+                  scheme,
+                  legacyUri);
+              return result;
+            }
+          }
+          LOGGER.warn("C-STORE legacy proxy returned null URI");
+        } catch (Exception fallbackEx) {
+          LOGGER.error("C-STORE legacy proxy failed", fallbackEx);
+        }
+
+        // go no further if in LEGACY mode
+        if (legacyProxyProperties.getStorageRetrieveMode() == LegacyProxyProperties.Mode.LEGACY) {
+          CStoreResult result = CStoreResult.outOfResources("failed to send to legacy archive");
+          LOGGER.warn(
+              "C-STORE rejected (failed to send to legacy archive): callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
+              nullSafe(request.callingAet()),
+              nullSafe(request.calledAet()),
+              identifiers.studyInstanceUid(),
+              identifiers.seriesInstanceUid(),
+              identifiers.sopInstanceUid(),
+              scheme);
+          emitIngestFailure(request, identifiers, result, scheme);
+          increment("dicoogle.cstore.failure", scheme);
+          recordOutcome("failure", scheme, startNs);
+          return result;
+        }
+      }
+
+      // go no further if there is no place to store
+      if (plugin == null) {
+        CStoreResult result = CStoreResult.noWritableProvider(scheme);
+        LOGGER.warn(
+            "C-STORE rejected (no writable provider): callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
+            nullSafe(request.callingAet()),
+            nullSafe(request.calledAet()),
+            identifiers.studyInstanceUid(),
+            identifiers.seriesInstanceUid(),
+            identifiers.sopInstanceUid(),
+            scheme);
+        emitIngestFailure(request, identifiers, result, scheme);
+        increment("dicoogle.cstore.failure", scheme);
+        recordOutcome("failure", scheme, startNs);
+        return result;
+      }
+
+      try {
         StoredObject stored;
         try (InputStream fileStream = Files.newInputStream(normalizedFile)) {
           stored = plugin.store(fileStream, request.contentType());
@@ -173,62 +257,6 @@ public class CStoreService {
         emitIngestSuccess(request, identifiers, stored, scheme);
         increment("dicoogle.cstore.success", scheme);
         recordOutcome("success", scheme, startNs);
-        return result;
-      } catch (NoWritableStoragePluginException | StoragePluginNotFoundException ex) {
-        if (legacyProxyService != null
-            && legacyProxyProperties != null
-            && legacyProxyProperties.shouldUseLegacyForStorageRetrieve(false)) {
-          try {
-            LOGGER.info(
-                "C-STORE no local writable provider, falling back to legacy: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
-                nullSafe(request.callingAet()),
-                nullSafe(request.calledAet()),
-                identifiers.studyInstanceUid(),
-                identifiers.seriesInstanceUid(),
-                identifiers.sopInstanceUid(),
-                scheme);
-            long fileSize = Files.size(normalizedFile);
-            try (InputStream legacyStream = Files.newInputStream(normalizedFile)) {
-              URI legacyUri = legacyProxyService.postStorage(legacyStream, fileSize);
-              if (legacyUri != null) {
-                CStoreResult result = CStoreResult.success(identifiers, legacyUri);
-                emitIngestSuccess(
-                    request,
-                    identifiers,
-                    new StoredObject(legacyUri, fileSize, "application/dicom"),
-                    scheme);
-                increment("dicoogle.cstore.success", scheme);
-                recordOutcome("success", scheme, startNs);
-                LOGGER.info(
-                    "C-STORE stored via legacy fallback: callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}, location={}",
-                    nullSafe(request.callingAet()),
-                    nullSafe(request.calledAet()),
-                    identifiers.studyInstanceUid(),
-                    identifiers.seriesInstanceUid(),
-                    identifiers.sopInstanceUid(),
-                    scheme,
-                    legacyUri);
-                return result;
-              }
-            }
-            LOGGER.warn("C-STORE legacy fallback returned null URI");
-          } catch (Exception fallbackEx) {
-            LOGGER.error("C-STORE legacy fallback failed", fallbackEx);
-          }
-        }
-
-        CStoreResult result = CStoreResult.noWritableProvider(scheme);
-        LOGGER.warn(
-            "C-STORE rejected (no writable provider): callingAET={}, calledAET={}, studyUID={}, seriesUID={}, sopUID={}, scheme={}",
-            nullSafe(request.callingAet()),
-            nullSafe(request.calledAet()),
-            identifiers.studyInstanceUid(),
-            identifiers.seriesInstanceUid(),
-            identifiers.sopInstanceUid(),
-            scheme);
-        emitIngestFailure(request, identifiers, result, scheme);
-        increment("dicoogle.cstore.failure", scheme);
-        recordOutcome("failure", scheme, startNs);
         return result;
       } catch (IOException | RuntimeException ex) {
         CStoreResult result =
@@ -323,8 +351,10 @@ public class CStoreService {
 
       try (var fos = new java.io.FileOutputStream(tmpFile.toFile());
           // File Meta Information must always be written in Explicit VR Little Endian
-          // (PS3.10). DicomOutputStream.writeDataset(fmi, attrs) writes the FMI in Explicit VR LE,
-          // then switches to the transfer syntax declared in the FMI before writing the dataset.
+          // (PS3.10). DicomOutputStream.writeDataset(fmi, attrs) writes the FMI in
+          // Explicit VR LE,
+          // then switches to the transfer syntax declared in the FMI before writing the
+          // dataset.
           DicomOutputStream dos = new DicomOutputStream(fos, UID.ExplicitVRLittleEndian)) {
         dos.writeDataset(fmi, attrs);
       }
