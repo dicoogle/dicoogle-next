@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/stores/AuthStore'
 import { Card } from './ui/Card'
 import { ShieldAlert } from 'lucide-react'
@@ -42,12 +42,12 @@ export function AdminRoute({ children }: AdminRouteProps) {
           <p className="text-muted-foreground mb-6">
             You need administrator privileges to access this page.
           </p>
-          <a
-            href="/search"
+          <Link
+            to="/search"
             className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
             Go to Search
-          </a>
+          </Link>
         </Card>
       </div>
     )

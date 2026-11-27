@@ -16,7 +16,9 @@ export function MainLayout({ children }: MainLayoutProps) {
   const { isAuthenticated, logout, user } = useAuthStore();
   const [indexerModalOpen, setIndexerModalOpen] = useState(false);
 
-  const pluginMenuItems = useSidebarMenuExtensions();
+  const pluginMenuItems = useSidebarMenuExtensions().filter(
+    (item) => !item.requiresAdmin || user?.admin,
+  );
 
   // Don't show top bar on login route
   const isLoginPage = location.pathname === "/login";

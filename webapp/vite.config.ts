@@ -23,7 +23,8 @@ export default defineConfig({
       "/next/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
+        // Same as the nginx config of the Docker image: /next/api/* -> backend /api/*
+        rewrite: (path) => path.replace(/^\/next\/api/, "/api"),
       },
     },
   },

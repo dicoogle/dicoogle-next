@@ -77,17 +77,26 @@ function App() {
             </Route>
 
             {/* Plugin routes - dynamically loaded based on enabled plugins */}
-            {pluginRoutes.map((route) => (
-              <Route
-                key={route.path}
-                path={route.path}
-                element={
+            {pluginRoutes.map((route) => {
+              const page = route.requiresAdmin ? (
+                <AdminRoute>
+                  <route.component />
+                </AdminRoute>
+              ) : (
+                <route.component />
+              );
+              // Routes need a signed-in user unless they opt out with requiresAuth: false;
+              // requiresAdmin always needs one.
+              const element =
+                route.requiresAuth === false && !route.requiresAdmin ? (
+                  page
+                ) : (
                   <ProtectedRoute isAuthenticated={isAuthenticated}>
-                    <route.component />
+                    {page}
                   </ProtectedRoute>
-                }
-              />
-            ))}
+                );
+              return <Route key={route.path} path={route.path} element={element} />;
+            })}
 
             {/* Default redirect */}
             <Route
