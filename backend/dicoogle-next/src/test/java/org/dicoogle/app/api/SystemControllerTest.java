@@ -3,6 +3,7 @@ package org.dicoogle.app.api;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,5 +56,26 @@ class SystemControllerTest {
         .andExpect(
             jsonPath("$.type").value("https://dicoogle-next.dev/problems/method-not-allowed"))
         .andExpect(jsonPath("$.path").value("/system/ping"));
+  }
+
+  @Test
+  void unknownPathReturnsNotFound() throws Exception {
+    mockMvc
+        .perform(get("/management/does-not-exist").with(user("dicoogle").roles("ADMIN")))
+        .andExpect(status().isNotFound())
+        .andExpect(content().contentType("application/problem+json"))
+        .andExpect(jsonPath("$.status").value(404))
+        .andExpect(jsonPath("$.type").value("https://dicoogle-next.dev/problems/http-status"))
+        .andExpect(jsonPath("$.path").value("/management/does-not-exist"));
+  }
+
+  @Test
+  void missingRequiredParameterReturnsBadRequest() throws Exception {
+    mockMvc
+        .perform(put("/management/settings/dicom").with(user("dicoogle").roles("ADMIN")))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentType("application/problem+json"))
+        .andExpect(jsonPath("$.status").value(400))
+        .andExpect(jsonPath("$.path").value("/management/settings/dicom"));
   }
 }

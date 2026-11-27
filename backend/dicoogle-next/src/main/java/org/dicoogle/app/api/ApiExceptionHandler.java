@@ -5,9 +5,11 @@ import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -99,6 +101,12 @@ public class ApiExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   ProblemDetail handleGenericException(Exception exception, HttpServletRequest request) {
+    // Spring MVC exceptions that carry their own status (no handler or static resource for the
+    // path, a missing request parameter, an unsupported media type, ...) are client errors, not
+    // server failures.
+    if (exception instanceof ErrorResponse errorResponse) {
+      return handleErrorResponse(errorResponse, request);
+    }
     log.error("Unhandled exception for request: {}", request.getRequestURI(), exception);
     ProblemDetail problem =
         ProblemDetail.forStatusAndDetail(
@@ -106,6 +114,23 @@ public class ApiExceptionHandler {
             "An unexpected error occurred while processing the request.");
     problem.setType(URI.create("https://dicoogle-next.dev/problems/internal-error"));
     problem.setTitle("Internal server error");
+    addPath(problem, request);
+    return problem;
+  }
+
+  private ProblemDetail handleErrorResponse(
+      ErrorResponse errorResponse, HttpServletRequest request) {
+    HttpStatusCode status = errorResponse.getStatusCode();
+    ProblemDetail body = errorResponse.getBody();
+    String title = body.getTitle();
+    if (title == null) {
+      HttpStatus resolved = HttpStatus.resolve(status.value());
+      title = resolved != null ? resolved.getReasonPhrase() : "Error";
+    }
+    log.debug("Request {} failed with {}: {}", request.getRequestURI(), status, body.getDetail());
+    ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, body.getDetail());
+    problem.setType(URI.create("https://dicoogle-next.dev/problems/http-status"));
+    problem.setTitle(title);
     addPath(problem, request);
     return problem;
   }
