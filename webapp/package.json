@@ -1,13 +1,59 @@
 {
-  "name": "dicoogle-next",
-  "version": "1.0.0",
+  "name": "@dicoogle/dicoogle-next-webapp",
+  "version": "0.0.1-SNAPSHOT",
+  "description": "Dicoogle Next web app, packaged so other projects can host and extend it with plugins",
   "type": "module",
+  "license": "GPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dicoogle/dicoogle-next.git",
+    "directory": "webapp"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist-lib/types/lib/index.d.ts",
+      "import": "./dist-lib/index.js"
+    },
+    "./vite": {
+      "types": "./dist-lib/vite/preset.d.ts",
+      "import": "./dist-lib/vite/preset.js"
+    },
+    "./styles.css": "./styles.css",
+    "./client": {
+      "types": "./client.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist-lib/types/lib/index.d.ts",
+  "files": [
+    "dist-lib",
+    "public",
+    "src/styles",
+    "styles.css",
+    "client.d.ts",
+    "LIBRARY.md"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "build:lib": "vite build -c vite.lib.config.ts && tsc -p tsconfig.lib.json && node scripts/fix-dts-aliases.mjs && tsc -p tsconfig.preset.json",
+    "prepack": "npm run build:lib"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.0.0",
+    "tailwindcss": "^4.0.0",
+    "vite": ">=7"
   },
   "dependencies": {
     "@cornerstonejs/core": "^1.80.5",
@@ -23,18 +69,17 @@
     "hammerjs": "^2.0.8",
     "jszip": "^3.10.1",
     "lucide-react": "^1.8.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.4",
     "rollup": "^4.60.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.5.2",
+    "vite-plugin-wasm": "^3.6.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
     "@types/cornerstone-core": "^2.3.3",
     "@types/hammerjs": "^2.0.46",
+    "@types/node": "^20.19.43",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
@@ -46,10 +91,12 @@
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.11",
     "postcss": "^8.5.28",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.18.4",
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.3",
-    "vite": "^8.3.2",
-    "vite-plugin-wasm": "^3.6.0"
+    "vite": "^8.3.2"
   },
   "overrides": {
     "@babel/runtime": "^7.26.10",

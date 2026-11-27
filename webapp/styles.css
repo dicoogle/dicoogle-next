@@ -1,0 +1,11 @@
+/*
+ * Dicoogle Next theme for host apps. Import it after Tailwind (v4) in the host's stylesheet:
+ *
+ *   @import "tailwindcss";
+ *   @import "@dicoogle/dicoogle-next-webapp/styles.css";
+ *
+ * Tailwind then generates the classes used by the library together with the host's own, so
+ * host plugins can use the same theme tokens (bg-card, text-muted-foreground, ...).
+ */
+@import "./src/styles/theme.css";
+@source "./dist-lib";

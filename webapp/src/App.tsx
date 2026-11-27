@@ -15,6 +15,7 @@ import { TransferSettings } from "./features/management/components/TransferSetti
 import { Toaster } from "sonner";
 import { useRouteExtensions } from "@/plugin-system";
 import { Suspense } from "react";
+import { getAppConfig } from "@/config/appConfig";
 
 function App() {
   const { isAuthenticated, authLoading, checkAuth } = useAuthStore();
@@ -33,7 +34,7 @@ function App() {
   }
 
   return (
-    <BrowserRouter basename={import.meta.env.VITE_BASE_PATH || "/experimental"}>
+    <BrowserRouter basename={getAppConfig().basePath}>
       <Toaster
         position="top-right"
         expand={false}

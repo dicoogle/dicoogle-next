@@ -45,6 +45,23 @@ jobs:
       - name: Test Build
         run: npm run build
 
+      # The npm package (@dicoogle/dicoogle-next-webapp): build it, then build the demo app
+      # against the packed tarball, as a consumer installing it from the registry would.
+      - name: Build library
+        run: npm run build:lib
+
+      - name: Build demo app against the packed library
+        run: |
+          TARBALL="$PWD/$(npm pack --ignore-scripts --silent | tail -1)"
+          HOST="$RUNNER_TEMP/demo-app"
+          cp -r examples/demo-app "$HOST"
+          cd "$HOST"
+          rm -f .npmrc
+          npm pkg set "dependencies.@dicoogle/dicoogle-next-webapp=file:$TARBALL"
+          npm install --no-audit --no-fund
+          npm run build
+          test -f dist/demo-logo.svg && test -f dist/dicom-workers/610.min.worker.js
+
   # JOB 2: BACKEND QUALITY CHECKS (Runs on GitHub Cloud)
   backend-checks:
     runs-on: ubuntu-latest

@@ -16,32 +16,8 @@ import type {
   IndexerSettings,
 } from "@/types/index";
 import DicoogleClient from "dicoogle-client";
+import { resolveApiBaseUrl } from "@/config/appConfig";
 
-// Get the base URL from environment or construct it
-const getBaseUrl = (): string => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-
-  // If it's a relative path (like /api), construct full URL
-  // This works with Vite's proxy during development
-  if (envUrl && envUrl.startsWith("/")) {
-    const { protocol, hostname, port } = window.location;
-    const fullUrl = `${protocol}//${hostname}${port ? ":" + port : ""}${envUrl}`;
-    return fullUrl;
-  }
-
-  // If it's already a full URL, use it directly
-  if (
-    envUrl &&
-    (envUrl.startsWith("http://") || envUrl.startsWith("https://"))
-  ) {
-    return envUrl;
-  }
-
-  // Default fallback
-  return location.origin;
-};
-
-const DICOOGLE_URL = getBaseUrl();
 const TOKEN_STORAGE_KEY = "dicoogle_token";
 
 // Initialize the client
@@ -87,9 +63,16 @@ export interface PaginatedTransferSyntax {
 }
 
 class DicoogleService {
-  constructor() {
+  /**
+   * Creates the client for the configured API location. Called once at startup, after
+   * configureApp(), so the location is read when the app starts, not when this module loads.
+   */
+  init(): void {
+    if (dicoogleClient) {
+      return;
+    }
     try {
-      dicoogleClient = DicoogleClient(DICOOGLE_URL);
+      dicoogleClient = DicoogleClient(resolveApiBaseUrl());
       const token = localStorage.getItem(TOKEN_STORAGE_KEY);
       if (token) {
         dicoogleClient.setToken(token);
@@ -366,21 +349,21 @@ class DicoogleService {
   }
 
   getDICOMFileUrl(uid: string): string {
-    return `${DICOOGLE_URL}/legacy/file?uid=${uid}`;
+    return `${resolveApiBaseUrl()}/legacy/file?uid=${uid}`;
   }
 
   getThumbnail(uid: string): string {
     if (dicoogleClient) {
       return dicoogleClient.getThumbnailUrl(uid);
     }
-    return `${DICOOGLE_URL}/dic2png?thumbnail=true&SOPInstanceUID=${uid}`;
+    return `${resolveApiBaseUrl()}/dic2png?thumbnail=true&SOPInstanceUID=${uid}`;
   }
 
   getImage(uid: string): string {
     if (dicoogleClient) {
       return dicoogleClient.getPreviewUrl(uid);
     }
-    return `${DICOOGLE_URL}/dic2png?thumbnail=false&SOPInstanceUID=${uid}`;
+    return `${resolveApiBaseUrl()}/dic2png?thumbnail=false&SOPInstanceUID=${uid}`;
   }
 
   // ============ Indexer Methods ============

@@ -1,5 +1,6 @@
 module.exports = {
   root: true,
+  ignorePatterns: ["dist", "dist-lib", "examples"],
   env: {
     browser: true,
     es2021: true,

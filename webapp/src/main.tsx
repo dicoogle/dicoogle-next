@@ -1,21 +1,14 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
 import { registerAllPlugins } from "virtual:dicoogle-plugins";
-import { initializeAllPlugins, invalidatePluginExtensionCache } from "@/plugin-system";
+import { createDicoogleApp } from "@/bootstrap";
 
-// Register all discovered plugins
+// Plugins discovered under src/plugins at build time.
 registerAllPlugins();
-invalidatePluginExtensionCache();
 
-// Initialize all enabled plugins
-initializeAllPlugins().catch((error) => {
-  console.error("Failed to initialize plugins:", error);
+createDicoogleApp("#root", {
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+  basePath: import.meta.env.VITE_BASE_PATH,
+  publicBaseUrl: import.meta.env.BASE_URL,
+  filesystemStartPath: import.meta.env.VITE_FILESYSTEM_START_PATH,
+  appVersion: import.meta.env.VITE_APP_VERSION,
 });
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-);

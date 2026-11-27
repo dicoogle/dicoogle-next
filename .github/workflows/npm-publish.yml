@@ -1,0 +1,102 @@
+name: Publish npm package
+
+# Publishes the web app as @dicoogle/dicoogle-next-webapp to GitHub Packages (npm), so other
+# projects can host it and extend it with plugins (see webapp/LIBRARY.md).
+#
+# The version comes from webapp/package.json at the built ref:
+#   - a release version (e.g. 0.0.1) is published under the "latest" dist-tag; GitHub Packages
+#     rejects re-publishing an existing version.
+#   - a SNAPSHOT version (e.g. 0.0.2-SNAPSHOT) is published as 0.0.2-SNAPSHOT.<run>.<attempt>
+#     under the "snapshot" dist-tag, since npm versions are immutable.
+#
+# Triggers:
+#   - pushing a v* tag (from a machine; tags pushed by GITHUB_TOKEN do not trigger workflows)
+#   - manually:      gh workflow run npm-publish.yml --ref dev [-f ref=v0.0.1]
+#   - from bump-version.yml after it pushes a release tag (workflow_call)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to build (defaults to the branch selected above)"
+        required: false
+        type: string
+        default: ""
+  workflow_call:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to build"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: npm-publish-${{ inputs.ref || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: webapp
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      # Writes an .npmrc that authenticates @dicoogle to GitHub Packages with NODE_AUTH_TOKEN.
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+          registry-url: https://npm.pkg.github.com
+          scope: "@dicoogle"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve version and dist-tag
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-SNAPSHOT ]]; then
+            VERSION="${VERSION}.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+            npm version "$VERSION" --no-git-tag-version >/dev/null
+            TAG=snapshot
+          elif [[ "$VERSION" == *-* ]]; then
+            TAG=next
+          else
+            TAG=latest
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION ($TAG)"
+
+      # Lint, type-check and the demo app build already run in ci.yml; prepack builds dist-lib.
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+        run: npm publish --tag "${{ steps.version.outputs.tag }}"
+
+      - name: Summary
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          {
+            echo "### npm package published"
+            echo
+            echo "- \`@dicoogle/dicoogle-next-webapp@$V\` (dist-tag \`${{ steps.version.outputs.tag }}\`)"
+            echo
+            echo "Registry: \`https://npm.pkg.github.com\`"
+          } >> "$GITHUB_STEP_SUMMARY"

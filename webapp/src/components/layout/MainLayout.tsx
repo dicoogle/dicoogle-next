@@ -1,3 +1,4 @@
+import { getAppConfig, logoUrl } from "@/config/appConfig";
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/AuthStore";
@@ -45,8 +46,8 @@ export function MainLayout({ children }: MainLayoutProps) {
             onClick={() => navigate("/search")}
           >
             <img
-              src={`${import.meta.env.BASE_URL}logo.png`}
-              alt="Dicoogle Logo"
+              src={logoUrl()}
+              alt={`${getAppConfig().branding.appName} Logo`}
               className="w-32 h-16 rounded-md object-contain"
             />
           </div>

@@ -14,7 +14,7 @@ Dicoogle deployments.
 | Path | Description |
 |---|---|
 | [`backend/`](backend/README.md) | Spring Boot backend (Java 21, Maven): core, SDK, protocols and plugins |
-| [`webapp/`](webapp/README.md) | Web interface (React, TypeScript, Vite) |
+| [`webapp/`](webapp/README.md) | Web interface (React, TypeScript, Vite), also published as an npm package ([`LIBRARY.md`](webapp/LIBRARY.md)) |
 | `scripts/` | Maintenance scripts (e.g. `bump-version.sh`) |
 
 ## Quick start
