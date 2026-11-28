@@ -1,6 +1,7 @@
 import DicoogleClient from "dicoogle-client";
 import { toast } from "sonner";
 import { dicoogleService } from "@/services/dicoogleService";
+import { getAppConfig, resolveApiBaseUrl } from "@/config/appConfig";
 import { PluginContext } from "./types";
 
 export const PLUGIN_STATE_CHANGED_EVENT = "plugin-state-changed";
@@ -9,28 +10,13 @@ type EventCallback = (data: any) => void;
 
 const listeners: Map<string, Set<EventCallback>> = new Map();
 
-function getBaseUrl(): string {
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-
-  if (envUrl && envUrl.startsWith("/")) {
-    const { protocol, hostname, port } = window.location;
-    return `${protocol}//${hostname}${port ? `:${port}` : ""}${envUrl}`;
-  }
-
-  if (envUrl && (envUrl.startsWith("http://") || envUrl.startsWith("https://"))) {
-    return envUrl;
-  }
-
-  return window.location.origin;
-}
-
 function getSharedDicoogleClient() {
   const existing = dicoogleService.getClient();
   if (existing) {
     return existing;
   }
 
-  const fallback = DicoogleClient(getBaseUrl());
+  const fallback = DicoogleClient(resolveApiBaseUrl());
   const token = localStorage.getItem("dicoogle_token");
   if (token) {
     fallback.setToken(token);
@@ -40,7 +26,7 @@ function getSharedDicoogleClient() {
 
 export function createPluginContext(pluginId = "unknown"): PluginContext {
   return {
-    appVersion: import.meta.env.VITE_APP_VERSION || "1.0.0",
+    appVersion: getAppConfig().appVersion,
     logger: {
       log: (message: string, data?: any) =>
         console.log(`[Plugin:${pluginId}] ${message}`, data),

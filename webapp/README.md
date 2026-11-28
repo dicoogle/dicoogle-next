@@ -45,6 +45,10 @@ The app includes a plugin extension environment that allows adding UI capabiliti
 
 For full architecture, lifecycle, API contracts, and extension types, see `docs/plugin-system-docs.md`.
 
+### Using the web app in another project
+
+The app is also published as the npm package `@dicoogle/dicoogle-next-webapp` (GitHub Packages), so another project can host it with its own branding and plugins without forking this repository. See [`LIBRARY.md`](LIBRARY.md) and the demo project in [`examples/demo-app`](examples/demo-app).
+
 ### Filesystem manager transition note
 
 The standalone filesystem manager backend helper is removed from deployment. File browsing currently uses Dicoogle's existing deprecated `/indexer?action=pathcontents` endpoint, while the modal/UI code is kept in place for a future backend replacement.

@@ -1,0 +1,15 @@
+{
+  "name": "@demo/dicoogle-csv-export",
+  "version": "1.0.0",
+  "description": "Dicoogle Next plugin: export search results as CSV",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.tsx"
+  },
+  "peerDependencies": {
+    "@dicoogle/dicoogle-next-webapp": ">=0.0.1-0",
+    "lucide-react": ">=0.400.0",
+    "react": "^18.3.1"
+  }
+}

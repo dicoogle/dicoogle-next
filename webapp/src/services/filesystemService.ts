@@ -1,3 +1,5 @@
+import { getAppConfig, resolveApiBaseUrl } from "@/config/appConfig";
+
 export interface FileEntry {
   id: string;
   name: string;
@@ -23,21 +25,12 @@ export interface FilesystemRootsResponse {
 }
 
 class FilesystemService {
-  private apiBaseUrl = this.resolveApiBaseUrl();
-  private configuredStartPath = this.resolveConfiguredStartPath();
+  private get apiBaseUrl(): string {
+    return resolveApiBaseUrl();
+  }
 
-  private resolveApiBaseUrl(): string {
-    const envUrl = import.meta.env.VITE_API_BASE_URL;
-
-    if (envUrl && envUrl.startsWith("/")) {
-      return `${window.location.origin}${envUrl}`.replace(/\/$/, "");
-    }
-
-    if (envUrl && (envUrl.startsWith("http://") || envUrl.startsWith("https://"))) {
-      return envUrl.replace(/\/$/, "");
-    }
-
-    return window.location.origin.replace(/\/$/, "");
+  private get configuredStartPath(): string | null {
+    return this.resolveConfiguredStartPath();
   }
 
   private normalizeClientPath(value: string): string {
@@ -45,7 +38,7 @@ class FilesystemService {
   }
 
   private resolveConfiguredStartPath(): string | null {
-    const envPath = import.meta.env.VITE_FILESYSTEM_START_PATH;
+    const envPath = getAppConfig().filesystemStartPath;
     if (!envPath || typeof envPath !== "string") {
       return null;
     }

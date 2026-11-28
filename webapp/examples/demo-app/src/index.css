@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@import "@dicoogle/dicoogle-next-webapp/styles.css";
+
+/* The CSV export plugin is a linked package outside src/; let Tailwind see its classes too. */
+@source "../packages";
+
+/* Theming: override the app's design tokens (HSL components) to restyle it. */
+@layer base {
+  :root {
+    --primary: 175 84% 32%;
+    --ring: 175 84% 32%;
+  }
+  .dark {
+    --primary: 172 66% 50%;
+    --ring: 172 66% 50%;
+  }
+}

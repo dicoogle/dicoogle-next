@@ -1,3 +1,4 @@
+import { getAppConfig, logoUrl } from "@/config/appConfig";
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import * as cornerstone from "@cornerstonejs/core";
 import { Enums as csEnums } from "@cornerstonejs/core";
@@ -565,8 +566,8 @@ export function DicomViewer({
       <div className="bg-neutral-900 border-b border-neutral-800 px-4 py-2 flex items-center gap-3">
         {/* Dicoogle Logo - Left */}
         <img
-          src={`${import.meta.env.BASE_URL}logo.png`}
-          alt="Dicoogle"
+          src={logoUrl()}
+          alt={getAppConfig().branding.appName}
           className="h-8"
         />
 

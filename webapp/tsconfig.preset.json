@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
+    "strict": true,
+    "declaration": true,
+    "outDir": "dist-lib/vite",
+    "rootDir": "vite-plugins",
+    "types": ["node"]
+  },
+  "files": ["vite-plugins/preset.ts"]
+}
