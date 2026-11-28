@@ -1,6 +1,9 @@
 package org.dicoogle.storage.filerw;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -41,6 +44,39 @@ class FileReadWriteStoragePluginTest {
     }
 
     assertArrayEquals(dicom, readBack);
+  }
+
+  @Test
+  void deletesStoredFile() throws Exception {
+    FileReadWriteStoragePlugin plugin = new FileReadWriteStoragePlugin(tempDir, "file");
+    var stored =
+        plugin.store(new java.io.ByteArrayInputStream(createValidDicom()), "application/dicom");
+
+    assertEquals(1, plugin.delete(stored.location()));
+    assertFalse(Files.exists(Path.of(stored.location())));
+    assertEquals(0, plugin.delete(stored.location()));
+  }
+
+  @Test
+  void deletesEverythingBelowAFolder() throws Exception {
+    FileReadWriteStoragePlugin plugin = new FileReadWriteStoragePlugin(tempDir, "file");
+    plugin.store(new java.io.ByteArrayInputStream(createValidDicom()), "application/dicom");
+    Path patient = tempDir.resolve("PATIENT-1");
+
+    assertEquals(1, plugin.delete(patient.toUri()));
+    assertFalse(Files.exists(patient));
+    assertTrue(Files.exists(tempDir));
+  }
+
+  @Test
+  void refusesToDeleteOutsideOrAtTheRoot() throws Exception {
+    Path root = Files.createDirectory(tempDir.resolve("root"));
+    Path outside = Files.writeString(tempDir.resolve("outside.txt"), "keep");
+    FileReadWriteStoragePlugin plugin = new FileReadWriteStoragePlugin(root, "file");
+
+    assertThrows(IOException.class, () -> plugin.delete(outside.toUri()));
+    assertThrows(IOException.class, () -> plugin.delete(root.toUri()));
+    assertTrue(Files.exists(outside));
   }
 
   private byte[] createValidDicom() {
