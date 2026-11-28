@@ -38,7 +38,7 @@ export function TransferSettings() {
         data.pageSize,
       );
       setData(result);
-    } catch (err) {
+    } catch {
       toast.error("Failed to load transfer settings");
     } finally {
       setLoading(false);
@@ -70,7 +70,7 @@ export function TransferSettings() {
         }),
       }));
       toast.success("Option updated");
-    } catch (err) {
+    } catch {
       toast.error("Failed to update option");
       loadSettings(); // Revert on error
     }
